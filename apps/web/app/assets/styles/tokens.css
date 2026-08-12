@@ -8,7 +8,27 @@
   --color-text-muted: #8db7ac;
   --color-text-main: #e8f1ee;
   --color-code-bg: #0a1a16;
+  --font-body: "PingFang SC", "HarmonyOS Sans", "Source Han Sans", system-ui, sans-serif;
+  --font-display: "Dagros", "Horizon Type", "Inter Tight", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
   --space-shell: clamp(1rem, 4vw, 4rem);
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: clamp(1.125rem, 2vw, 1.5rem);
+  --text-display: clamp(3.5rem, 12vw, 9rem);
+  --motion-fast: 160ms;
+  --motion-base: 280ms;
+  --motion-slow: 600ms;
+  --z-stage: 1;
+  --z-skip: 20;
+  --z-dock: 30;
 }
 
 html[data-theme='blueprint'] {

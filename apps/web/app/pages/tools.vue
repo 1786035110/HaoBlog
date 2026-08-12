@@ -1,0 +1,1 @@
+<template><section class="observation-scene" aria-labelledby="tools-title"><p class="instrument-label">TOOLBOX / SWITCHBOARD</p><h1 id="tools-title">工具箱</h1><p class="signal-copy">轻量工具控制台即将接入。</p></section></template>

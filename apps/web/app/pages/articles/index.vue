@@ -1,0 +1,1 @@
+<template><section class="observation-scene" aria-labelledby="articles-title"><p class="instrument-label">OBSERVATION LOG / ARTICLES</p><h1 id="articles-title">文章观测日志</h1><p class="signal-copy">沿着时间线阅读正在演化的技术记录。</p></section></template>

@@ -1,0 +1,1 @@
+<template><section class="observation-scene" aria-labelledby="garden-title"><p class="instrument-label">DIGITAL GARDEN</p><h1 id="garden-title">数字花园</h1><p class="signal-copy">知识节点将在这里保持生长与关联。</p></section></template>

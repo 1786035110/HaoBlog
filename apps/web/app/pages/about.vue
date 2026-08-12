@@ -1,0 +1,1 @@
+<template><section class="observation-scene" aria-labelledby="about-title"><p class="instrument-label">ABOUT / OPERATOR</p><h1 id="about-title">关于观测站</h1><p class="signal-copy">这里记录 Java、Vue、架构与数字花园的长期实验。</p></section></template>

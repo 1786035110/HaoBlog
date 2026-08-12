@@ -1,0 +1,1 @@
+<template><article class="observation-scene" aria-labelledby="article-title"><p class="instrument-label">SIGNAL / ARTICLE</p><h1 id="article-title">文章信号待接入</h1><p class="signal-copy">这是一条可被锁定的文章正文占位。</p></article></template>
