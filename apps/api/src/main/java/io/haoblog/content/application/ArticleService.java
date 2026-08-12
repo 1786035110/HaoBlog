@@ -1,6 +1,7 @@
 package io.haoblog.content.application;
 
 import io.haoblog.content.domain.ArticleStatus;
+import io.haoblog.content.domain.Article;
 import io.haoblog.content.persistence.ArticleRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -9,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Optional;
 
 @Service
 public class ArticleService {
@@ -21,6 +23,11 @@ public class ArticleService {
         Page<io.haoblog.content.domain.Article> result = repository.findByStatusAndPublishedAtIsNotNullAndPublishedAtLessThanEqual(
                 ArticleStatus.PUBLISHED, Instant.now(clock), pageable);
         return new PageResult(result);
+    }
+    public Optional<Article> findPublicBySlug(String slug) {
+        if (slug == null || slug.isBlank()) return Optional.empty();
+        return repository.findBySlugAndStatusAndPublishedAtIsNotNullAndPublishedAtLessThanEqual(
+                slug, ArticleStatus.PUBLISHED, Instant.now(clock));
     }
     public record PageResult(Page<io.haoblog.content.domain.Article> page) {}
 }

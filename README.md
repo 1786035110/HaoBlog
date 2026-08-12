@@ -7,7 +7,7 @@ HaoBlog is a Java 21 and Nuxt 4 modular-monolith developer blog. The public site
 - Java 21
 - Maven Wrapper (included in `apps/api`)
 - Node.js 24 LTS
-- Corepack with pnpm 11.16.0
+- pnpm 11.16.0
 - Docker Desktop with Compose
 
 Copy `.env.example` to `.env` and replace the local database password before starting PostgreSQL.
@@ -18,11 +18,11 @@ Copy `.env.example` to `.env` and replace the local database password before sta
 docker compose --env-file .env -f infra/compose/compose.dev.yml up -d
 cd apps/api; .\mvnw.cmd test; cd ../..
 cd apps/api; .\mvnw.cmd verify; cd ../..
-corepack pnpm install --frozen-lockfile
-corepack pnpm --filter @haoblog/api-client generate
-corepack pnpm --dir apps/web typecheck
-corepack pnpm --dir apps/web test
-corepack pnpm --dir apps/web build
+pnpm install --frozen-lockfile
+pnpm --filter @haoblog/api-client generate
+pnpm --dir apps/web typecheck
+pnpm --dir apps/web test
+pnpm --dir apps/web build
 docker compose --env-file .env -f infra/compose/compose.dev.yml config
 ```
 

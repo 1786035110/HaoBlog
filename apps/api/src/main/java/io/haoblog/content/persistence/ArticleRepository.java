@@ -13,6 +13,9 @@ import java.util.Optional;
 public interface ArticleRepository extends JpaRepository<Article, UUID> {
     Optional<Article> findBySlug(String slug);
 
+    Optional<Article> findBySlugAndStatusAndPublishedAtIsNotNullAndPublishedAtLessThanEqual(
+            String slug, ArticleStatus status, Instant now);
+
     Page<Article> findByStatusAndPublishedAtIsNotNullAndPublishedAtLessThanEqual(
             ArticleStatus status, Instant now, Pageable pageable);
 }

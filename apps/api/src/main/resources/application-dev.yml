@@ -1,0 +1,3 @@
+haoblog:
+  seed:
+    enabled: ${HAOBLOG_SEED_ENABLED:false}

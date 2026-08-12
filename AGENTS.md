@@ -67,14 +67,16 @@ Do not create additional services unless the user changes the architecture.
 
 The current repository uses one root pnpm workspace and one Maven application. No lint script is configured yet.
 
-- Install Web/workspace dependencies from the repository root: `corepack pnpm install --frozen-lockfile`
+- Toolchain: Node.js 24.x and pnpm 11.16.0 (matching the root `packageManager` field).
+- Install Web/workspace dependencies from the repository root: `pnpm install --frozen-lockfile`
+- Generate the OpenAPI client: `pnpm --filter @haoblog/api-client generate`
 - API tests (Windows PowerShell): `cd apps/api; .\mvnw.cmd test`
 - API tests (POSIX shell): `cd apps/api && ./mvnw test`
 - API package (Windows PowerShell): `cd apps/api; .\mvnw.cmd verify`
 - API package (POSIX shell): `cd apps/api && ./mvnw verify`
-- Web type check: `corepack pnpm --dir apps/web typecheck`
-- Web tests: `corepack pnpm --dir apps/web test`
-- Web production build: `corepack pnpm --dir apps/web build`
+- Web type check: `pnpm --dir apps/web typecheck`
+- Web tests: `pnpm --dir apps/web test`
+- Web production build: `pnpm --dir apps/web build`
 - Compose validation using placeholder environment values: `docker compose --env-file .env.example -f infra/compose/compose.dev.yml config`
 - Local database startup: `docker compose --env-file .env -f infra/compose/compose.dev.yml up -d`
 

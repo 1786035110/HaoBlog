@@ -3,6 +3,14 @@ package io.haoblog;
 import io.haoblog.content.web.PublicArticleController;
 import io.haoblog.site.web.PublicSiteController;
 import org.junit.jupiter.api.Test;
+import io.haoblog.content.domain.Article;
+import io.haoblog.content.domain.ArticleStatus;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import java.time.Instant;
+import java.util.Optional;
+import java.util.List;
+import static org.mockito.Mockito.mock;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -68,5 +76,38 @@ class PublicApiTest {
                 .andExpect(header().string("X-Request-ID", "request-500"))
                 .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("secret SQL stack path"))))
                 .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("IllegalStateException"))));
+    }
+
+    @Test void articleDetailSupports304WithoutResponseBody() throws Exception {
+        Instant publishedAt = Instant.parse("2026-01-01T00:00:00Z");
+        when(articleService.findPublicBySlug("visible")).thenReturn(Optional.of(
+                new Article("visible", "Visible", "Excerpt", "# Body", ArticleStatus.PUBLISHED, publishedAt, publishedAt)));
+        var first = mvc.perform(get("/api/v1/public/articles/visible")).andExpect(status().isOk())
+                .andExpect(jsonPath("$.markdown").value("# Body"))
+                .andExpect(header().exists("ETag")).andReturn();
+        String etag = first.getResponse().getHeader("ETag");
+        mvc.perform(get("/api/v1/public/articles/visible").header("If-None-Match", etag))
+                .andExpect(status().isNotModified()).andExpect(content().string(""));
+    }
+
+    @Test void missingArticleIsAProblemJson404() throws Exception {
+        when(articleService.findPublicBySlug("missing")).thenReturn(Optional.empty());
+        mvc.perform(get("/api/v1/public/articles/missing"))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentType("application/problem+json"))
+                .andExpect(jsonPath("$.code").value("ARTICLE_NOT_FOUND"))
+                .andExpect(jsonPath("$.traceId").isString());
+    }
+
+    @Test void listEtagsAreIsolatedPerPageRepresentation() throws Exception {
+        Instant publishedAt = Instant.parse("2026-01-01T00:00:00Z");
+        Article article = new Article("visible", "Visible", "Excerpt", "# Body", ArticleStatus.PUBLISHED, publishedAt, publishedAt);
+        var service = mock(io.haoblog.content.application.ArticleService.class);
+        when(service.list(0, 20)).thenReturn(new io.haoblog.content.application.ArticleService.PageResult(new PageImpl<>(List.of(article), PageRequest.of(0, 20), 2)));
+        when(service.list(1, 20)).thenReturn(new io.haoblog.content.application.ArticleService.PageResult(new PageImpl<>(List.of(), PageRequest.of(1, 20), 2)));
+        var controller = new PublicArticleController(service);
+        String first = controller.articles(0, 20, null).getHeaders().getETag();
+        String second = controller.articles(1, 20, null).getHeaders().getETag();
+        org.junit.jupiter.api.Assertions.assertNotEquals(first, second);
     }
 }

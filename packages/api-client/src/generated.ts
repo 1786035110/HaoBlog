@@ -36,6 +36,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/public/articles/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getPublicArticle"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -59,6 +75,16 @@ export interface components {
             size: number;
             /** Format: int64 */
             total: number;
+        };
+        ArticleResponse: {
+            /** Format: uuid */
+            id: string;
+            slug: string;
+            title: string;
+            excerpt?: string | null;
+            /** Format: date-time */
+            publishedAt: string;
+            markdown: string;
         };
         ProblemResponse: {
             code: string;
@@ -86,10 +112,22 @@ export interface components {
                 "application/problem+json": components["schemas"]["ProblemResponse"];
             };
         };
+        /** @description Public article not found */
+        ArticleNotFound: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemResponse"];
+            };
+        };
     };
     parameters: never;
     requestBodies: never;
-    headers: never;
+    headers: {
+        /** @description Entity tag for the public representation */
+        ETag: string;
+    };
     pathItems: never;
 }
 export type $defs = Record<string, never>;
@@ -137,6 +175,38 @@ export interface operations {
                 };
             };
             400: components["responses"]["BadRequest"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getPublicArticle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Published article detail */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArticleResponse"];
+                };
+            };
+            /** @description Public article representation has not changed */
+            304: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: components["responses"]["ArticleNotFound"];
             500: components["responses"]["InternalError"];
         };
     };

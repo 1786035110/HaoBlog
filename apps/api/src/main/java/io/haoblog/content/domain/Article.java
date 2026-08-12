@@ -38,6 +38,7 @@ public class Article {
     public String getSlug() { return slug; }
     public String getTitle() { return title; }
     public String getExcerpt() { return excerpt; }
+    public String getMarkdownSource() { return markdownSource; }
     public ArticleStatus getStatus() { return status; }
     public Instant getPublishedAt() { return publishedAt; }
 }

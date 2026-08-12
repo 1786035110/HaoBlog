@@ -38,6 +38,29 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '500':
           $ref: '#/components/responses/InternalError'
+  /api/v1/public/articles/{slug}:
+    get:
+      operationId: getPublicArticle
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 160 }
+      responses:
+        '200':
+          description: Published article detail
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArticleResponse'
+        '304':
+          description: Public article representation has not changed
+        '404':
+          $ref: '#/components/responses/ArticleNotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
 components:
   responses:
     BadRequest:
@@ -47,6 +70,11 @@ components:
           schema: { $ref: '#/components/schemas/ProblemResponse' }
     InternalError:
       description: Internal error
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemResponse' }
+    ArticleNotFound:
+      description: Public article not found
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/ProblemResponse' }
@@ -74,6 +102,16 @@ components:
         page: { type: integer }
         size: { type: integer }
         total: { type: integer, format: int64 }
+    ArticleResponse:
+      type: object
+      required: [id, slug, title, publishedAt, markdown]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        excerpt: { type: [string, 'null'] }
+        publishedAt: { type: string, format: date-time }
+        markdown: { type: string }
     ProblemResponse:
       type: object
       required: [code, title, detail, traceId]
@@ -82,3 +120,7 @@ components:
         title: { type: string }
         detail: { type: string }
         traceId: { type: string }
+  headers:
+    ETag:
+      description: Entity tag for the public representation
+      schema: { type: string }

@@ -31,3 +31,6 @@ server:
   error:
     whitelabel:
       enabled: false
+haoblog:
+  seed:
+    enabled: ${HAOBLOG_SEED_ENABLED:false}

@@ -2,14 +2,23 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: false },
   modules: ['@pinia/nuxt', '@unocss/nuxt'],
-  css: ['~/assets/styles/tokens.css', '~/assets/styles/shell.css'],
+  css: ['~/assets/styles/tokens.css', '~/assets/styles/shell.css', '~/assets/styles/articles.css'],
   app: { head: { htmlAttrs: { 'data-theme': 'night' } } },
   runtimeConfig: {
+    apiBaseUrl: process.env.NUXT_API_BASE_URL || 'http://api:8080',
     public: {
-      apiBase: process.env.NUXT_PUBLIC_API_BASE || 'http://localhost:8080',
+      apiBase: '/',
     },
   },
   routeRules: {
     '/studio/**': { ssr: false },
+  },
+  nitro: {
+    devProxy: {
+      '/api/': {
+        target: `${process.env.NUXT_API_BASE_URL || 'http://localhost:8080'}/api/`,
+        changeOrigin: true,
+      },
+    },
   },
 })
