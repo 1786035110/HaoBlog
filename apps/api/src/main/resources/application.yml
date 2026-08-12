@@ -4,17 +4,30 @@ spring:
   datasource:
     url: ${JDBC_DATABASE_URL:jdbc:postgresql://localhost:5432/haoblog_dev}
     username: ${JDBC_DATABASE_USERNAME:haoblog_dev}
-    password: ${JDBC_DATABASE_PASSWORD:}
+    password: ${JDBC_DATABASE_PASSWORD}
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAXIMUM_SIZE:6}
+      minimum-idle: ${DB_POOL_MINIMUM_IDLE:1}
   jpa:
     open-in-view: false
     hibernate:
       ddl-auto: validate
   flyway:
     enabled: true
+  config:
+    import: optional:classpath:application-local.yml
+  mvc:
+    throw-exception-if-no-handler-found: true
 management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health
+  endpoint:
+    health:
+      show-details: never
 server:
   port: ${API_PORT:8080}
+  error:
+    whitelabel:
+      enabled: false

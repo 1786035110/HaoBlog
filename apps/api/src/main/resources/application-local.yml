@@ -1,0 +1,8 @@
+spring:
+  config:
+    activate:
+      on-profile: local
+  datasource:
+    url: ${JDBC_DATABASE_URL:jdbc:postgresql://localhost:5432/haoblog_dev}
+    username: ${JDBC_DATABASE_USERNAME:haoblog_dev}
+    password: ${JDBC_DATABASE_PASSWORD}

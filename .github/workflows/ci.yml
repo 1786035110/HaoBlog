@@ -17,6 +17,17 @@ jobs:
           cache: maven
       - run: ./mvnw test
         working-directory: apps/api
+      - run: ./mvnw verify
+        working-directory: apps/api
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - run: corepack enable
+      - run: corepack pnpm install --frozen-lockfile
+      - run: corepack pnpm --filter @haoblog/api-client generate
+      - run: git diff --exit-code -- packages/api-client/src/generated.ts
 
   web:
     runs-on: ubuntu-latest

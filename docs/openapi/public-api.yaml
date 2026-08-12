@@ -1,0 +1,84 @@
+openapi: 3.1.0
+info:
+  title: HaoBlog Public API
+  version: 0.1.0
+servers:
+  - url: /
+paths:
+  /api/v1/public/site:
+    get:
+      operationId: getPublicSite
+      responses:
+        '200':
+          description: Site settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SiteResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/public/articles:
+    get:
+      operationId: listPublicArticles
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: size
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+      responses:
+        '200':
+          description: Published articles
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArticleListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+components:
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemResponse' }
+    InternalError:
+      description: Internal error
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemResponse' }
+  schemas:
+    SiteResponse:
+      type: object
+      required: [title, description]
+      properties:
+        title: { type: string }
+        description: { type: string }
+    ArticleSummary:
+      type: object
+      required: [id, slug, title, publishedAt]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: string }
+        title: { type: string }
+        excerpt: { type: [string, 'null'] }
+        publishedAt: { type: string, format: date-time }
+    ArticleListResponse:
+      type: object
+      required: [items, page, size, total]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/ArticleSummary' } }
+        page: { type: integer }
+        size: { type: integer }
+        total: { type: integer, format: int64 }
+    ProblemResponse:
+      type: object
+      required: [code, title, detail, traceId]
+      properties:
+        code: { type: string }
+        title: { type: string }
+        detail: { type: string }
+        traceId: { type: string }
