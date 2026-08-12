@@ -1,0 +1,9 @@
+packages:
+  - apps/web
+  - packages/*
+
+overrides:
+  '@nuxt/kit': 4.5.1
+
+allowBuilds:
+  esbuild: true

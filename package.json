@@ -1,0 +1,10 @@
+{
+  "name": "haoblog",
+  "private": true,
+  "packageManager": "pnpm@11.16.0",
+  "scripts": {
+    "web:typecheck": "pnpm --dir apps/web typecheck",
+    "web:test": "pnpm --dir apps/web test",
+    "web:build": "pnpm --dir apps/web build"
+  }
+}

@@ -1,0 +1,20 @@
+spring:
+  application:
+    name: haoblog-api
+  datasource:
+    url: ${JDBC_DATABASE_URL:jdbc:postgresql://localhost:5432/haoblog_dev}
+    username: ${JDBC_DATABASE_USERNAME:haoblog_dev}
+    password: ${JDBC_DATABASE_PASSWORD:}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+server:
+  port: ${API_PORT:8080}

@@ -1,0 +1,24 @@
+:root {
+  color-scheme: dark;
+  --color-bg-base: #06110f;
+  --color-bg-sub: #0b1b17;
+  --color-border: #1e3a33;
+  --color-accent: #a8ff60;
+  --color-warn: #ff9d3d;
+  --color-text-muted: #8db7ac;
+  --color-text-main: #e8f1ee;
+  --color-code-bg: #0a1a16;
+  --space-shell: clamp(1rem, 4vw, 4rem);
+}
+
+html[data-theme='blueprint'] {
+  color-scheme: light;
+  --color-bg-base: #ede7da;
+  --color-bg-sub: #fff;
+  --color-border: #1f2a3a;
+  --color-accent: #2e5c6e;
+  --color-warn: #b7372f;
+  --color-text-muted: #5b6b7a;
+  --color-text-main: #16202e;
+  --color-code-bg: #fff;
+}

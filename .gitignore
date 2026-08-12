@@ -1,0 +1,23 @@
+# Java / Maven
+target/
+.mvn/wrapper/maven-wrapper.jar
+
+# Node / Nuxt
+node_modules/
+.nuxt/
+.output/
+dist/
+coverage/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.local
+
+# IDE / OS
+.idea/
+*.iml
+.vscode/
+.DS_Store
+Thumbs.db
