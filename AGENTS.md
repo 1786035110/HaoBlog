@@ -87,6 +87,7 @@ Run the narrowest relevant checks while iterating, then all affected checks befo
 ## Working rules
 
 - Inspect existing code, instructions and Git status before editing. Preserve unrelated user changes.
+- Git commit messages must be written in Chinese and accurately summarize the change; code comments, documentation comments, and TODOs should default to Chinese. Protocol names, standard technical terms, class names, method names, configuration keys, and other necessary identifiers may remain in English.
 - Plan before multi-module work. Implement one vertical slice at a time.
 - Do not add production dependencies without stating why the current stack is insufficient and considering bundle/runtime cost.
 - Do not create speculative abstractions, empty class trees or placeholder services that are not required by the current slice.

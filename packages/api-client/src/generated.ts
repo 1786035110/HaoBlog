@@ -52,6 +52,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getAdminSession"];
+        put?: never;
+        post: operations["loginAdmin"];
+        delete: operations["logoutAdmin"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/csrf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getAdminCsrfToken"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -92,6 +124,20 @@ export interface components {
             detail: string;
             traceId: string;
         };
+        AdminLoginRequest: {
+            username: string;
+            /** Format: password */
+            password: string;
+        };
+        AdminSessionResponse: {
+            username: string;
+            /** @enum {string} */
+            role: "ADMIN";
+            authenticated: boolean;
+        };
+        CsrfTokenResponse: {
+            token: string;
+        };
     };
     responses: {
         /** @description Invalid request */
@@ -121,8 +167,55 @@ export interface components {
                 "application/problem+json": components["schemas"]["ProblemResponse"];
             };
         };
+        /** @description Authentication required */
+        Unauthenticated: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemResponse"];
+            };
+        };
+        /** @description Access denied */
+        Forbidden: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemResponse"];
+            };
+        };
+        /** @description Invalid CSRF token */
+        CsrfInvalid: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemResponse"];
+            };
+        };
+        /** @description Invalid administrator credentials */
+        AuthenticationFailed: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemResponse"];
+            };
+        };
+        /** @description Administrator account is temporarily locked */
+        AccountLocked: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemResponse"];
+            };
+        };
     };
-    parameters: never;
+    parameters: {
+        CsrfHeader: string;
+    };
     requestBodies: never;
     headers: {
         /** @description Entity tag for the public representation */
@@ -208,6 +301,100 @@ export interface operations {
             };
             404: components["responses"]["ArticleNotFound"];
             500: components["responses"]["InternalError"];
+        };
+    };
+    getAdminSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current administrator session */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSessionResponse"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    loginAdmin: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-TOKEN": components["parameters"]["CsrfHeader"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminLoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Administrator session created */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSessionResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["AuthenticationFailed"];
+            403: components["responses"]["CsrfInvalid"];
+            423: components["responses"]["AccountLocked"];
+        };
+    };
+    logoutAdmin: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-TOKEN": components["parameters"]["CsrfHeader"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Administrator session deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["CsrfInvalid"];
+        };
+    };
+    getAdminCsrfToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description CSRF token for administrator write requests */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CsrfTokenResponse"];
+                };
+            };
         };
     };
 }

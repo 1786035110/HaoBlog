@@ -25,7 +25,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import com.jayway.jsonpath.JsonPath;
 
 @WebMvcTest({PublicSiteController.class, PublicArticleController.class})
-@Import({io.haoblog.shared.web.TraceIdFilter.class, io.haoblog.shared.web.GlobalExceptionHandler.class})
+@Import({io.haoblog.shared.web.TraceIdFilter.class, io.haoblog.shared.web.GlobalExceptionHandler.class,
+        io.haoblog.shared.web.ProblemResponseWriter.class})
 class PublicApiTest {
     @Autowired MockMvc mvc;
     @MockitoBean io.haoblog.site.application.SiteService siteService;
@@ -52,16 +53,34 @@ class PublicApiTest {
         }
     }
 
-    @Test void unknownApiAndStaticResourceReturnProblems() throws Exception {
-        for (String path : new String[]{"/api/v1/public/unknown", "/missing.css"}) {
-            mvc.perform(get(path).header("X-Request-ID", "request-123"))
-                    .andExpect(status().isNotFound()).andExpect(content().contentType("application/problem+json"))
-                    .andExpect(jsonPath("$.code").value("NOT_FOUND"))
-                    .andExpect(jsonPath("$.title").value("Resource not found"))
-                    .andExpect(jsonPath("$.detail").isString())
-                    .andExpect(jsonPath("$.traceId").value("request-123"))
-                    .andExpect(header().string("X-Request-ID", "request-123"));
-        }
+    @Test void unknownApiPathReturnsSafeProblem() throws Exception {
+        mvc.perform(get("/api/v1/public/unknown").header("X-Request-ID", "request-api-404"))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentType("application/problem+json"))
+                .andExpect(jsonPath("$.code").value("NOT_FOUND"))
+                .andExpect(jsonPath("$.title").value("Resource not found"))
+                .andExpect(jsonPath("$.detail").value("Resource not found"))
+                .andExpect(jsonPath("$.traceId").value("request-api-404"))
+                .andExpect(header().string("X-Request-ID", "request-api-404"))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("Exception"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("io.haoblog"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("\\"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("/"))));
+    }
+
+    @Test void unknownStaticResourcePathReturnsSafeProblem() throws Exception {
+        mvc.perform(get("/missing.css").header("X-Request-ID", "request-static-404"))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentType("application/problem+json"))
+                .andExpect(jsonPath("$.code").value("NOT_FOUND"))
+                .andExpect(jsonPath("$.title").value("Resource not found"))
+                .andExpect(jsonPath("$.detail").value("Resource not found"))
+                .andExpect(jsonPath("$.traceId").value("request-static-404"))
+                .andExpect(header().string("X-Request-ID", "request-static-404"))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("Exception"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("io.haoblog"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("\\"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("/"))));
     }
 
     @Test void unexpectedExceptionReturnsSafeProblem() throws Exception {

@@ -31,6 +31,8 @@ class PublicApiIT {
         registry.add("spring.datasource.url", postgres::getJdbcUrl);
         registry.add("spring.datasource.username", postgres::getUsername);
         registry.add("spring.datasource.password", postgres::getPassword);
+        registry.add("spring.flyway.placeholders.admin_username", () -> "admin");
+        registry.add("spring.flyway.placeholders.admin_password_hash", () -> "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy");
     }
 
     @Autowired MockMvc mvc;

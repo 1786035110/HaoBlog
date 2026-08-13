@@ -1,0 +1,9 @@
+server:
+  servlet:
+    session:
+      cookie:
+        secure: true
+
+haoblog:
+  security:
+    session-cookie-secure: true

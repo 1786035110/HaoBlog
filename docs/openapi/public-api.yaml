@@ -1,6 +1,6 @@
 openapi: 3.1.0
 info:
-  title: HaoBlog Public API
+  title: HaoBlog API
   version: 0.1.0
 servers:
   - url: /
@@ -61,7 +61,84 @@ paths:
           $ref: '#/components/responses/ArticleNotFound'
         '500':
           $ref: '#/components/responses/InternalError'
+  /api/v1/admin/session:
+    post:
+      operationId: loginAdmin
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminLoginRequest'
+      responses:
+        '200':
+          description: Administrator session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminSessionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/AuthenticationFailed'
+        '403':
+          $ref: '#/components/responses/CsrfInvalid'
+        '423':
+          $ref: '#/components/responses/AccountLocked'
+    get:
+      operationId: getAdminSession
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Current administrator session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminSessionResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    delete:
+      operationId: logoutAdmin
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '204':
+          description: Administrator session deleted
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/CsrfInvalid'
+  /api/v1/admin/csrf:
+    get:
+      operationId: getAdminCsrfToken
+      security: []
+      responses:
+        '200':
+          description: CSRF token for administrator write requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CsrfTokenResponse'
 components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: HAOBLOG_SESSION
+  parameters:
+    CsrfHeader:
+      name: X-CSRF-TOKEN
+      in: header
+      required: true
+      schema: { type: string }
   responses:
     BadRequest:
       description: Invalid request
@@ -75,6 +152,31 @@ components:
           schema: { $ref: '#/components/schemas/ProblemResponse' }
     ArticleNotFound:
       description: Public article not found
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemResponse' }
+    Unauthenticated:
+      description: Authentication required
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemResponse' }
+    Forbidden:
+      description: Access denied
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemResponse' }
+    CsrfInvalid:
+      description: Invalid CSRF token
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemResponse' }
+    AuthenticationFailed:
+      description: Invalid administrator credentials
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemResponse' }
+    AccountLocked:
+      description: Administrator account is temporarily locked
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/ProblemResponse' }
@@ -120,6 +222,24 @@ components:
         title: { type: string }
         detail: { type: string }
         traceId: { type: string }
+    AdminLoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username: { type: string, minLength: 1, maxLength: 64 }
+        password: { type: string, minLength: 1, maxLength: 200, format: password }
+    AdminSessionResponse:
+      type: object
+      required: [username, role, authenticated]
+      properties:
+        username: { type: string }
+        role: { type: string, enum: [ADMIN] }
+        authenticated: { type: boolean }
+    CsrfTokenResponse:
+      type: object
+      required: [token]
+      properties:
+        token: { type: string }
   headers:
     ETag:
       description: Entity tag for the public representation
