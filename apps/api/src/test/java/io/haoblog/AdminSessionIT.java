@@ -7,16 +7,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
+import jakarta.servlet.http.Cookie;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.mock.web.MockHttpSession;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-
-import java.util.Objects;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -32,7 +30,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @ActiveProfiles("prod")
 class AdminSessionIT {
-    private static final String PASSWORD_HASH = "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
+    private static final String PASSWORD_HASH = "$2a$10$0V.Xs7CLOUYSekm7RKq3Z.iY76KUan/Xbeu5vjmLpX.sVd4pcFpIu";
 
     @Container
     static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("pgvector/pgvector:0.8.6-pg17");
@@ -86,31 +84,31 @@ class AdminSessionIT {
                         org.hamcrest.Matchers.containsStringIgnoringCase("SameSite=Lax"),
                         org.hamcrest.Matchers.containsStringIgnoringCase("Secure"))))
                 .andReturn();
-        MockHttpSession session = (MockHttpSession) Objects.requireNonNull(result.getRequest().getSession(false));
-        assertTrueSessionRowExists(session.getId());
+        org.junit.jupiter.api.Assertions.assertEquals(1,
+                jdbc.queryForObject("SELECT count(*) FROM spring_session", Integer.class));
     }
 
     @Test
     void rejectsMissingCsrfAndLocksAfterFiveBadPasswords() throws Exception {
-        MockHttpSession session = csrfSession();
+        CsrfSession session = csrfSession();
         for (int attempt = 0; attempt < 5; attempt++) {
-            mvc.perform(post("/api/v1/admin/session").session(session)
+            mvc.perform(post("/api/v1/admin/session").cookie(session.cookie())
                             .contentType("application/json")
                             .content("{\"username\":\"admin\",\"password\":\"wrong\"}"))
                     .andExpect(status().isForbidden())
                     .andExpect(jsonPath("$.code").value("CSRF_INVALID"));
         }
 
-        String token = csrfToken(session);
+        String token = session.token();
         for (int attempt = 0; attempt < 5; attempt++) {
-            mvc.perform(post("/api/v1/admin/session").session(session)
+            mvc.perform(post("/api/v1/admin/session").cookie(session.cookie())
                             .header("X-CSRF-TOKEN", token)
                             .contentType("application/json")
                             .content("{\"username\":\"admin\",\"password\":\"wrong\"}"))
                     .andExpect(status().isUnauthorized())
                     .andExpect(jsonPath("$.code").value("AUTHENTICATION_FAILED"));
         }
-        mvc.perform(post("/api/v1/admin/session").session(session)
+        mvc.perform(post("/api/v1/admin/session").cookie(session.cookie())
                         .header("X-CSRF-TOKEN", token)
                         .contentType("application/json")
                         .content("{\"username\":\"admin\",\"password\":\"correct\"}"))
@@ -120,40 +118,33 @@ class AdminSessionIT {
 
     @Test
     void logsInRestoresSessionAndLogsOut() throws Exception {
-        MockHttpSession session = csrfSession();
-        String token = csrfToken(session);
-        var login = mvc.perform(post("/api/v1/admin/session").session(session)
-                        .header("X-CSRF-TOKEN", token)
+        CsrfSession session = csrfSession();
+        var login = mvc.perform(post("/api/v1/admin/session").cookie(session.cookie())
+                        .header("X-CSRF-TOKEN", session.token())
                         .contentType("application/json")
                         .content("{\"username\":\"admin\",\"password\":\"password\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.username").value("admin"))
                 .andExpect(jsonPath("$.role").value("ADMIN"))
                 .andReturn();
-        MockHttpSession authenticated = (MockHttpSession) login.getRequest().getSession(false);
+        Cookie authenticated = login.getResponse().getCookie("HAOBLOG_SESSION");
 
-        mvc.perform(get("/api/v1/admin/session").session(authenticated))
+        mvc.perform(get("/api/v1/admin/session").cookie(authenticated))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.authenticated").value(true));
-        mvc.perform(delete("/api/v1/admin/session").session(authenticated)
-                        .header("X-CSRF-TOKEN", token))
+        mvc.perform(delete("/api/v1/admin/session").cookie(authenticated)
+                        .header("X-CSRF-TOKEN", session.token()))
                 .andExpect(status().isNoContent());
-        mvc.perform(get("/api/v1/admin/session").session(authenticated))
+        mvc.perform(get("/api/v1/admin/session").cookie(authenticated))
                 .andExpect(status().isUnauthorized());
     }
 
-    private MockHttpSession csrfSession() throws Exception {
+    private CsrfSession csrfSession() throws Exception {
         var result = mvc.perform(get("/api/v1/admin/csrf")).andExpect(status().isOk()).andReturn();
-        return (MockHttpSession) Objects.requireNonNull(result.getRequest().getSession(false));
+        return new CsrfSession(result.getResponse().getCookie("HAOBLOG_SESSION"),
+                JsonPath.read(result.getResponse().getContentAsString(), "$.token"));
     }
 
-    private String csrfToken(MockHttpSession session) throws Exception {
-        var result = mvc.perform(get("/api/v1/admin/csrf").session(session)).andExpect(status().isOk()).andReturn();
-        return JsonPath.read(result.getResponse().getContentAsString(), "$.token");
-    }
+    private record CsrfSession(Cookie cookie, String token) {}
 
-    private void assertTrueSessionRowExists(String sessionId) {
-        Integer count = jdbc.queryForObject("SELECT count(*) FROM spring_session WHERE session_id = ?", Integer.class, sessionId);
-        org.junit.jupiter.api.Assertions.assertEquals(1, count);
-    }
 }

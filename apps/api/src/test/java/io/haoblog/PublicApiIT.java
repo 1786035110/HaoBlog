@@ -32,7 +32,7 @@ class PublicApiIT {
         registry.add("spring.datasource.username", postgres::getUsername);
         registry.add("spring.datasource.password", postgres::getPassword);
         registry.add("spring.flyway.placeholders.admin_username", () -> "admin");
-        registry.add("spring.flyway.placeholders.admin_password_hash", () -> "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy");
+        registry.add("spring.flyway.placeholders.admin_password_hash", () -> "$2a$10$0V.Xs7CLOUYSekm7RKq3Z.iY76KUan/Xbeu5vjmLpX.sVd4pcFpIu");
     }
 
     @Autowired MockMvc mvc;
