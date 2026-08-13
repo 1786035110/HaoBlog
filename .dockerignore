@@ -1,0 +1,15 @@
+.git
+.github
+.idea
+.agents
+.nuxt
+.output
+node_modules
+target
+dist
+coverage
+.env
+.env.*
+!.env.example
+*.log
+*.tmp

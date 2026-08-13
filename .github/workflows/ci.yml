@@ -48,5 +48,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: cp .env.example .env
-      - run: docker compose --env-file .env -f infra/compose/compose.dev.yml config
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - run: corepack enable
+      - run: cp infra/compose/.env.ci.example .env.ci
+      - run: docker compose --env-file .env.ci -f infra/compose/compose.dev.yml config
+      - run: docker compose --env-file .env.ci -f infra/compose/compose.prod.yml config
+      - run: docker build -f apps/api/Dockerfile -t haoblog-api:ci .
+      - run: docker build -f apps/web/Dockerfile -t haoblog-web:ci .
+      - name: Start infrastructure
+        run: docker compose --env-file .env.ci -f infra/compose/compose.prod.yml up -d --wait --wait-timeout 180
+      - name: Smoke test
+        env:
+          HAOBLOG_BASE_URL: http://localhost
+        run: corepack pnpm smoke
+      - name: Dump service logs on failure
+        if: failure()
+        run: docker compose --env-file .env.ci -f infra/compose/compose.prod.yml ps && docker compose --env-file .env.ci -f infra/compose/compose.prod.yml logs --no-color
+      - name: Tear down infrastructure
+        if: always()
+        run: docker compose --env-file .env.ci -f infra/compose/compose.prod.yml down -v

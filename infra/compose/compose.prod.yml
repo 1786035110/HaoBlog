@@ -1,0 +1,105 @@
+services:
+  caddy:
+    image: caddy:2.10.0
+    restart: unless-stopped
+    environment:
+      HAOBLOG_DOMAIN: ${HAOBLOG_DOMAIN:?HAOBLOG_DOMAIN is required}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ../caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - haoblog-caddy-data:/data
+      - haoblog-caddy-config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    mem_limit: 48m
+    cpus: 0.15
+    pids_limit: 64
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: ["CMD", "caddy", "validate", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging: &default-logging
+      driver: json-file
+      options: {max-size: 10m, max-file: "3"}
+
+  web:
+    image: ${HAOBLOG_WEB_IMAGE:?HAOBLOG_WEB_IMAGE is required}
+    restart: unless-stopped
+    environment:
+      NUXT_API_BASE_URL: http://api:8080
+      NODE_OPTIONS: --max-old-space-size=192
+    depends_on:
+      api:
+        condition: service_healthy
+    mem_limit: 256m
+    cpus: 0.50
+    pids_limit: 128
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/',r=>process.exit(r.statusCode>=200&&r.statusCode<500?0:1)).on('error',()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      start_period: 20s
+      retries: 6
+    logging: *default-logging
+
+  api:
+    image: ${HAOBLOG_API_IMAGE:?HAOBLOG_API_IMAGE is required}
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:?SPRING_PROFILES_ACTIVE is required}
+      HAOBLOG_SEED_ENABLED: ${HAOBLOG_SEED_ENABLED:-false}
+      JDBC_DATABASE_URL: jdbc:postgresql://postgres-pgvector:5432/${POSTGRES_DB:?POSTGRES_DB is required}
+      JDBC_DATABASE_USERNAME: ${POSTGRES_USER:?POSTGRES_USER is required}
+      JDBC_DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      JAVA_TOOL_OPTIONS: -Xms128m -Xmx384m -XX:MaxDirectMemorySize=64m -XX:+ExitOnOutOfMemoryError
+    depends_on:
+      postgres-pgvector:
+        condition: service_healthy
+    mem_limit: 448m
+    cpus: 0.95
+    pids_limit: 256
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://127.0.0.1:8080/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 6
+    logging: *default-logging
+
+  postgres-pgvector:
+    image: pgvector/pgvector:0.8.6-pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    command: >-
+      postgres -c max_connections=20 -c shared_buffers=128MB -c effective_cache_size=512MB
+      -c work_mem=2MB -c maintenance_work_mem=64MB -c wal_buffers=4MB
+      -c autovacuum_max_workers=2
+    volumes:
+      - haoblog-postgres-prod-data:/var/lib/postgresql/data
+    mem_limit: 448m
+    cpus: 0.40
+    pids_limit: 128
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    logging: *default-logging
+
+volumes:
+  haoblog-caddy-data:
+  haoblog-caddy-config:
+  haoblog-postgres-prod-data:

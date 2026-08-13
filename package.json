@@ -6,6 +6,7 @@
     "web:typecheck": "pnpm --dir apps/web typecheck",
     "web:test": "pnpm --dir apps/web test",
     "web:build": "pnpm --dir apps/web build",
-    "api-client:generate": "pnpm --filter @haoblog/api-client generate"
+    "api-client:generate": "pnpm --filter @haoblog/api-client generate",
+    "smoke": "node scripts/smoke-test.mjs"
   }
 }
