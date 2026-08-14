@@ -203,9 +203,11 @@ export interface components {
                 "application/problem+json": components["schemas"]["ProblemResponse"];
             };
         };
-        /** @description Administrator account is temporarily locked */
-        AccountLocked: {
+        /** @description Login attempts from this source are temporarily rate limited */
+        LoginRateLimited: {
             headers: {
+                /** @description Seconds until another login attempt may be tried */
+                "Retry-After"?: number;
                 [name: string]: unknown;
             };
             content: {
@@ -352,7 +354,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["AuthenticationFailed"];
             403: components["responses"]["CsrfInvalid"];
-            423: components["responses"]["AccountLocked"];
+            429: components["responses"]["LoginRateLimited"];
         };
     };
     logoutAdmin: {

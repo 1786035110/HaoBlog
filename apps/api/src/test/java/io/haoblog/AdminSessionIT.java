@@ -12,6 +12,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -24,6 +25,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @Testcontainers
 @SpringBootTest
@@ -51,7 +53,7 @@ class AdminSessionIT {
     void resetIdentityAndSessions() {
         jdbc.update("DELETE FROM spring_session_attributes");
         jdbc.update("DELETE FROM spring_session");
-        jdbc.update("UPDATE admin_user SET failed_login_attempts = 0, locked_until = NULL, last_login_at = NULL");
+        jdbc.update("UPDATE admin_user SET last_login_at = NULL");
     }
 
     @Test
@@ -89,10 +91,12 @@ class AdminSessionIT {
     }
 
     @Test
-    void rejectsMissingCsrfAndLocksAfterFiveBadPasswords() throws Exception {
+    void rejectsMissingCsrfAndLimitsOnlyTheFailedSource() throws Exception {
         CsrfSession session = csrfSession();
+        RequestPostProcessor sourceA = remoteAddr("10.0.0.1");
         for (int attempt = 0; attempt < 5; attempt++) {
             mvc.perform(post("/api/v1/admin/session").cookie(session.cookie())
+                            .with(sourceA)
                             .contentType("application/json")
                             .content("{\"username\":\"admin\",\"password\":\"wrong\"}"))
                     .andExpect(status().isForbidden())
@@ -102,6 +106,7 @@ class AdminSessionIT {
         String token = session.token();
         for (int attempt = 0; attempt < 5; attempt++) {
             mvc.perform(post("/api/v1/admin/session").cookie(session.cookie())
+                            .with(sourceA)
                             .header("X-CSRF-TOKEN", token)
                             .contentType("application/json")
                             .content("{\"username\":\"admin\",\"password\":\"wrong\"}"))
@@ -109,11 +114,44 @@ class AdminSessionIT {
                     .andExpect(jsonPath("$.code").value("AUTHENTICATION_FAILED"));
         }
         mvc.perform(post("/api/v1/admin/session").cookie(session.cookie())
+                        .with(sourceA)
                         .header("X-CSRF-TOKEN", token)
                         .contentType("application/json")
                         .content("{\"username\":\"admin\",\"password\":\"correct\"}"))
-                .andExpect(status().isLocked())
-                .andExpect(jsonPath("$.code").value("ACCOUNT_LOCKED"));
+                .andExpect(status().isTooManyRequests())
+                .andExpect(header().string(HttpHeaders.RETRY_AFTER, org.hamcrest.Matchers.matchesPattern("[1-9][0-9]{0,2}")))
+                .andExpect(jsonPath("$.code").value("LOGIN_RATE_LIMITED"));
+
+        RequestPostProcessor sourceB = remoteAddr("10.0.0.2");
+        for (int attempt = 0; attempt < 4; attempt++) {
+            mvc.perform(post("/api/v1/admin/session").cookie(session.cookie())
+                            .with(sourceB)
+                            .header("X-CSRF-TOKEN", token)
+                            .contentType("application/json")
+                            .content("{\"username\":\"admin\",\"password\":\"wrong\"}"))
+                    .andExpect(status().isUnauthorized());
+        }
+        var loginFromSourceB = mvc.perform(post("/api/v1/admin/session").cookie(session.cookie())
+                        .with(sourceB)
+                        .header("X-CSRF-TOKEN", token)
+                        .contentType("application/json")
+                        .content("{\"username\":\"admin\",\"password\":\"password\"}"))
+                .andExpect(status().isOk())
+                .andReturn();
+        Cookie sourceBSession = loginFromSourceB.getResponse().getCookie("HAOBLOG_SESSION");
+        for (int attempt = 0; attempt < 2; attempt++) {
+            mvc.perform(post("/api/v1/admin/session").cookie(sourceBSession)
+                            .with(sourceB)
+                            .header("X-CSRF-TOKEN", token)
+                            .contentType("application/json")
+                            .content("{\"username\":\"admin\",\"password\":\"wrong\"}"))
+                    .andExpect(status().isUnauthorized());
+        }
+    }
+
+    @Test
+    void removesAccountLockingColumnsFromAdminUser() {
+        assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM information_schema.columns WHERE table_name = 'admin_user' AND column_name IN ('failed_login_attempts', 'locked_until')", Integer.class));
     }
 
     @Test
@@ -143,6 +181,13 @@ class AdminSessionIT {
         var result = mvc.perform(get("/api/v1/admin/csrf")).andExpect(status().isOk()).andReturn();
         return new CsrfSession(result.getResponse().getCookie("HAOBLOG_SESSION"),
                 JsonPath.read(result.getResponse().getContentAsString(), "$.token"));
+    }
+
+    private static RequestPostProcessor remoteAddr(String address) {
+        return request -> {
+            request.setRemoteAddr(address);
+            return request;
+        };
     }
 
     private record CsrfSession(Cookie cookie, String token) {}

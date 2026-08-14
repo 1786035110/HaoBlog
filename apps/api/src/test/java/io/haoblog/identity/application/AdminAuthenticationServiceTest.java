@@ -5,6 +5,7 @@ import io.haoblog.identity.persistence.AdminUserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -16,6 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AdminAuthenticationServiceTest {
@@ -23,7 +25,7 @@ class AdminAuthenticationServiceTest {
     private final AdminUserRepository repository = mock(AdminUserRepository.class);
     private final AdminUser user = new AdminUser("admin", new BCryptPasswordEncoder().encode("correct"), now);
     private final AdminAuthenticationService service = new AdminAuthenticationService(
-            repository, new BCryptPasswordEncoder(), Clock.fixed(now, ZoneOffset.UTC), 5, Duration.ofMinutes(15));
+            repository, new BCryptPasswordEncoder(), Clock.fixed(now, ZoneOffset.UTC));
 
     @Test
     void acceptsCorrectPasswordAndResetsFailureState() {
@@ -33,17 +35,25 @@ class AdminAuthenticationServiceTest {
 
         assertEquals("admin", authentication.getName());
         assertTrue(authentication.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN")));
-        assertEquals(0, user.getFailedLoginAttempts());
     }
 
     @Test
-    void recordsWrongPasswordsAndLocksOnTheSixthAttempt() {
+    void rejectsWrongPasswordWithoutChangingAccountLockState() {
         when(repository.findForAuthentication("admin")).thenReturn(Optional.of(user));
 
-        for (int attempt = 0; attempt < 5; attempt++) {
-            assertThrows(BadCredentialsException.class, () -> service.authenticate("admin", "wrong"));
-        }
-        assertEquals(5, user.getFailedLoginAttempts());
-        assertThrows(AdminAccountLockedException.class, () -> service.authenticate("admin", "correct"));
+        assertThrows(BadCredentialsException.class, () -> service.authenticate("admin", "wrong"));
+    }
+
+    @Test
+    void performsDummyBcryptMatchForUnknownUsername() {
+        PasswordEncoder encoder = mock(PasswordEncoder.class);
+        when(repository.findForAuthentication("missing")).thenReturn(Optional.empty());
+        when(encoder.matches("wrong", "$2a$10$0V.Xs7CLOUYSekm7RKq3Z.iY76KUan/Xbeu5vjmLpX.sVd4pcFpIu"))
+                .thenReturn(false);
+        AdminAuthenticationService service = new AdminAuthenticationService(
+                repository, encoder, Clock.fixed(now, ZoneOffset.UTC));
+
+        assertThrows(BadCredentialsException.class, () -> service.authenticate("missing", "wrong"));
+        verify(encoder).matches("wrong", "$2a$10$0V.Xs7CLOUYSekm7RKq3Z.iY76KUan/Xbeu5vjmLpX.sVd4pcFpIu");
     }
 }

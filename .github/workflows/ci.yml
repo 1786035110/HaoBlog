@@ -15,15 +15,11 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
-      - run: ./mvnw test
-        working-directory: apps/api
       - run: ./mvnw verify
         working-directory: apps/api
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
       - run: corepack enable
       - run: corepack pnpm install --frozen-lockfile
       - run: corepack pnpm --filter @haoblog/api-client generate
@@ -36,8 +32,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
       - run: corepack enable
       - run: corepack pnpm install --frozen-lockfile
       - run: corepack pnpm --dir apps/web typecheck
@@ -51,8 +45,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
       - run: corepack enable
       - run: cp infra/compose/.env.ci.example .env.ci
       - run: docker compose --env-file .env.ci -f infra/compose/compose.dev.yml config

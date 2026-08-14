@@ -31,6 +31,21 @@ export function useAdminSession() {
     return response.status === 204 ? undefined as T : await response.json() as T
   }
 
+  async function requestWithCsrfRetry<T>(path: string, init: RequestInit) {
+    try {
+      return await request<T>(path, init)
+    } catch (cause) {
+      if (!(cause instanceof AdminSessionError) || cause.status !== 403 || cause.problem?.code !== 'CSRF_INVALID') {
+        throw cause
+      }
+      csrfToken.value = null
+      const token = await fetchCsrf()
+      const headers = new Headers(init.headers)
+      headers.set('X-CSRF-TOKEN', token)
+      return request<T>(path, { ...init, headers })
+    }
+  }
+
   async function fetchCsrf() {
     const response = await request<components['schemas']['CsrfTokenResponse']>('/api/v1/admin/csrf')
     csrfToken.value = response.token
@@ -43,6 +58,7 @@ export function useAdminSession() {
     } catch (cause) {
       if (cause instanceof AdminSessionError && cause.status === 401) {
         session.value = null
+        csrfToken.value = null
         return false
       }
       error.value = cause instanceof Error ? cause.message : 'Unable to restore the session'
@@ -56,7 +72,7 @@ export function useAdminSession() {
     error.value = ''
     try {
       const token = csrfToken.value || await fetchCsrf()
-      session.value = await request<AdminSession>('/api/v1/admin/session', {
+      session.value = await requestWithCsrfRetry<AdminSession>('/api/v1/admin/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token },
         body: JSON.stringify(payload),
@@ -75,7 +91,7 @@ export function useAdminSession() {
     error.value = ''
     try {
       const token = csrfToken.value || await fetchCsrf()
-      await request<void>('/api/v1/admin/session', {
+      await requestWithCsrfRetry<void>('/api/v1/admin/session', {
         method: 'DELETE',
         headers: { 'X-CSRF-TOKEN': token },
       })
