@@ -33,6 +33,8 @@
 </template>
 
 <script setup lang="ts">
+definePageMeta({ layout: 'studio' })
+
 import type { paths } from '@haoblog/api-client'
 
 type LoginPayload = paths['/api/v1/admin/session']['post']['requestBody']['content']['application/json']
@@ -44,7 +46,10 @@ onMounted(() => restore())
 
 async function submit() {
   const success = await signIn(credentials)
-  if (success) credentials.password = ''
+  if (success) {
+    credentials.password = ''
+    await navigateTo('/studio/articles')
+  }
 }
 </script>
 

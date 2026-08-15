@@ -11,6 +11,11 @@ describe('admin session client', () => {
   beforeEach(() => {
     fetchMock.mockReset()
     vi.stubGlobal('fetch', fetchMock)
+    const client = useAdminSession()
+    client.clear()
+    client.initialized.value = false
+    client.error.value = ''
+    client.pending.value = false
   })
 
   it('treats an anonymous session as recoverable signed-out state', async () => {
@@ -30,12 +35,11 @@ describe('admin session client', () => {
 
     await expect(client.login({ username: 'admin', password: 'secret' })).resolves.toBe(true)
     expect(client.session.value?.username).toBe('admin')
-    expect(fetchMock.mock.calls[1]).toEqual(['/api/v1/admin/session', {
-      credentials: 'include',
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': 'csrf-1' },
-      body: '{"username":"admin","password":"secret"}',
-    }])
+    expect(fetchMock.mock.calls[1][0]).toBe('/api/v1/admin/session')
+    expect(fetchMock.mock.calls[1][1]).toMatchObject({ credentials: 'include', method: 'POST', body: '{"username":"admin","password":"secret"}' })
+    expect(fetchMock.mock.calls[1][1].headers).toBeInstanceOf(Headers)
+    expect(fetchMock.mock.calls[1][1].headers.get('Content-Type')).toBe('application/json')
+    expect(fetchMock.mock.calls[1][1].headers.get('X-CSRF-TOKEN')).toBe('csrf-1')
   })
 
   it('logs out with CSRF and clears the in-memory session', async () => {
@@ -47,11 +51,9 @@ describe('admin session client', () => {
 
     await expect(client.logout()).resolves.toBe(true)
     expect(client.session.value).toBeNull()
-    expect(fetchMock.mock.calls.at(-1)).toEqual(['/api/v1/admin/session', {
-      credentials: 'include',
-      method: 'DELETE',
-      headers: { 'X-CSRF-TOKEN': 'csrf-2' },
-    }])
+    expect(fetchMock.mock.calls.at(-1)?.[0]).toBe('/api/v1/admin/session')
+    expect(fetchMock.mock.calls.at(-1)?.[1]).toMatchObject({ credentials: 'include', method: 'DELETE' })
+    expect(fetchMock.mock.calls.at(-1)?.[1].headers.get('X-CSRF-TOKEN')).toBe('csrf-2')
   })
 
   it('refreshes a stale CSRF token and retries the login once', async () => {
@@ -75,6 +77,7 @@ describe('admin session client', () => {
     const forbiddenClient = useAdminSession()
     await expect(forbiddenClient.login({ username: 'admin', password: 'secret' })).resolves.toBe(false)
     expect(fetchMock).toHaveBeenCalledTimes(2)
+    forbiddenClient.clear()
 
     fetchMock.mockReset()
     fetchMock
@@ -100,5 +103,15 @@ describe('admin session client', () => {
     await expect(client.restore()).resolves.toBe(false)
     await expect(client.login({ username: 'admin', password: 'secret' })).resolves.toBe(true)
     expect(fetchMock.mock.calls[3][0]).toBe('/api/v1/admin/csrf')
+  })
+
+  it('clears shared session state when an authenticated request expires', async () => {
+    fetchMock.mockResolvedValue(response({ code: 'UNAUTHENTICATED', detail: 'Authentication is required' }, 401))
+    const client = useAdminSession()
+    client.session.value = { username: 'admin', role: 'ADMIN', authenticated: true }
+
+    await expect(client.request('/api/v1/admin/articles')).rejects.toMatchObject({ status: 401 })
+    expect(client.session.value).toBeNull()
+    expect(client.initialized.value).toBe(true)
   })
 })

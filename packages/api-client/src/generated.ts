@@ -249,6 +249,8 @@ export interface components {
             markdown?: string;
             seoTitle?: string | null;
             seoDescription?: string | null;
+            /** Format: date-time */
+            scheduledAt?: string | null;
             /** Format: uuid */
             categoryId?: string | null;
             /** Format: uuid */
@@ -264,6 +266,8 @@ export interface components {
             markdown: string;
             seoTitle?: string | null;
             seoDescription?: string | null;
+            /** Format: date-time */
+            scheduledAt?: string | null;
             /** Format: uuid */
             categoryId?: string | null;
             /** Format: uuid */
@@ -276,6 +280,8 @@ export interface components {
             slug?: string | null;
             title: string;
             status: components["schemas"]["ArticleStatus"];
+            /** Format: uuid */
+            categoryId: string | null;
             /** Format: date-time */
             updatedAt: string;
             /** Format: int64 */

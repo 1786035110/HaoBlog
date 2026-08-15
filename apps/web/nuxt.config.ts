@@ -11,6 +11,7 @@ export default defineNuxtConfig({
     },
   },
   routeRules: {
+    '/studio': { ssr: false },
     '/studio/**': { ssr: false },
   },
   nitro: {

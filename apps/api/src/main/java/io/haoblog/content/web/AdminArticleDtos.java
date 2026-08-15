@@ -20,6 +20,7 @@ public final class AdminArticleDtos {
             String markdown,
             @Size(max = 240) String seoTitle,
             @Size(max = 600) String seoDescription,
+            Instant scheduledAt,
             UUID categoryId,
             UUID coverMediaId,
             List<UUID> tagIds) {}
@@ -32,6 +33,7 @@ public final class AdminArticleDtos {
             @NotNull String markdown,
             @Size(max = 240) String seoTitle,
             @Size(max = 600) String seoDescription,
+            Instant scheduledAt,
             UUID categoryId,
             UUID coverMediaId,
             List<UUID> tagIds) {}
@@ -39,9 +41,11 @@ public final class AdminArticleDtos {
     public record ListResponse(List<Summary> items, int page, int size, long total) {}
 
     public record Summary(UUID id, String slug, String title, ArticleStatus status,
+                          UUID categoryId,
                           Instant updatedAt, long version) {
         static Summary from(Article article) {
             return new Summary(article.getId(), article.getSlug(), article.getTitle(), article.getStatus(),
+                    article.getCategoryId(),
                     article.getUpdatedAt(), article.getVersion());
         }
     }

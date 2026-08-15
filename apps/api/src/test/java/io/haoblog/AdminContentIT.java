@@ -20,6 +20,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -78,8 +79,9 @@ class AdminContentIT {
 
         mvc.perform(put("/api/v1/admin/articles/" + id).with(admin()).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"version\":0,\"title\":\"Unique Draft " + id + "\",\"markdown\":\"# body\",\"slug\":\"unique-" + id.substring(0, 8) + "\"}"))
+                        .content("{\"version\":0,\"title\":\"Unique Draft " + id + "\",\"markdown\":\"# body\",\"slug\":\"unique-" + id.substring(0, 8) + "\",\"scheduledAt\":\"2030-01-02T03:04:05Z\"}"))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.scheduledAt").value("2030-01-02T03:04:05Z"))
                 .andExpect(jsonPath("$.version").value(1));
 
         mvc.perform(put("/api/v1/admin/articles/" + id).with(admin()).with(csrf())
@@ -90,7 +92,8 @@ class AdminContentIT {
 
         mvc.perform(get("/api/v1/admin/articles?keyword=unique-" + id.substring(0, 8) + "&direction=asc").with(admin()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.items[0].version").value(1));
+                .andExpect(jsonPath("$.items[0].version").value(1))
+                .andExpect(jsonPath("$.items[0].categoryId").value(nullValue()));
 
         mvc.perform(delete("/api/v1/admin/articles/" + id).with(admin()).with(csrf()))
                 .andExpect(status().isNoContent());

@@ -456,6 +456,7 @@ components:
         markdown: { type: string, maxLength: 1048576 }
         seoTitle: { type: [string, 'null'], maxLength: 240 }
         seoDescription: { type: [string, 'null'], maxLength: 600 }
+        scheduledAt: { type: [string, 'null'], format: date-time }
         categoryId: { type: [string, 'null'], format: uuid }
         coverMediaId: { type: [string, 'null'], format: uuid }
         tagIds: { type: array, items: { type: string, format: uuid } }
@@ -470,17 +471,19 @@ components:
         markdown: { type: string, maxLength: 1048576 }
         seoTitle: { type: [string, 'null'], maxLength: 240 }
         seoDescription: { type: [string, 'null'], maxLength: 600 }
+        scheduledAt: { type: [string, 'null'], format: date-time }
         categoryId: { type: [string, 'null'], format: uuid }
         coverMediaId: { type: [string, 'null'], format: uuid }
         tagIds: { type: array, items: { type: string, format: uuid } }
     AdminArticleSummary:
       type: object
-      required: [id, title, status, updatedAt, version]
+      required: [id, title, status, categoryId, updatedAt, version]
       properties:
         id: { type: string, format: uuid }
         slug: { type: [string, 'null'] }
         title: { type: string }
         status: { $ref: '#/components/schemas/ArticleStatus' }
+        categoryId: { type: [string, 'null'], format: uuid }
         updatedAt: { type: string, format: date-time }
         version: { type: integer, format: int64, minimum: 0 }
     AdminArticleListResponse:

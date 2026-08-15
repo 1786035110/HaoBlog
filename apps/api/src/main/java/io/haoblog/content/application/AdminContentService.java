@@ -54,7 +54,7 @@ public class AdminContentService {
 
     @Transactional
     public Article createArticle(String slug, String title, String excerpt, String markdown,
-                                 String seoTitle, String seoDescription, UUID categoryId,
+                                 String seoTitle, String seoDescription, Instant scheduledAt, UUID categoryId,
                                  UUID coverMediaId, List<UUID> tagIds) {
         String resolvedTitle = title == null || title.isBlank() ? "未命名草稿" : title.trim();
         String resolvedMarkdown = markdown == null ? "" : markdown;
@@ -69,7 +69,7 @@ public class AdminContentService {
         Article article = new Article(normalizedSlug, resolvedTitle, excerpt, resolvedMarkdown,
                 ArticleStatus.DRAFT, null, now);
         article.updateWorkingCopy(normalizedSlug, resolvedTitle, excerpt, resolvedMarkdown, seoTitle, seoDescription,
-                null, categoryId, coverMediaId, now);
+                scheduledAt, categoryId, coverMediaId, now);
         article.replaceTags(resolvedTags);
         return articles.saveAndFlush(article);
     }
@@ -81,7 +81,7 @@ public class AdminContentService {
 
     @Transactional
     public Article updateArticle(UUID id, long version, String slug, String title, String excerpt, String markdown,
-                                 String seoTitle, String seoDescription, UUID categoryId,
+                                 String seoTitle, String seoDescription, Instant scheduledAt, UUID categoryId,
                                  UUID coverMediaId, List<UUID> tagIds) {
         Article article = getArticle(id);
         if (article.getVersion() != version) {
@@ -95,7 +95,7 @@ public class AdminContentService {
         Set<Tag> resolvedTags = resolveTags(tagIds);
         requireCategory(categoryId);
         article.updateWorkingCopy(resolvedSlug, title.trim(), excerpt, markdown, seoTitle, seoDescription,
-                article.getScheduledAt(), categoryId, coverMediaId, Instant.now(clock));
+                scheduledAt, categoryId, coverMediaId, Instant.now(clock));
         article.replaceTags(resolvedTags);
         return articles.saveAndFlush(article);
     }

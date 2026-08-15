@@ -5,78 +5,105 @@ type AdminSession = components['schemas']['AdminSessionResponse']
 type LoginPayload = paths['/api/v1/admin/session']['post']['requestBody']['content']['application/json']
 type ProblemResponse = components['schemas']['ProblemResponse']
 
-class AdminSessionError extends Error {
+export class AdminSessionError extends Error {
   constructor(readonly status: number, readonly problem?: ProblemResponse) {
     super(problem?.detail || 'Unable to complete the session request')
   }
 }
 
-export function useAdminSession() {
-  const session = ref<AdminSession | null>(null)
-  const csrfToken = ref<string | null>(null)
-  const pending = ref(false)
-  const error = ref('')
+const session = ref<AdminSession | null>(null)
+const csrfToken = ref<string | null>(null)
+const pending = ref(false)
+const error = ref('')
+const initialized = ref(false)
+let restorePromise: Promise<boolean> | null = null
 
-  async function request<T>(path: string, init: RequestInit = {}) {
-    const response = await fetch(path, { credentials: 'include', ...init })
-    if (!response.ok) {
-      let problem: ProblemResponse | undefined
-      try {
-        problem = await response.json() as ProblemResponse
-      } catch {
-        // 非 Problem JSON 响应使用通用提示，避免把服务端响应原文展示给管理员。
-      }
-      throw new AdminSessionError(response.status, problem)
-    }
-    return response.status === 204 ? undefined as T : await response.json() as T
-  }
-
-  async function requestWithCsrfRetry<T>(path: string, init: RequestInit) {
+async function request<T>(path: string, init: RequestInit = {}) {
+  const response = await fetch(path, { credentials: 'include', ...init })
+  if (!response.ok) {
+    let problem: ProblemResponse | undefined
     try {
-      return await request<T>(path, init)
-    } catch (cause) {
-      if (!(cause instanceof AdminSessionError) || cause.status !== 403 || cause.problem?.code !== 'CSRF_INVALID') {
-        throw cause
-      }
-      csrfToken.value = null
-      const token = await fetchCsrf()
-      const headers = new Headers(init.headers)
-      headers.set('X-CSRF-TOKEN', token)
-      return request<T>(path, { ...init, headers })
+      problem = await response.json() as ProblemResponse
+    } catch {
+      // 非 Problem JSON 响应使用通用提示，避免把服务端响应原文展示给管理员。
     }
+    if (response.status === 401) {
+      session.value = null
+      csrfToken.value = null
+      initialized.value = true
+    }
+    throw new AdminSessionError(response.status, problem)
+  }
+  return response.status === 204 ? undefined as T : await response.json() as T
+}
+
+async function fetchCsrf() {
+  const response = await request<components['schemas']['CsrfTokenResponse']>('/api/v1/admin/csrf')
+  csrfToken.value = response.token
+  return response.token
+}
+
+async function requestWithCsrfRetry<T>(path: string, init: RequestInit) {
+  try {
+    return await request<T>(path, init)
+  } catch (cause) {
+    if (!(cause instanceof AdminSessionError) || cause.status !== 403 || cause.problem?.code !== 'CSRF_INVALID') {
+      throw cause
+    }
+    csrfToken.value = null
+    const token = await fetchCsrf()
+    const headers = new Headers(init.headers)
+    headers.set('X-CSRF-TOKEN', token)
+    return request<T>(path, { ...init, headers })
+  }
+}
+
+export function useAdminSession() {
+  function clear() {
+    session.value = null
+    csrfToken.value = null
   }
 
-  async function fetchCsrf() {
-    const response = await request<components['schemas']['CsrfTokenResponse']>('/api/v1/admin/csrf')
-    csrfToken.value = response.token
-    return response.token
+  async function write<T>(path: string, init: RequestInit = {}) {
+    const token = csrfToken.value || await fetchCsrf()
+    const headers = new Headers(init.headers)
+    headers.set('X-CSRF-TOKEN', token)
+    return requestWithCsrfRetry<T>(path, { ...init, headers })
   }
 
   async function restore() {
-    try {
-      session.value = await request<AdminSession>('/api/v1/admin/session')
-    } catch (cause) {
-      if (cause instanceof AdminSessionError && cause.status === 401) {
-        session.value = null
-        csrfToken.value = null
+    if (restorePromise) return restorePromise
+    restorePromise = (async () => {
+      error.value = ''
+      try {
+        session.value = await request<AdminSession>('/api/v1/admin/session')
+        return true
+      } catch (cause) {
+        if (!(cause instanceof AdminSessionError && cause.status === 401)) {
+          error.value = cause instanceof Error ? cause.message : 'Unable to restore the session'
+        }
         return false
+      } finally {
+        initialized.value = true
       }
-      error.value = cause instanceof Error ? cause.message : 'Unable to restore the session'
-      return false
+    })()
+    try {
+      return await restorePromise
+    } finally {
+      restorePromise = null
     }
-    return true
   }
 
   async function login(payload: LoginPayload) {
     pending.value = true
     error.value = ''
     try {
-      const token = csrfToken.value || await fetchCsrf()
-      session.value = await requestWithCsrfRetry<AdminSession>('/api/v1/admin/session', {
+      session.value = await write<AdminSession>('/api/v1/admin/session', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
+      initialized.value = true
       return true
     } catch (cause) {
       error.value = cause instanceof Error ? cause.message : 'Unable to sign in'
@@ -90,13 +117,9 @@ export function useAdminSession() {
     pending.value = true
     error.value = ''
     try {
-      const token = csrfToken.value || await fetchCsrf()
-      await requestWithCsrfRetry<void>('/api/v1/admin/session', {
-        method: 'DELETE',
-        headers: { 'X-CSRF-TOKEN': token },
-      })
-      session.value = null
-      csrfToken.value = null
+      await write<void>('/api/v1/admin/session', { method: 'DELETE' })
+      clear()
+      initialized.value = true
       return true
     } catch (cause) {
       error.value = cause instanceof Error ? cause.message : 'Unable to sign out'
@@ -106,5 +129,5 @@ export function useAdminSession() {
     }
   }
 
-  return { session, pending, error, restore, login, logout }
+  return { session, pending, error, initialized, restore, login, logout, request, write, clear }
 }
