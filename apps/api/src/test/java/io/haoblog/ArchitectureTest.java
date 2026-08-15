@@ -13,4 +13,11 @@ class ArchitectureTest {
             .should().dependOnClassesThat().resideInAnyPackage(
                     "io.haoblog.identity..", "io.haoblog.content..", "io.haoblog.comment..",
                     "io.haoblog.toolbox..", "io.haoblog.ai..", "io.haoblog.media..", "io.haoblog.site..");
+
+    @ArchTest
+    static final ArchRule other_modules_must_not_depend_on_content_internals = noClasses()
+            .that().resideInAnyPackage("io.haoblog.identity..", "io.haoblog.comment..",
+                    "io.haoblog.toolbox..", "io.haoblog.ai..", "io.haoblog.media..", "io.haoblog.site..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "io.haoblog.content.persistence..", "io.haoblog.content.domain..");
 }

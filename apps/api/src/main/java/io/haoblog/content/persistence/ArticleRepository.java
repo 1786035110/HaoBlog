@@ -13,6 +13,8 @@ import java.util.Optional;
 public interface ArticleRepository extends JpaRepository<Article, UUID> {
     Optional<Article> findBySlug(String slug);
 
+    boolean existsBySlugAndIdNot(String slug, UUID id);
+
     Optional<Article> findBySlugAndStatusAndPublishedAtIsNotNullAndPublishedAtLessThanEqual(
             String slug, ArticleStatus status, Instant now);
 
