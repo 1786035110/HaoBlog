@@ -32,7 +32,15 @@ public class Tag {
         this.updatedAt = now;
     }
 
+    public void update(String name, String slug, Instant now) {
+        this.name = name;
+        this.slug = Slug.normalizeRequired(slug);
+        this.updatedAt = now;
+    }
+
     public UUID getId() { return id; }
     public String getName() { return name; }
     public String getSlug() { return slug; }
+    public Instant getCreatedAt() { return createdAt; }
+    public Instant getUpdatedAt() { return updatedAt; }
 }

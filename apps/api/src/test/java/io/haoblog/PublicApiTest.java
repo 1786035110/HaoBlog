@@ -18,6 +18,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.junit.jupiter.api.BeforeEach;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -128,5 +129,16 @@ class PublicApiTest {
         String first = controller.articles(0, 20, null).getHeaders().getETag();
         String second = controller.articles(1, 20, null).getHeaders().getETag();
         org.junit.jupiter.api.Assertions.assertNotEquals(first, second);
+    }
+
+    @Test void articleListSupports304WithoutResponseBody() throws Exception {
+        Instant publishedAt = Instant.parse("2026-01-01T00:00:00Z");
+        Article article = new Article("list-visible", "List visible", null, "# Body", ArticleStatus.PUBLISHED, publishedAt, publishedAt);
+        doReturn(new io.haoblog.content.application.ArticleService.PageResult(
+                new PageImpl<>(List.of(article), PageRequest.of(0, 20), 1))).when(articleService).list(0, 20);
+        var first = mvc.perform(get("/api/v1/public/articles")).andExpect(status().isOk())
+                .andExpect(header().exists("ETag")).andReturn();
+        mvc.perform(get("/api/v1/public/articles").header("If-None-Match", first.getResponse().getHeader("ETag")))
+                .andExpect(status().isNotModified()).andExpect(header().exists("ETag")).andExpect(content().string(""));
     }
 }

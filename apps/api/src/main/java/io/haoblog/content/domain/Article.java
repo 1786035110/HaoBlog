@@ -71,6 +71,16 @@ public class Article {
         this.updatedAt = now;
     }
 
+    public void replaceTags(Set<Tag> tags) {
+        this.tags.clear();
+        this.tags.addAll(tags);
+    }
+
+    public void archive(Instant now) {
+        this.status = ArticleStatus.ARCHIVED;
+        this.updatedAt = now;
+    }
+
     private static String normalizeSlug(String raw, ArticleStatus status) {
         String normalized = Slug.normalizeNullable(raw);
         if (status != ArticleStatus.DRAFT && normalized == null) {
@@ -93,4 +103,6 @@ public class Article {
     public UUID getCategoryId() { return categoryId; }
     public UUID getCoverMediaId() { return coverMediaId; }
     public Set<Tag> getTags() { return tags; }
+    public Instant getCreatedAt() { return createdAt; }
+    public Instant getUpdatedAt() { return updatedAt; }
 }

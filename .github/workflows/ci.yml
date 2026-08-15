@@ -22,8 +22,7 @@ jobs:
           node-version: '24'
       - run: corepack enable
       - run: corepack pnpm install --frozen-lockfile
-      - run: corepack pnpm --filter @haoblog/api-client generate
-      - run: git diff --exit-code -- packages/api-client/src/generated.ts
+      - run: corepack pnpm --filter @haoblog/api-client check
 
   web:
     runs-on: ubuntu-latest

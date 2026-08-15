@@ -38,7 +38,19 @@ public class Category {
         this.updatedAt = now;
     }
 
+    public void update(String name, String slug, String description, int sortOrder, Instant now) {
+        this.name = name;
+        this.slug = Slug.normalizeRequired(slug);
+        this.description = description;
+        this.sortOrder = sortOrder;
+        this.updatedAt = now;
+    }
+
     public UUID getId() { return id; }
     public String getName() { return name; }
     public String getSlug() { return slug; }
+    public String getDescription() { return description; }
+    public int getSortOrder() { return sortOrder; }
+    public Instant getCreatedAt() { return createdAt; }
+    public Instant getUpdatedAt() { return updatedAt; }
 }

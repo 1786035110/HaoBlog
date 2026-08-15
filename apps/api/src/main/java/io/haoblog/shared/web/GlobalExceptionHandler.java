@@ -1,5 +1,6 @@
 package io.haoblog.shared.web;
 
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -29,6 +30,19 @@ public class GlobalExceptionHandler {
             HttpMessageNotReadableException.class, IllegalArgumentException.class})
     ResponseEntity<ProblemResponse> badRequest(Exception exception) {
         return problemResponseWriter.response(HttpStatus.BAD_REQUEST, "BAD_REQUEST", "Invalid request", "Request parameters are invalid");
+    }
+
+    @ExceptionHandler(ProblemException.class)
+    ResponseEntity<ProblemResponse> content(ProblemException exception) {
+        HttpStatus status = exception.getCode().endsWith("_NOT_FOUND") ? HttpStatus.NOT_FOUND :
+                (exception.getCode().contains("CONFLICT") || exception.getCode().endsWith("_IN_USE")
+                        ? HttpStatus.CONFLICT : HttpStatus.BAD_REQUEST);
+        return problemResponseWriter.response(status, exception.getCode(), exception.getTitle(), exception.getMessage());
+    }
+
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    ResponseEntity<ProblemResponse> optimisticLock(OptimisticLockingFailureException exception) {
+        return problemResponseWriter.response(HttpStatus.CONFLICT, "ARTICLE_VERSION_CONFLICT", "Article version conflict", "Reload the latest article before saving");
     }
 
     @ExceptionHandler({NoResourceFoundException.class, NoHandlerFoundException.class})

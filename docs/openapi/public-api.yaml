@@ -27,13 +27,20 @@ paths:
         - name: size
           in: query
           schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+        - $ref: '#/components/parameters/IfNoneMatch'
       responses:
         '200':
           description: Published articles
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ArticleListResponse'
+        '304':
+          description: Public article list representation has not changed
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
         '400':
           $ref: '#/components/responses/BadRequest'
         '500':
@@ -46,6 +53,7 @@ paths:
           in: path
           required: true
           schema: { type: string, minLength: 1, maxLength: 160 }
+        - $ref: '#/components/parameters/IfNoneMatch'
       responses:
         '200':
           description: Published article detail
@@ -57,10 +65,187 @@ paths:
                 $ref: '#/components/schemas/ArticleResponse'
         '304':
           description: Public article representation has not changed
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
         '404':
           $ref: '#/components/responses/ArticleNotFound'
         '500':
           $ref: '#/components/responses/InternalError'
+  /api/v1/admin/articles:
+    get:
+      operationId: listAdminArticles
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/ArticleStatus' } }
+        - { name: keyword, in: query, schema: { type: string, maxLength: 240 } }
+        - { name: direction, in: query, schema: { type: string, enum: [asc, desc], default: desc } }
+      responses:
+        '200':
+          description: Administrator article list
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/AdminArticleListResponse' } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      operationId: createAdminArticle
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody:
+        content:
+          application/json: { schema: { $ref: '#/components/schemas/AdminArticleCreateRequest' } }
+      responses:
+        '201':
+          description: Draft created
+          headers: { Location: { schema: { type: string, format: uri } } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/AdminArticleResponse' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/articles/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getAdminArticle
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Administrator article, content: { application/json: { schema: { $ref: '#/components/schemas/AdminArticleResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+    put:
+      operationId: updateAdminArticle
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/AdminArticleUpdateRequest' } } }
+      responses:
+        '200': { description: Article updated, content: { application/json: { schema: { $ref: '#/components/schemas/AdminArticleResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      operationId: deleteAdminArticle
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      responses:
+        '204': { description: Draft physically deleted }
+        '200': { description: Article archived, content: { application/json: { schema: { $ref: '#/components/schemas/AdminArticleResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+  /api/v1/admin/categories:
+    get:
+      operationId: listAdminCategories
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Categories, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/CategoryResponse' } } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      operationId: createAdminCategory
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CategoryRequest' } } } }
+      responses:
+        '201': { description: Category created, content: { application/json: { schema: { $ref: '#/components/schemas/CategoryResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/categories/{id}:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+    get:
+      operationId: getAdminCategory
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Category, content: { application/json: { schema: { $ref: '#/components/schemas/CategoryResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+    put:
+      operationId: updateAdminCategory
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CategoryRequest' } } } }
+      responses:
+        '200': { description: Category updated, content: { application/json: { schema: { $ref: '#/components/schemas/CategoryResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      operationId: deleteAdminCategory
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      responses:
+        '204': { description: Category deleted }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/tags:
+    get:
+      operationId: listAdminTags
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Tags, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/TagResponse' } } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      operationId: createAdminTag
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/TagRequest' } } } }
+      responses:
+        '201': { description: Tag created, content: { application/json: { schema: { $ref: '#/components/schemas/TagResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/tags/{id}:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+    get:
+      operationId: getAdminTag
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Tag, content: { application/json: { schema: { $ref: '#/components/schemas/TagResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+    put:
+      operationId: updateAdminTag
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/TagRequest' } } } }
+      responses:
+        '200': { description: Tag updated, content: { application/json: { schema: { $ref: '#/components/schemas/TagResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      operationId: deleteAdminTag
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      responses:
+        '204': { description: Tag deleted }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
   /api/v1/admin/session:
     post:
       operationId: loginAdmin
@@ -139,6 +324,11 @@ components:
       in: header
       required: true
       schema: { type: string }
+    IfNoneMatch:
+      name: If-None-Match
+      in: header
+      required: false
+      schema: { type: string }
   responses:
     BadRequest:
       description: Invalid request
@@ -152,6 +342,16 @@ components:
           schema: { $ref: '#/components/schemas/ProblemResponse' }
     ArticleNotFound:
       description: Public article not found
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemResponse' }
+    ResourceNotFound:
+      description: Resource not found
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemResponse' }
+    Conflict:
+      description: Request conflicts with current resource state
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/ProblemResponse' }
@@ -244,6 +444,107 @@ components:
       required: [token]
       properties:
         token: { type: string }
+    ArticleStatus:
+      type: string
+      enum: [DRAFT, SCHEDULED, PUBLISHED, ARCHIVED]
+    AdminArticleCreateRequest:
+      type: object
+      properties:
+        slug: { type: [string, 'null'], maxLength: 160 }
+        title: { type: [string, 'null'], maxLength: 240 }
+        excerpt: { type: [string, 'null'], maxLength: 600 }
+        markdown: { type: string, maxLength: 1048576 }
+        seoTitle: { type: [string, 'null'], maxLength: 240 }
+        seoDescription: { type: [string, 'null'], maxLength: 600 }
+        categoryId: { type: [string, 'null'], format: uuid }
+        coverMediaId: { type: [string, 'null'], format: uuid }
+        tagIds: { type: array, items: { type: string, format: uuid } }
+    AdminArticleUpdateRequest:
+      type: object
+      required: [version, title, markdown]
+      properties:
+        version: { type: integer, format: int64, minimum: 0 }
+        slug: { type: [string, 'null'], maxLength: 160 }
+        title: { type: string, minLength: 1, maxLength: 240 }
+        excerpt: { type: [string, 'null'], maxLength: 600 }
+        markdown: { type: string, maxLength: 1048576 }
+        seoTitle: { type: [string, 'null'], maxLength: 240 }
+        seoDescription: { type: [string, 'null'], maxLength: 600 }
+        categoryId: { type: [string, 'null'], format: uuid }
+        coverMediaId: { type: [string, 'null'], format: uuid }
+        tagIds: { type: array, items: { type: string, format: uuid } }
+    AdminArticleSummary:
+      type: object
+      required: [id, title, status, updatedAt, version]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: [string, 'null'] }
+        title: { type: string }
+        status: { $ref: '#/components/schemas/ArticleStatus' }
+        updatedAt: { type: string, format: date-time }
+        version: { type: integer, format: int64, minimum: 0 }
+    AdminArticleListResponse:
+      type: object
+      required: [items, page, size, total]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/AdminArticleSummary' } }
+        page: { type: integer }
+        size: { type: integer }
+        total: { type: integer, format: int64 }
+    AdminArticleResponse:
+      type: object
+      required: [id, title, markdown, status, createdAt, updatedAt, version, tagIds]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: [string, 'null'] }
+        title: { type: string }
+        excerpt: { type: [string, 'null'] }
+        markdown: { type: string }
+        status: { $ref: '#/components/schemas/ArticleStatus' }
+        publishedAt: { type: [string, 'null'], format: date-time }
+        scheduledAt: { type: [string, 'null'], format: date-time }
+        seoTitle: { type: [string, 'null'] }
+        seoDescription: { type: [string, 'null'] }
+        categoryId: { type: [string, 'null'], format: uuid }
+        coverMediaId: { type: [string, 'null'], format: uuid }
+        tagIds: { type: array, items: { type: string, format: uuid } }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        version: { type: integer, format: int64, minimum: 0 }
+    CategoryRequest:
+      type: object
+      required: [name, slug]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        slug: { type: string, minLength: 1, maxLength: 160 }
+        description: { type: [string, 'null'], maxLength: 600 }
+        sortOrder: { type: integer }
+    CategoryResponse:
+      type: object
+      required: [id, name, slug, sortOrder, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+        description: { type: [string, 'null'] }
+        sortOrder: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    TagRequest:
+      type: object
+      required: [name, slug]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        slug: { type: string, minLength: 1, maxLength: 160 }
+    TagResponse:
+      type: object
+      required: [id, name, slug, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
   headers:
     ETag:
       description: Entity tag for the public representation
