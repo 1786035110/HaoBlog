@@ -114,4 +114,16 @@ describe('admin session client', () => {
     expect(client.session.value).toBeNull()
     expect(client.initialized.value).toBe(true)
   })
+
+  it('does not retry an article version conflict or refresh CSRF for it', async () => {
+    fetchMock
+      .mockResolvedValueOnce(response({ token: 'csrf-1' }))
+      .mockResolvedValueOnce(response({ code: 'ARTICLE_VERSION_CONFLICT', title: 'Article version conflict', detail: 'stale', traceId: 'trace-1', currentVersion: 2 }, 409))
+    const client = useAdminSession()
+
+    await expect(client.write('/api/v1/admin/articles/a1', { method: 'PUT', body: '{}' }))
+      .rejects.toMatchObject({ status: 409, problem: { code: 'ARTICLE_VERSION_CONFLICT', currentVersion: 2 } })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock.mock.calls.every((call: unknown[]) => call[0] !== '/api/v1/admin/csrf' || call === fetchMock.mock.calls[0])).toBe(true)
+  })
 })

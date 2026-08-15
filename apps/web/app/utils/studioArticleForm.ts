@@ -93,7 +93,8 @@ export function validateArticleForm(form: ArticleFormModel): ArticleFormErrors {
 }
 
 export function articleFormSnapshot(form: ArticleFormModel) {
-  return JSON.stringify({ ...form, tagIds: [...form.tagIds].sort() })
+  const { version: _version, ...content } = form
+  return JSON.stringify({ ...content, tagIds: [...content.tagIds].sort() })
 }
 
 export function shouldConfirmArticleLeave(dirty: boolean, authenticated: boolean, confirm: () => boolean) {

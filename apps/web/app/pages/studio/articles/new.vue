@@ -1,47 +1,31 @@
 <template>
-  <p v-if="loading" class="signal-note">正在准备新建工作台…</p>
+  <p v-if="loading" class="signal-note">正在建立新文章信号…</p>
   <p v-else-if="loadError" class="form-error" role="alert">{{ loadError }}</p>
-  <LazyEditor v-else ref="editor" :categories="categories" :tags="tags" :saving="saving" :server-error="saveError" @save="save" />
+  <button v-else class="instrument-button" type="button" @click="load">重试建立文章</button>
 </template>
 
 <script setup lang="ts">
-import type { components } from '@haoblog/api-client'
-import { defineAsyncComponent, onMounted, ref } from 'vue'
-import { formToCreateRequest, type ArticleFormModel } from '../../../utils/studioArticleForm'
+import { onMounted, ref } from 'vue'
 
 definePageMeta({ layout: 'studio' })
 
-const LazyEditor = defineAsyncComponent(() => import('../../../components/studio/StudioArticleEditor.client.vue'))
-const { listCategories, listTags, createArticle } = useAdminContent()
-const categories = ref<components['schemas']['CategoryResponse'][]>([])
-const tags = ref<components['schemas']['TagResponse'][]>([])
+const { createArticle } = useAdminContent()
 const loading = ref(true)
-const saving = ref(false)
 const loadError = ref('')
-const saveError = ref('')
-const editor = ref<{ markSaved(article: components['schemas']['AdminArticleResponse']): void } | null>(null)
+const createdArticleId = ref('')
 
 async function load() {
+  if (createdArticleId.value) return navigateTo(`/studio/articles/${createdArticleId.value}`, { replace: true })
+  loading.value = true
+  loadError.value = ''
   try {
-    ;[categories.value, tags.value] = await Promise.all([listCategories(), listTags()])
+    const article = await createArticle({})
+    createdArticleId.value = article.id
+    await navigateTo(`/studio/articles/${article.id}`, { replace: true })
   } catch (cause) {
-    loadError.value = cause instanceof Error ? cause.message : '分类和标签暂时不可用。'
+    loadError.value = cause instanceof Error ? cause.message : '新文章暂时无法建立。'
   } finally {
     loading.value = false
-  }
-}
-
-async function save(form: ArticleFormModel) {
-  saving.value = true
-  saveError.value = ''
-  try {
-    const article = await createArticle(formToCreateRequest(form))
-    editor.value?.markSaved(article)
-    await navigateTo(`/studio/articles/${article.id}`)
-  } catch (cause) {
-    saveError.value = cause instanceof Error ? cause.message : '文章创建失败。'
-  } finally {
-    saving.value = false
   }
 }
 
@@ -51,4 +35,5 @@ onMounted(load)
 <style scoped>
 .signal-note, .form-error { max-width: 52rem; margin: 10vh auto; font: var(--text-sm)/1.5 var(--font-mono); color: var(--color-text-muted); }
 .form-error { color: var(--color-warn); }
+.instrument-button { display: block; margin: 10vh auto; padding: .7rem 1rem; border: 1px solid var(--color-accent); background: transparent; color: var(--color-accent); cursor: pointer; font: var(--text-xs)/1 var(--font-mono); }
 </style>

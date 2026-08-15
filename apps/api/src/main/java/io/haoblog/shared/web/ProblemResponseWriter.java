@@ -23,8 +23,14 @@ public class ProblemResponseWriter {
     }
 
     public ResponseEntity<ProblemResponse> response(HttpStatus status, String code, String title, String detail) {
+        return response(status, code, title, detail, null);
+    }
+
+    public ResponseEntity<ProblemResponse> response(HttpStatus status, String code, String title, String detail,
+                                                    Long currentVersion) {
         return ResponseEntity.status(status).contentType(PROBLEM)
-                .body(new ProblemResponse(code, title, detail == null || detail.isBlank() ? title : detail, traceId()));
+                .body(new ProblemResponse(code, title, detail == null || detail.isBlank() ? title : detail,
+                        traceId(), currentVersion));
     }
 
     public void write(HttpServletRequest request, HttpServletResponse response,

@@ -133,7 +133,7 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/CsrfInvalid' }
         '404': { $ref: '#/components/responses/ResourceNotFound' }
-        '409': { $ref: '#/components/responses/Conflict' }
+        '409': { $ref: '#/components/responses/ArticleVersionConflict' }
     delete:
       operationId: deleteAdminArticle
       security: [{ sessionCookie: [] }]
@@ -355,6 +355,11 @@ components:
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/ProblemResponse' }
+    ArticleVersionConflict:
+      description: Article working copy version is stale
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ArticleVersionConflictProblem' }
     Unauthenticated:
       description: Authentication required
       content:
@@ -426,6 +431,14 @@ components:
         title: { type: string }
         detail: { type: string }
         traceId: { type: string }
+        currentVersion: { type: integer, format: int64, minimum: 0 }
+    ArticleVersionConflictProblem:
+      allOf:
+        - $ref: '#/components/schemas/ProblemResponse'
+        - type: object
+          required: [currentVersion]
+          properties:
+            currentVersion: { type: integer, format: int64, minimum: 0 }
     AdminLoginRequest:
       type: object
       required: [username, password]

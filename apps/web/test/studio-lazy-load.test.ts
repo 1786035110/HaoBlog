@@ -6,7 +6,7 @@ const root = resolve(import.meta.dirname, '../app')
 
 describe('Studio editor route boundary', () => {
   it('keeps the editor behind dynamic imports on both edit routes', () => {
-    for (const file of ['pages/studio/articles/new.vue', 'pages/studio/articles/[id].vue']) {
+    for (const file of ['pages/studio/articles/[id].vue']) {
       expect(readFileSync(resolve(root, file), 'utf8')).toContain('defineAsyncComponent')
       expect(readFileSync(resolve(root, file), 'utf8')).toContain('StudioArticleEditor.client.vue')
     }

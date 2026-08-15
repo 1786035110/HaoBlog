@@ -37,7 +37,8 @@ public class GlobalExceptionHandler {
         HttpStatus status = exception.getCode().endsWith("_NOT_FOUND") ? HttpStatus.NOT_FOUND :
                 (exception.getCode().contains("CONFLICT") || exception.getCode().endsWith("_IN_USE")
                         ? HttpStatus.CONFLICT : HttpStatus.BAD_REQUEST);
-        return problemResponseWriter.response(status, exception.getCode(), exception.getTitle(), exception.getMessage());
+        return problemResponseWriter.response(status, exception.getCode(), exception.getTitle(), exception.getMessage(),
+                exception.getCurrentVersion());
     }
 
     @ExceptionHandler(OptimisticLockingFailureException.class)

@@ -2,7 +2,9 @@ package io.haoblog.content.web;
 
 import io.haoblog.content.application.AdminContentService;
 import io.haoblog.content.domain.ArticleStatus;
+import io.haoblog.shared.web.ProblemException;
 import jakarta.validation.Valid;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -54,8 +56,13 @@ public class AdminArticleController {
 
     @PutMapping("/{id}")
     public Response update(@PathVariable UUID id, @RequestBody @Valid UpdateRequest request) {
-        return Response.from(service.updateArticle(id, request.version(), request.slug(), request.title(), request.excerpt(),
-                request.markdown(), request.seoTitle(), request.seoDescription(), request.scheduledAt(), request.categoryId(), request.coverMediaId(), request.tagIds()));
+        try {
+            return Response.from(service.updateArticle(id, request.version(), request.slug(), request.title(), request.excerpt(),
+                    request.markdown(), request.seoTitle(), request.seoDescription(), request.scheduledAt(), request.categoryId(), request.coverMediaId(), request.tagIds()));
+        } catch (OptimisticLockingFailureException exception) {
+            throw new ProblemException("ARTICLE_VERSION_CONFLICT", "Article version conflict",
+                    "Reload the latest article before saving", service.currentVersion(id));
+        }
     }
 
     @DeleteMapping("/{id}")

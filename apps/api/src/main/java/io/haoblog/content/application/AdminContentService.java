@@ -79,13 +79,19 @@ public class AdminContentService {
         return articles.findWithTagsById(id).orElseThrow(() -> notFound("ARTICLE_NOT_FOUND", "Article not found"));
     }
 
+    @Transactional(readOnly = true)
+    public long currentVersion(UUID id) {
+        return articles.findById(id).orElseThrow(() -> notFound("ARTICLE_NOT_FOUND", "Article not found")).getVersion();
+    }
+
     @Transactional
     public Article updateArticle(UUID id, long version, String slug, String title, String excerpt, String markdown,
                                  String seoTitle, String seoDescription, Instant scheduledAt, UUID categoryId,
                                  UUID coverMediaId, List<UUID> tagIds) {
         Article article = getArticle(id);
         if (article.getVersion() != version) {
-            throw conflict("ARTICLE_VERSION_CONFLICT", "Article version conflict", "Reload the latest article before saving");
+            throw new ProblemException("ARTICLE_VERSION_CONFLICT", "Article version conflict",
+                    "Reload the latest article before saving", article.getVersion());
         }
         String resolvedSlug = Slug.normalizeNullable(slug);
         if (resolvedSlug != null && articles.existsBySlugAndIdNot(resolvedSlug, id)) {

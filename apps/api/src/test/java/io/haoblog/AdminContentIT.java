@@ -17,7 +17,12 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.springframework.security.test.context.support.WithMockUser;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.nullValue;
@@ -88,7 +93,10 @@ class AdminContentIT {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"version\":0,\"title\":\"stale\",\"markdown\":\"stale\"}"))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.code").value("ARTICLE_VERSION_CONFLICT"));
+                .andExpect(content().contentType("application/problem+json"))
+                .andExpect(jsonPath("$.code").value("ARTICLE_VERSION_CONFLICT"))
+                .andExpect(jsonPath("$.currentVersion").value(1))
+                .andExpect(jsonPath("$.traceId").isNotEmpty());
 
         mvc.perform(get("/api/v1/admin/articles?keyword=unique-" + id.substring(0, 8) + "&direction=asc").with(admin()))
                 .andExpect(status().isOk())
@@ -98,6 +106,45 @@ class AdminContentIT {
         mvc.perform(delete("/api/v1/admin/articles/" + id).with(admin()).with(csrf()))
                 .andExpect(status().isNoContent());
         mvc.perform(get("/api/v1/admin/articles/" + id).with(admin())).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void concurrentUpdatesAllowOneWinnerAndExposeCurrentVersionToLoser() throws Exception {
+        var created = mvc.perform(post("/api/v1/admin/articles").with(admin()).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"concurrent draft\",\"markdown\":\"base\"}"))
+                .andExpect(status().isCreated()).andReturn();
+        String id = objectMapper.readTree(created.getResponse().getContentAsString()).get("id").asText();
+
+        CountDownLatch start = new CountDownLatch(1);
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            Future<org.springframework.test.web.servlet.MvcResult> first = executor.submit(() -> updateConcurrently(start, id, "winner-a"));
+            Future<org.springframework.test.web.servlet.MvcResult> second = executor.submit(() -> updateConcurrently(start, id, "winner-b"));
+            start.countDown();
+            var results = List.of(first.get(), second.get());
+            var statuses = results.stream().map(result -> result.getResponse().getStatus()).toList();
+            org.junit.jupiter.api.Assertions.assertTrue(statuses.contains(200), "one update must succeed");
+            org.junit.jupiter.api.Assertions.assertTrue(statuses.contains(409), "one update must conflict");
+
+            var conflict = results.stream().filter(result -> result.getResponse().getStatus() == 409).findFirst().orElseThrow();
+            org.junit.jupiter.api.Assertions.assertEquals("application/problem+json", conflict.getResponse().getContentType());
+            JsonNode problem = objectMapper.readTree(conflict.getResponse().getContentAsString());
+            org.junit.jupiter.api.Assertions.assertEquals("ARTICLE_VERSION_CONFLICT", problem.get("code").asText());
+            org.junit.jupiter.api.Assertions.assertEquals(1, problem.get("currentVersion").asLong());
+            org.junit.jupiter.api.Assertions.assertTrue(problem.hasNonNull("traceId"));
+        } finally {
+            executor.shutdownNow();
+            mvc.perform(delete("/api/v1/admin/articles/" + id).with(admin()).with(csrf())).andExpect(status().isNoContent());
+        }
+    }
+
+    private org.springframework.test.web.servlet.MvcResult updateConcurrently(CountDownLatch start, String id, String title) throws Exception {
+        start.await();
+        return mvc.perform(put("/api/v1/admin/articles/" + id).with(admin()).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"version\":0,\"title\":\"" + title + "\",\"markdown\":\"" + title + "\"}"))
+                .andReturn();
     }
 
     @Test

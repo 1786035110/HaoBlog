@@ -1,7 +1,7 @@
 <template>
   <p v-if="loading" class="signal-note">正在锁定文章信号…</p>
   <p v-else-if="loadError" class="form-error" role="alert">{{ loadError }}</p>
-  <LazyEditor v-else-if="article" ref="editor" :article="article" :categories="categories" :tags="tags" :saving="saving" :server-error="saveError" @save="save" />
+  <LazyEditor v-else-if="article" :article="article" :categories="categories" :tags="tags" :save-article="save" />
 </template>
 
 <script setup lang="ts">
@@ -18,10 +18,7 @@ const article = ref<components['schemas']['AdminArticleResponse'] | null>(null)
 const categories = ref<components['schemas']['CategoryResponse'][]>([])
 const tags = ref<components['schemas']['TagResponse'][]>([])
 const loading = ref(true)
-const saving = ref(false)
 const loadError = ref('')
-const saveError = ref('')
-const editor = ref<{ markSaved(article: components['schemas']['AdminArticleResponse']): void } | null>(null)
 
 async function load() {
   try {
@@ -38,17 +35,10 @@ async function load() {
 }
 
 async function save(form: ArticleFormModel) {
-  if (!article.value) return
-  saving.value = true
-  saveError.value = ''
-  try {
-    article.value = await updateArticle(article.value.id, formToUpdateRequest(form))
-    editor.value?.markSaved(article.value)
-  } catch (cause) {
-    saveError.value = cause instanceof Error ? cause.message : '文章保存失败。'
-  } finally {
-    saving.value = false
-  }
+  if (!article.value) throw new Error('文章尚未加载。')
+  const saved = await updateArticle(article.value.id, formToUpdateRequest(form))
+  article.value = saved
+  return saved
 }
 
 onMounted(load)

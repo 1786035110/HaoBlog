@@ -225,6 +225,12 @@ export interface components {
             title: string;
             detail: string;
             traceId: string;
+            /** Format: int64 */
+            currentVersion?: number;
+        };
+        ArticleVersionConflictProblem: components["schemas"]["ProblemResponse"] & {
+            /** Format: int64 */
+            currentVersion: number;
         };
         AdminLoginRequest: {
             username: string;
@@ -397,6 +403,15 @@ export interface components {
             };
             content: {
                 "application/problem+json": components["schemas"]["ProblemResponse"];
+            };
+        };
+        /** @description Article working copy version is stale */
+        ArticleVersionConflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ArticleVersionConflictProblem"];
             };
         };
         /** @description Authentication required */
@@ -668,7 +683,7 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["CsrfInvalid"];
             404: components["responses"]["ResourceNotFound"];
-            409: components["responses"]["Conflict"];
+            409: components["responses"]["ArticleVersionConflict"];
         };
     };
     deleteAdminArticle: {
