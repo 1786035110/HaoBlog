@@ -121,6 +121,52 @@ paths:
         '403': { $ref: '#/components/responses/CsrfInvalid' }
         '404': { $ref: '#/components/responses/ResourceNotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/media/uploads:
+    post:
+      operationId: createAdminMediaUpload
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/MediaUploadRequest' } } }
+      responses:
+        '201':
+          description: Short-lived COS POST policy
+          content: { application/json: { schema: { $ref: '#/components/schemas/MediaUploadResponse' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '503': { $ref: '#/components/responses/MediaStorageUnavailable' }
+  /api/v1/admin/media/uploads/{uploadId}/complete:
+    post:
+      operationId: completeAdminMediaUpload
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/CsrfHeader' }
+        - { name: uploadId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Confirmed media asset
+          content: { application/json: { schema: { $ref: '#/components/schemas/MediaAssetResponse' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+        '410': { $ref: '#/components/responses/MediaUploadExpired' }
+        '503': { $ref: '#/components/responses/MediaStorageUnavailable' }
+  /api/v1/admin/media/{mediaId}:
+    delete:
+      operationId: recycleAdminMedia
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/CsrfHeader' }
+        - { name: mediaId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '204': { description: Media asset marked as deleted }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
   /api/v1/admin/articles/{id}:
     parameters:
       - name: id
@@ -561,6 +607,16 @@ components:
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/ProblemResponse' }
+    MediaUploadExpired:
+      description: Upload intent expired
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemResponse' }
+    MediaStorageUnavailable:
+      description: Object storage metadata service unavailable
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemResponse' }
   schemas:
     SiteResponse:
       type: object
@@ -798,6 +854,39 @@ components:
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
         version: { type: integer, format: int64, minimum: 0 }
+    MediaUploadRequest:
+      type: object
+      required: [mimeType, sizeBytes, width, height, sha256]
+      properties:
+        mimeType: { type: string, enum: [image/jpeg, image/png, image/webp] }
+        sizeBytes: { type: integer, format: int64, minimum: 1, maximum: 5242880 }
+        width: { type: integer, minimum: 1, maximum: 2560 }
+        height: { type: integer, minimum: 1, maximum: 2560 }
+        sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+    MediaUploadResponse:
+      type: object
+      required: [uploadId, objectKey, uploadUrl, fields, expiresAt]
+      properties:
+        uploadId: { type: string, format: uuid }
+        objectKey: { type: string }
+        uploadUrl: { type: string, format: uri }
+        fields: { type: object, additionalProperties: { type: string } }
+        expiresAt: { type: string, format: date-time }
+    MediaAssetResponse:
+      type: object
+      required: [id, objectKey, publicUrl, mimeType, sizeBytes, width, height, sha256, status, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        objectKey: { type: string }
+        publicUrl: { type: string, format: uri }
+        mimeType: { type: string, enum: [image/jpeg, image/png, image/webp] }
+        sizeBytes: { type: integer, format: int64, minimum: 1 }
+        width: { type: integer, minimum: 1 }
+        height: { type: integer, minimum: 1 }
+        sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+        status: { type: string, enum: [AVAILABLE, DELETED] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
     CategoryRequest:
       type: object
       required: [name, slug]

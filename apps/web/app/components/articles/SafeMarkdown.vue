@@ -50,15 +50,17 @@ function slugify(value: string, seen: Map<string, number>) {
 
 function inlineNodes(value: string): VNode[] {
   const nodes: VNode[] = []
-  const pattern = /\[([^\]]+)\]\(([^\s)]+)\)/g
+  const pattern = /(!?)\[([^\]]+)\]\(([^\s)]+)\)/g
   let cursor = 0
   for (const match of value.matchAll(pattern)) {
     const start = match.index ?? 0
     if (start > cursor) nodes.push(h('span', value.slice(cursor, start)))
-    const label = match[1] ?? ''
-    const href = match[2] ?? ''
-    if (/^(https?:\/\/|mailto:)/i.test(href)) nodes.push(h('a', { href, rel: 'noopener noreferrer', target: '_blank' }, label))
-    else nodes.push(h('span', `[${label}](${href})`))
+    const image = match[1] === '!'
+    const label = match[2] ?? ''
+    const href = match[3] ?? ''
+    if (image && /^https:\/\//i.test(href)) nodes.push(h('img', { src: href, alt: label, loading: 'lazy', decoding: 'async' }))
+    else if (!image && /^(https?:\/\/|mailto:)/i.test(href)) nodes.push(h('a', { href, rel: 'noopener noreferrer', target: '_blank' }, label))
+    else nodes.push(h('span', `${image ? '!' : ''}[${label}](${href})`))
     cursor = start + match[0].length
   }
   if (cursor < value.length) nodes.push(h('span', value.slice(cursor)))

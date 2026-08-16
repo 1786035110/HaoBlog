@@ -41,7 +41,7 @@ class PublicApiIT {
     @Autowired JdbcTemplate jdbc;
 
     @BeforeEach void seed() {
-        jdbc.execute("TRUNCATE article_tag, article_preview_token, article_revision, article, category, tag, media_asset, outbox_event CASCADE");
+        jdbc.execute("TRUNCATE article_tag, article_preview_token, article_revision, article, category, tag, media_asset, media_upload, outbox_event CASCADE");
         Instant now = Instant.now();
         seedPublished("visible", "Visible", "Now", "# now", now.minus(1, ChronoUnit.MINUTES), now);
         seedPublished("future", "Future", "Later", "# later", now.plus(1, ChronoUnit.DAYS), now);

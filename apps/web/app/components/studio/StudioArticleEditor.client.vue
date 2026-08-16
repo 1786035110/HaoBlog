@@ -71,10 +71,21 @@
         <small v-else>暂无可用标签。</small>
       </div>
       <div class="field-line field-wide">
-        <span class="field-label">封面 / MEDIA PLACEHOLDER</span>
-        <div class="cover-placeholder" aria-disabled="true">
-          <span>{{ form.coverMediaId ? `已绑定媒体 ${form.coverMediaId}` : '尚未选择封面' }}</span>
-          <small>媒体直传将在后续阶段开放。</small>
+        <span class="field-label">媒体 / DIRECT COS UPLOAD</span>
+        <div class="media-upload-box">
+          <input ref="fileInput" class="sr-only" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" @change="selectImage">
+          <div class="media-upload-line">
+            <span>{{ form.coverMediaId ? `已绑定封面 ${form.coverMediaId}` : '尚未选择封面' }}</span>
+            <button class="quiet-button" type="button" :disabled="mediaPhase === 'processing' || mediaPhase === 'uploading' || mediaPhase === 'confirming'" @click="fileInput?.click()">选择图片</button>
+          </div>
+          <small>JPEG / PNG / WebP；原图 ≤20 MB、输出 ≤5 MB、最长边 ≤2560。</small>
+          <p v-if="mediaPhase !== 'idle' && mediaPhase !== 'done'" class="media-status" :data-phase="mediaPhase">{{ mediaPhase === 'processing' ? '处理中…' : mediaPhase === 'uploading' ? '直传对象存储…' : mediaPhase === 'confirming' ? '确认对象元数据…' : mediaPhase === 'error' ? mediaError : '' }}</p>
+          <p v-if="mediaPhase === 'done' && mediaAsset" class="media-status">已确认 {{ mediaAsset.width }}×{{ mediaAsset.height }} · {{ mediaAsset.sizeBytes }} B</p>
+          <div v-if="mediaAsset" class="media-actions">
+            <button class="instrument-button" type="button" @click="insertImage">插入正文</button>
+            <button class="quiet-button" type="button" @click="setCover">设为封面</button>
+          </div>
+          <button v-if="mediaPhase === 'error'" class="quiet-button" type="button" @click="retryMedia">重试媒体上传</button>
         </div>
       </div>
     </fieldset>
@@ -89,7 +100,7 @@
       <div class="editor-workspace" :data-mode="mode">
         <label v-if="mode !== 'preview'" class="source-pane" for="article-markdown">
           <span class="sr-only">Markdown 源码</span>
-          <textarea id="article-markdown" v-model="form.markdown" name="markdown" rows="24" aria-label="Markdown 源码" :aria-invalid="!!errors.markdown" aria-describedby="article-markdown-error" />
+          <textarea id="article-markdown" ref="markdownInput" v-model="form.markdown" name="markdown" rows="24" aria-label="Markdown 源码" :aria-invalid="!!errors.markdown" aria-describedby="article-markdown-error" />
           <small v-if="errors.markdown" id="article-markdown-error" class="field-error">{{ errors.markdown }}</small>
         </label>
         <div v-if="mode !== 'source'" class="preview-pane" aria-label="Markdown 预览">
@@ -130,11 +141,12 @@
 <script setup lang="ts">
 import type { components } from '@haoblog/api-client'
 import SafeMarkdown from '../articles/SafeMarkdown.vue'
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { createArticleAutosave } from '../../composables/useArticleAutosave'
 import type { ArticleDraftStore } from '../../utils/articleDraftStore'
 import { shouldConfirmArticleLeave, validateArticleForm, type ArticleFormModel } from '../../utils/studioArticleForm'
+import { useAdminMedia } from '../../composables/useAdminMedia'
 
 type Article = components['schemas']['AdminArticleResponse']
 type Category = components['schemas']['CategoryResponse']
@@ -142,12 +154,16 @@ type Tag = components['schemas']['TagResponse']
 
 const props = defineProps<{ article: Article; categories: Category[]; tags: Tag[]; saveArticle: (form: ArticleFormModel) => Promise<Article>; draftStore?: ArticleDraftStore }>()
 const session = useAdminSession()
+const media = useAdminMedia()
+const { phase: mediaPhase, asset: mediaAsset, error: mediaError } = media
 const autosave = createArticleAutosave({ article: props.article, saveArticle: props.saveArticle, store: props.draftStore })
 const { form, dirty, status, saving, saveError, localError, localCopyPresent, conflictVersion, recovery, recoveryReview, saveNow, start, stop, restoreLocalCopy: restore, discardLocalCopy: discard, adoptLocalCopy: adopt } = autosave
 
 const errors = ref<Record<string, string>>({})
 const mode = ref<'source' | 'split' | 'preview'>('split')
 const recoveryDialog = ref<HTMLDialogElement | null>(null)
+const fileInput = ref<HTMLInputElement | null>(null)
+const markdownInput = ref<HTMLTextAreaElement | null>(null)
 const showDiff = ref(false)
 const modes = [
   { value: 'source' as const, label: '源码' },
@@ -164,6 +180,31 @@ function submit() {
 }
 
 function retrySave() { void saveNow(true) }
+
+function selectImage(event: Event) {
+  const file = (event.target as HTMLInputElement).files?.[0]
+  if (file) void media.upload(file)
+  ;(event.target as HTMLInputElement).value = ''
+}
+
+function setCover() {
+  if (mediaAsset.value) form.coverMediaId = mediaAsset.value.id
+}
+
+async function insertImage() {
+  if (!mediaAsset.value) return
+  const input = markdownInput.value
+  const start = input?.selectionStart ?? form.markdown.length
+  const end = input?.selectionEnd ?? start
+  const name = '图片'
+  const markdown = `![${name}](${mediaAsset.value.publicUrl})`
+  form.markdown = `${form.markdown.slice(0, start)}${markdown}${form.markdown.slice(end)}`
+  await nextTick()
+  input?.focus()
+  input?.setSelectionRange(start + markdown.length, start + markdown.length)
+}
+
+function retryMedia() { void media.retry() }
 
 function restoreLocalCopy() {
   restore()
@@ -232,6 +273,10 @@ legend { padding: 0 var(--space-2); color: var(--color-accent); font: var(--text
 .tag-list { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); }
 .tag-option { display: inline-flex; align-items: center; gap: .4rem; color: var(--color-text-main); font: var(--text-sm)/1.4 var(--font-body); cursor: pointer; }
 .cover-placeholder { display: grid; gap: .35rem; padding: var(--space-3); border: 1px dashed var(--color-border); color: var(--color-text-muted); font: var(--text-sm)/1.4 var(--font-mono); }
+.media-upload-box { display: grid; gap: var(--space-3); padding: var(--space-3); border: 1px dashed var(--color-border); color: var(--color-text-muted); font: var(--text-sm)/1.4 var(--font-mono); }
+.media-upload-line, .media-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.media-status { margin: 0; color: var(--color-accent); font: var(--text-xs)/1.4 var(--font-mono); }
+.media-status[data-phase='error'] { color: var(--color-warn); }
 .editor-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); }
 .editor-toolbar button { padding: .45rem .7rem; border: 1px solid var(--color-border); background: transparent; color: var(--color-text-muted); font: var(--text-xs)/1 var(--font-mono); cursor: pointer; }
 .editor-toolbar button[aria-pressed='true'], .editor-toolbar button:focus-visible, .editor-toolbar button:hover { border-color: var(--color-accent); color: var(--color-accent); }

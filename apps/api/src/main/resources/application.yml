@@ -57,3 +57,13 @@ haoblog:
     session-cookie-secure: ${HAOBLOG_SESSION_COOKIE_SECURE:false}
   seed:
     enabled: ${HAOBLOG_SEED_ENABLED:false}
+  media:
+    cos:
+      enabled: ${HAOBLOG_COS_ENABLED:false}
+      bucket: ${HAOBLOG_COS_BUCKET:}
+      region: ${HAOBLOG_COS_REGION:}
+      secret-id: ${HAOBLOG_COS_SECRET_ID:}
+      secret-key: ${HAOBLOG_COS_SECRET_KEY:}
+      public-base-url: ${HAOBLOG_COS_PUBLIC_BASE_URL:}
+      max-size-bytes: ${HAOBLOG_COS_MAX_SIZE_BYTES:5242880}
+      max-dimension: ${HAOBLOG_COS_MAX_DIMENSION:2560}

@@ -61,6 +61,11 @@ public interface ArticleRepository extends JpaRepository<Article, UUID> {
 
     boolean existsByTags_Id(UUID tagId);
 
+    boolean existsByCoverMediaId(UUID mediaId);
+
+    @Query("select case when count(a) > 0 then true else false end from Article a where :publicUrl is not null and a.markdownSource like concat('%', :publicUrl, '%')")
+    boolean existsByMarkdownSourceContaining(@Param("publicUrl") String publicUrl);
+
     interface ScheduledPublicationProjection {
         UUID getId();
         long getVersion();

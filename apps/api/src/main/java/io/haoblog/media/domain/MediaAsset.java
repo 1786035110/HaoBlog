@@ -53,12 +53,21 @@ public class MediaAsset {
         this.updatedAt = now;
     }
 
+    public void markDeleted(Instant now) {
+        if (status == MediaAssetStatus.DELETED) return;
+        status = MediaAssetStatus.DELETED;
+        updatedAt = now;
+    }
+
     public UUID getId() { return id; }
     public String getObjectKey() { return objectKey; }
     public String getPublicUrl() { return publicUrl; }
     public String getMimeType() { return mimeType; }
     public Integer getWidth() { return width; }
     public Integer getHeight() { return height; }
+    public long getSizeBytes() { return sizeBytes; }
+    public Instant getCreatedAt() { return createdAt; }
+    public Instant getUpdatedAt() { return updatedAt; }
     public MediaAssetStatus getStatus() { return status; }
     public byte[] getSha256() { return sha256.clone(); }
 }

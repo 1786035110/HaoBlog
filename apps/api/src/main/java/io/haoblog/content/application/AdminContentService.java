@@ -10,6 +10,8 @@ import io.haoblog.content.persistence.ArticleRepository;
 import io.haoblog.content.persistence.ArticleRevisionRepository;
 import io.haoblog.content.persistence.CategoryRepository;
 import io.haoblog.content.persistence.TagRepository;
+import io.haoblog.media.domain.MediaAssetStatus;
+import io.haoblog.media.persistence.MediaAssetRepository;
 import io.haoblog.shared.web.ProblemException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -33,14 +35,16 @@ public class AdminContentService {
     private final ArticleRevisionRepository revisions;
     private final CategoryRepository categories;
     private final TagRepository tags;
+    private final MediaAssetRepository mediaAssets;
     private final Clock clock;
 
     public AdminContentService(ArticleRepository articles, ArticleRevisionRepository revisions,
-                               CategoryRepository categories, TagRepository tags, Clock clock) {
+                               CategoryRepository categories, TagRepository tags, MediaAssetRepository mediaAssets, Clock clock) {
         this.articles = articles;
         this.revisions = revisions;
         this.categories = categories;
         this.tags = tags;
+        this.mediaAssets = mediaAssets;
         this.clock = clock;
     }
 
@@ -67,6 +71,7 @@ public class AdminContentService {
         }
         Set<Tag> resolvedTags = resolveTags(tagIds);
         requireCategory(categoryId);
+        requireMedia(coverMediaId);
         Instant now = Instant.now(clock);
         Article article = new Article(normalizedSlug, resolvedTitle, excerpt, resolvedMarkdown,
                 ArticleStatus.DRAFT, null, now);
@@ -120,6 +125,7 @@ public class AdminContentService {
         }
         UUID categoryId = resolveRevisionCategory(revision.getCategorySnapshot());
         Set<Tag> tags = resolveRevisionTags(revision.getTagSnapshot());
+        requireMedia(revision.getCoverMediaId());
         ArticleStatus restoredStatus = restoredStatus(article);
         article.restoreWorkingCopy(slug, revision.getTitle(), revision.getExcerpt(), revision.getMarkdownSource(),
                 revision.getSeoTitle(), revision.getSeoDescription(), categoryId, revision.getCoverMediaId(),
@@ -148,6 +154,7 @@ public class AdminContentService {
         validateArticle(title, markdown, excerpt, seoTitle, seoDescription);
         Set<Tag> resolvedTags = resolveTags(tagIds);
         requireCategory(categoryId);
+        requireMedia(coverMediaId);
         article.updateWorkingCopy(resolvedSlug, title.trim(), excerpt, markdown, seoTitle, seoDescription,
                 scheduledAt, categoryId, coverMediaId, Instant.now(clock));
         article.replaceTags(resolvedTags);
@@ -291,6 +298,12 @@ public class AdminContentService {
     private void requireCategory(UUID categoryId) {
         if (categoryId != null && !categories.existsById(categoryId)) {
             throw notFound("CATEGORY_NOT_FOUND", "Category not found");
+        }
+    }
+
+    private void requireMedia(UUID mediaId) {
+        if (mediaId != null && mediaAssets.findByIdAndStatus(mediaId, MediaAssetStatus.AVAILABLE).isEmpty()) {
+            throw notFound("MEDIA_ASSET_NOT_FOUND", "Media asset not found");
         }
     }
 

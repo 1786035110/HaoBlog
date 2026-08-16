@@ -1,5 +1,5 @@
 import { flushPromises, mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import StudioVersionDiff from '../app/components/studio/StudioVersionDiff.vue'
 
 function version(id: string, markdown: string) {
@@ -14,7 +14,7 @@ describe('Studio version diff', () => {
   it('renders explicit added, removed and unchanged row states', async () => {
     const wrapper = mount(StudioVersionDiff, { props: { left: version('v1', 'same\nremoved\n') as never, right: version('v2', 'same\nadded\n') as never } })
     await flushPromises()
-    await new Promise(resolve => setTimeout(resolve, 10))
+    await vi.waitFor(() => expect(wrapper.findAll('li[data-kind="unchanged"]')).toHaveLength(1))
     expect(wrapper.findAll('li[data-kind="unchanged"]')).toHaveLength(1)
     expect(wrapper.findAll('li[data-kind="removed"]')).toHaveLength(1)
     expect(wrapper.findAll('li[data-kind="added"]')).toHaveLength(1)

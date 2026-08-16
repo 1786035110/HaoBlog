@@ -14,6 +14,11 @@ import java.util.UUID;
 public interface ArticleRevisionRepository extends JpaRepository<ArticleRevision, UUID> {
     boolean existsByArticleId(UUID articleId);
 
+    boolean existsByCoverMediaId(UUID mediaId);
+
+    @Query("select case when count(r) > 0 then true else false end from ArticleRevision r where :publicUrl is not null and r.markdownSource like concat('%', :publicUrl, '%')")
+    boolean existsByMarkdownSourceContaining(@Param("publicUrl") String publicUrl);
+
     @Query("""
             select r.id as id, r.sourceVersion as sourceVersion, r.changeReason as changeReason,
                    r.createdBy as createdBy, r.createdAt as createdAt

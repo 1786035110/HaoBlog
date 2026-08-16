@@ -62,7 +62,7 @@ class ArticleWorkflowIT {
 
     @BeforeEach
     void clean() {
-        jdbc.execute("TRUNCATE article_tag, article_preview_token, article_revision, article, category, tag, media_asset, outbox_event CASCADE");
+        jdbc.execute("TRUNCATE article_tag, article_preview_token, article_revision, article, category, tag, media_asset, media_upload, outbox_event CASCADE");
     }
 
     @AfterEach

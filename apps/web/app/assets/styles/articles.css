@@ -16,5 +16,6 @@
 .safe-markdown h1 { font-size: 2rem; }.safe-markdown h2 { font-size: 1.6rem; }.safe-markdown h3 { font-size: 1.3rem; }
 .safe-markdown p { margin: 1rem 0; }.safe-markdown ul { padding-left: 1.5rem; }.safe-markdown blockquote { margin: 1.5rem 0; padding-left: 1rem; border-left: 2px solid var(--color-accent); color: var(--color-text-muted); }
 .safe-markdown a { color: var(--color-accent); }.safe-markdown-code { overflow-x: auto; padding: 1rem; background: var(--color-code-bg); border: 1px solid var(--color-border); font: .9rem/1.6 var(--font-mono); white-space: pre-wrap; }
+.safe-markdown img { display: block; max-width: 100%; height: auto; margin: 1.5rem 0; border: 1px solid var(--color-border); }
 .article-toc { padding-top: 4rem; border-left: 1px solid var(--color-border); padding-left: 1rem; }
 @media (max-width: 767px) { .observation-entry { grid-template-columns: 1fr; gap: .4rem; padding-left: 1rem; }.article-instrument { display: block; margin-top: 4vh; }.article-signal { height: 1px; margin-bottom: 2rem; overflow: hidden; background: var(--color-accent); }.article-toc { margin-top: 3rem; padding: 1rem 0 0; border-left: 0; border-top: 1px solid var(--color-border); } }

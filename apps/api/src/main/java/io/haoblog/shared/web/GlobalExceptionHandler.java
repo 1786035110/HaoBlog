@@ -16,6 +16,8 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import java.util.Set;
+
 @RestControllerAdvice
 public class GlobalExceptionHandler {
     private static final Logger LOG = LoggerFactory.getLogger(GlobalExceptionHandler.class);
@@ -34,13 +36,15 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ProblemException.class)
     ResponseEntity<ProblemResponse> content(ProblemException exception) {
-        HttpStatus status = exception.getCode().endsWith("_NOT_FOUND") ? HttpStatus.NOT_FOUND :
-                ("ARTICLE_PREVIEW_GONE".equals(exception.getCode()) ? HttpStatus.GONE :
+        HttpStatus status = "MEDIA_STORAGE_UNAVAILABLE".equals(exception.getCode()) ? HttpStatus.SERVICE_UNAVAILABLE :
+                exception.getCode().endsWith("_NOT_FOUND") ? HttpStatus.NOT_FOUND :
+                (Set.of("ARTICLE_PREVIEW_GONE", "MEDIA_UPLOAD_EXPIRED").contains(exception.getCode()) ? HttpStatus.GONE :
                         (exception.getCode().contains("CONFLICT") || exception.getCode().endsWith("_IN_USE")
                                 ? HttpStatus.CONFLICT : HttpStatus.BAD_REQUEST));
         return problemResponseWriter.response(status, exception.getCode(), exception.getTitle(), exception.getMessage(),
                 exception.getCurrentVersion());
     }
+
 
     @ExceptionHandler(OptimisticLockingFailureException.class)
     ResponseEntity<ProblemResponse> optimisticLock(OptimisticLockingFailureException exception) {
