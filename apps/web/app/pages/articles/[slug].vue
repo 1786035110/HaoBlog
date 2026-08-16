@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { components } from '@haoblog/api-client'
+import PublicArticleBody from '~/components/articles/PublicArticleBody.vue'
 import { buildPublicArticleSeo } from '~/utils/publicArticleSeo'
 
 type Article = components['schemas']['ArticleResponse']
