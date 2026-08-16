@@ -102,6 +102,62 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/articles/{id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get: operations["listAdminArticleVersions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/articles/{id}/versions/{revisionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                revisionId: string;
+            };
+            cookie?: never;
+        };
+        get: operations["getAdminArticleVersion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/articles/{id}/versions/{revisionId}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                revisionId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["restoreAdminArticleVersion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/articles/{id}/publish": {
         parameters: {
             query?: never;
@@ -417,6 +473,54 @@ export interface components {
             tagIds: string[];
             /** Format: int64 */
             version: number;
+        };
+        ArticleTaxonomySnapshot: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            slug: string;
+        };
+        AdminArticleVersionSummary: {
+            /** Format: uuid */
+            id: string;
+            /** Format: int64 */
+            sourceArticleVersion: number;
+            /** Format: date-time */
+            createdAt: string;
+            changeReason?: string | null;
+            /** Format: uuid */
+            createdBy?: string | null;
+            currentPublished: boolean;
+        };
+        AdminArticleVersionListResponse: {
+            items: components["schemas"]["AdminArticleVersionSummary"][];
+            page: number;
+            size: number;
+            /** Format: int64 */
+            total: number;
+        };
+        AdminArticleVersionResponse: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            articleId: string;
+            /** Format: int64 */
+            sourceArticleVersion: number;
+            title: string;
+            slug: string;
+            excerpt?: string | null;
+            markdown: string;
+            seoTitle?: string | null;
+            seoDescription?: string | null;
+            /** Format: uuid */
+            coverMediaId?: string | null;
+            categorySnapshot?: components["schemas"]["ArticleTaxonomySnapshot"] | null;
+            tagSnapshot: components["schemas"]["ArticleTaxonomySnapshot"][];
+            changeReason?: string | null;
+            /** Format: uuid */
+            createdBy?: string | null;
+            /** Format: date-time */
+            createdAt: string;
         };
         AdminArticleCreateRequest: {
             slug?: string | null;
@@ -923,6 +1027,95 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["CsrfInvalid"];
             404: components["responses"]["ResourceNotFound"];
+        };
+    };
+    listAdminArticleVersions: {
+        parameters: {
+            query?: {
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Administrator article version summaries without Markdown */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminArticleVersionListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["ResourceNotFound"];
+        };
+    };
+    getAdminArticleVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                revisionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Administrator article version detail */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminArticleVersionResponse"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["ResourceNotFound"];
+        };
+    };
+    restoreAdminArticleVersion: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-TOKEN": components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                id: string;
+                revisionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ArticleVersionRequest"];
+            };
+        };
+        responses: {
+            /** @description Restored editable working copy; public revision is unchanged */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminArticleResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["CsrfInvalid"];
+            404: components["responses"]["ResourceNotFound"];
+            409: components["responses"]["Conflict"];
         };
     };
     publishAdminArticle: {

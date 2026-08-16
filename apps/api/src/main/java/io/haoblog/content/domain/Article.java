@@ -102,6 +102,22 @@ public class Article {
         this.updatedAt = now;
     }
 
+    public void restoreWorkingCopy(String slug, String title, String excerpt, String markdownSource,
+                                   String seoTitle, String seoDescription, UUID categoryId,
+                                   UUID coverMediaId, ArticleStatus restoredStatus, Instant now) {
+        this.slug = normalizeSlug(slug, restoredStatus);
+        this.title = title;
+        this.excerpt = excerpt;
+        this.markdownSource = markdownSource;
+        this.seoTitle = seoTitle;
+        this.seoDescription = seoDescription;
+        this.categoryId = categoryId;
+        this.coverMediaId = coverMediaId;
+        this.status = restoredStatus;
+        this.scheduledAt = null;
+        this.updatedAt = now;
+    }
+
     private static String normalizeSlug(String raw, ArticleStatus status) {
         String normalized = Slug.normalizeNullable(raw);
         if (status != ArticleStatus.DRAFT && normalized == null) {

@@ -159,6 +159,70 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/CsrfInvalid' }
         '404': { $ref: '#/components/responses/ResourceNotFound' }
+  /api/v1/admin/articles/{id}/versions:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: listAdminArticleVersions
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+      responses:
+        '200':
+          description: Administrator article version summaries without Markdown
+          content: { application/json: { schema: { $ref: '#/components/schemas/AdminArticleVersionListResponse' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+  /api/v1/admin/articles/{id}/versions/{revisionId}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: revisionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getAdminArticleVersion
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          description: Administrator article version detail
+          content: { application/json: { schema: { $ref: '#/components/schemas/AdminArticleVersionResponse' } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+  /api/v1/admin/articles/{id}/versions/{revisionId}/restore:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: revisionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: restoreAdminArticleVersion
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ArticleVersionRequest' } } } }
+      responses:
+        '200':
+          description: Restored editable working copy; public revision is unchanged
+          content: { application/json: { schema: { $ref: '#/components/schemas/AdminArticleResponse' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
   /api/v1/admin/articles/{id}/publish:
     post:
       operationId: publishAdminArticle
@@ -620,6 +684,53 @@ components:
         coverMediaId: { type: [string, 'null'], format: uuid }
         tagIds: { type: array, items: { type: string, format: uuid } }
         version: { type: integer, format: int64, minimum: 0 }
+    ArticleTaxonomySnapshot:
+      type: object
+      required: [id, name, slug]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+    AdminArticleVersionSummary:
+      type: object
+      required: [id, sourceArticleVersion, createdAt, currentPublished]
+      properties:
+        id: { type: string, format: uuid }
+        sourceArticleVersion: { type: integer, format: int64, minimum: 0 }
+        createdAt: { type: string, format: date-time }
+        changeReason: { type: [string, 'null'] }
+        createdBy: { type: [string, 'null'], format: uuid }
+        currentPublished: { type: boolean }
+    AdminArticleVersionListResponse:
+      type: object
+      required: [items, page, size, total]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/AdminArticleVersionSummary' } }
+        page: { type: integer }
+        size: { type: integer }
+        total: { type: integer, format: int64 }
+    AdminArticleVersionResponse:
+      type: object
+      required: [id, articleId, sourceArticleVersion, title, slug, markdown, tagSnapshot, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        articleId: { type: string, format: uuid }
+        sourceArticleVersion: { type: integer, format: int64, minimum: 0 }
+        title: { type: string }
+        slug: { type: string }
+        excerpt: { type: [string, 'null'] }
+        markdown: { type: string }
+        seoTitle: { type: [string, 'null'] }
+        seoDescription: { type: [string, 'null'] }
+        coverMediaId: { type: [string, 'null'], format: uuid }
+        categorySnapshot:
+          oneOf:
+            - { $ref: '#/components/schemas/ArticleTaxonomySnapshot' }
+            - { type: 'null' }
+        tagSnapshot: { type: array, items: { $ref: '#/components/schemas/ArticleTaxonomySnapshot' } }
+        changeReason: { type: [string, 'null'] }
+        createdBy: { type: [string, 'null'], format: uuid }
+        createdAt: { type: string, format: date-time }
     AdminArticleCreateRequest:
       type: object
       properties:

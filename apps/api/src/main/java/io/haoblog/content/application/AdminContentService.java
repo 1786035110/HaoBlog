@@ -1,6 +1,7 @@
 package io.haoblog.content.application;
 
 import io.haoblog.content.domain.Article;
+import io.haoblog.content.domain.ArticleRevision;
 import io.haoblog.content.domain.ArticleStatus;
 import io.haoblog.content.domain.Category;
 import io.haoblog.content.domain.Slug;
@@ -21,6 +22,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -82,6 +84,48 @@ public class AdminContentService {
     @Transactional(readOnly = true)
     public long currentVersion(UUID id) {
         return articles.findById(id).orElseThrow(() -> notFound("ARTICLE_NOT_FOUND", "Article not found")).getVersion();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<RevisionSummary> listRevisions(UUID articleId, int page, int size) {
+        getArticle(articleId);
+        if (page < 0 || size < 1 || size > 50) throw new IllegalArgumentException("page/size out of range");
+        var pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")
+                .and(Sort.by(Sort.Direction.DESC, "id")));
+        UUID publishedRevisionId = articles.findById(articleId).orElseThrow().getPublishedRevisionId();
+        return revisions.findSummariesByArticleId(articleId, pageable)
+                .map(summary -> new RevisionSummary(summary.getId(), summary.getSourceVersion(), summary.getChangeReason(),
+                        summary.getCreatedBy(), summary.getCreatedAt(), summary.getId().equals(publishedRevisionId)));
+    }
+
+    @Transactional(readOnly = true)
+    public ArticleRevision getRevision(UUID articleId, UUID revisionId) {
+        getArticle(articleId);
+        return revisions.findByIdAndArticleId(revisionId, articleId)
+                .orElseThrow(() -> notFound("ARTICLE_REVISION_NOT_FOUND", "Article version not found"));
+    }
+
+    @Transactional
+    public Article restoreRevision(UUID articleId, UUID revisionId, long version) {
+        Article article = getArticle(articleId);
+        if (article.getVersion() != version) {
+            throw new ProblemException("ARTICLE_VERSION_CONFLICT", "Article version conflict",
+                    "Reload the latest article before restoring a version", article.getVersion());
+        }
+        ArticleRevision revision = revisions.findByIdAndArticleId(revisionId, articleId)
+                .orElseThrow(() -> notFound("ARTICLE_REVISION_NOT_FOUND", "Article version not found"));
+        String slug = revision.getSlug();
+        if (articles.existsBySlugAndIdNot(slug, articleId)) {
+            throw conflict("ARTICLE_SLUG_CONFLICT", "Article slug conflict", "The historical slug is already in use");
+        }
+        UUID categoryId = resolveRevisionCategory(revision.getCategorySnapshot());
+        Set<Tag> tags = resolveRevisionTags(revision.getTagSnapshot());
+        ArticleStatus restoredStatus = restoredStatus(article);
+        article.restoreWorkingCopy(slug, revision.getTitle(), revision.getExcerpt(), revision.getMarkdownSource(),
+                revision.getSeoTitle(), revision.getSeoDescription(), categoryId, revision.getCoverMediaId(),
+                restoredStatus, Instant.now(clock));
+        article.replaceTags(tags);
+        return articles.saveAndFlush(article);
     }
 
     @Transactional
@@ -205,6 +249,45 @@ public class AdminContentService {
         return new LinkedHashSet<>(found);
     }
 
+    private UUID resolveRevisionCategory(Map<String, String> snapshot) {
+        if (snapshot == null) return null;
+        UUID id = snapshotId(snapshot, "category");
+        if (!categories.existsById(id)) {
+            throw conflict("ARTICLE_REVISION_RESTORE_CONFLICT", "Article version cannot be restored",
+                    "The historical category is no longer available");
+        }
+        return id;
+    }
+
+    private Set<Tag> resolveRevisionTags(List<Map<String, String>> snapshot) {
+        if (snapshot == null || snapshot.isEmpty()) return new LinkedHashSet<>();
+        List<UUID> ids = snapshot.stream().map(value -> snapshotId(value, "tag")).toList();
+        List<Tag> found = tags.findAllById(ids);
+        if (found.size() != new LinkedHashSet<>(ids).size()) {
+            throw conflict("ARTICLE_REVISION_RESTORE_CONFLICT", "Article version cannot be restored",
+                    "One or more historical tags are no longer available");
+        }
+        Map<UUID, Tag> byId = found.stream().collect(java.util.stream.Collectors.toMap(Tag::getId, tag -> tag));
+        return ids.stream().map(byId::get).collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    private static UUID snapshotId(Map<String, String> snapshot, String kind) {
+        try {
+            return UUID.fromString(snapshot.get("id"));
+        } catch (Exception exception) {
+            throw conflict("ARTICLE_REVISION_RESTORE_CONFLICT", "Article version cannot be restored",
+                    "The historical " + kind + " snapshot is invalid");
+        }
+    }
+
+    private static ArticleStatus restoredStatus(Article article) {
+        if (article.getStatus() == ArticleStatus.PUBLISHED) return ArticleStatus.PUBLISHED;
+        if (article.getStatus() == ArticleStatus.SCHEDULED && article.getPublishedRevisionId() != null) {
+            return ArticleStatus.PUBLISHED;
+        }
+        return ArticleStatus.DRAFT;
+    }
+
     private void requireCategory(UUID categoryId) {
         if (categoryId != null && !categories.existsById(categoryId)) {
             throw notFound("CATEGORY_NOT_FOUND", "Category not found");
@@ -228,4 +311,6 @@ public class AdminContentService {
     private static ProblemException conflict(String code, String title, String detail) { return new ProblemException(code, title, detail); }
 
     public record DeleteResult(boolean archived, Article article) {}
+    public record RevisionSummary(UUID id, long sourceArticleVersion, String changeReason, UUID createdBy,
+                                  Instant createdAt, boolean currentPublished) {}
 }

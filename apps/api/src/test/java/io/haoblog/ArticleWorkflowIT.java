@@ -144,6 +144,108 @@ class ArticleWorkflowIT {
     }
 
     @Test
+    void versionsArePagedWithoutMarkdownAndRestoreKeepsPublicRevisionUntilRepublish() throws Exception {
+        String slug = "versions-" + UUID.randomUUID().toString().substring(0, 8);
+        String id = create(slug, "Old title", "# old body");
+        mvc.perform(post("/api/v1/admin/articles/" + id + "/publish").with(admin()).with(csrf())
+                        .contentType("application/json").content("{\"version\":0}"))
+                .andExpect(status().isOk());
+        mvc.perform(put("/api/v1/admin/articles/" + id).with(admin()).with(csrf())
+                        .contentType("application/json")
+                        .content("{\"version\":1,\"slug\":\"" + slug + "\",\"title\":\"New title\",\"markdown\":\"# new body\"}"))
+                .andExpect(status().isOk());
+        mvc.perform(post("/api/v1/admin/articles/" + id + "/publish").with(admin()).with(csrf())
+                        .contentType("application/json").content("{\"version\":2}"))
+                .andExpect(status().isOk());
+
+        var list = mvc.perform(get("/api/v1/admin/articles/" + id + "/versions?page=0&size=1").with(admin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(2))
+                .andExpect(jsonPath("$.items[0].sourceArticleVersion").value(2))
+                .andExpect(jsonPath("$.items[0].markdown").doesNotExist())
+                .andReturn();
+        JsonNode latest = objectMapper.readTree(list.getResponse().getContentAsString());
+        String latestRevision = latest.get("items").get(0).get("id").asText();
+        var oldList = mvc.perform(get("/api/v1/admin/articles/" + id + "/versions?page=1&size=1").with(admin()))
+                .andExpect(status().isOk()).andReturn();
+        String oldRevision = objectMapper.readTree(oldList.getResponse().getContentAsString()).get("items").get(0).get("id").asText();
+
+        mvc.perform(get("/api/v1/admin/articles/" + id + "/versions/" + oldRevision).with(admin()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.markdown").value("# old body"))
+                .andExpect(jsonPath("$.sourceArticleVersion").value(0));
+        mvc.perform(post("/api/v1/admin/articles/" + id + "/versions/" + oldRevision + "/restore")
+                        .with(admin()).with(csrf()).contentType("application/json").content("{\"version\":3}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.version").value(4))
+                .andExpect(jsonPath("$.status").value("PUBLISHED"))
+                .andExpect(jsonPath("$.markdown").value("# old body"));
+        mvc.perform(get("/api/v1/public/articles/" + slug))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.title").value("New title"))
+                .andExpect(jsonPath("$.markdown").value("# new body"));
+        assertEquals(2, jdbc.queryForObject("SELECT count(*) FROM article_revision WHERE article_id=?", Integer.class, UUID.fromString(id)));
+
+        mvc.perform(post("/api/v1/admin/articles/" + id + "/publish").with(admin()).with(csrf())
+                        .contentType("application/json").content("{\"version\":4}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.version").value(5));
+        mvc.perform(get("/api/v1/public/articles/" + slug))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.title").value("Old title"))
+                .andExpect(jsonPath("$.markdown").value("# old body"));
+        assertEquals(3, jdbc.queryForObject("SELECT count(*) FROM article_revision WHERE article_id=?", Integer.class, UUID.fromString(id)));
+        assertNotEquals(latestRevision, oldRevision);
+    }
+
+    @Test
+    void restoringWithStaleWorkingCopyVersionReturnsConflictWithoutChangingPublicContent() throws Exception {
+        String slug = "version-conflict-" + UUID.randomUUID().toString().substring(0, 8);
+        String id = create(slug, "Conflict", "# original");
+        mvc.perform(post("/api/v1/admin/articles/" + id + "/publish").with(admin()).with(csrf())
+                        .contentType("application/json").content("{\"version\":0}"))
+                .andExpect(status().isOk());
+        var versions = mvc.perform(get("/api/v1/admin/articles/" + id + "/versions").with(admin()))
+                .andExpect(status().isOk()).andReturn();
+        String revisionId = objectMapper.readTree(versions.getResponse().getContentAsString()).get("items").get(0).get("id").asText();
+        mvc.perform(put("/api/v1/admin/articles/" + id).with(admin()).with(csrf())
+                        .contentType("application/json").content("{\"version\":1,\"slug\":\"" + slug + "\",\"title\":\"Changed\",\"markdown\":\"# changed\"}"))
+                .andExpect(status().isOk());
+        mvc.perform(post("/api/v1/admin/articles/" + id + "/versions/" + revisionId + "/restore")
+                        .with(admin()).with(csrf()).contentType("application/json").content("{\"version\":1}"))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("ARTICLE_VERSION_CONFLICT"))
+                .andExpect(jsonPath("$.currentVersion").value(2));
+        mvc.perform(get("/api/v1/public/articles/" + slug))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.markdown").value("# original"));
+    }
+
+    @Test
+    void restoringWithDeletedHistoricalTagFailsAtomically() throws Exception {
+        String slug = "version-tag-conflict-" + UUID.randomUUID().toString().substring(0, 8);
+        String id = create(slug, "Tagged", "# tagged");
+        UUID tagId = UUID.randomUUID();
+        Instant now = Instant.now();
+        jdbc.update("INSERT INTO tag(id, name, slug, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+                tagId, "Historical tag", "historical-tag", java.sql.Timestamp.from(now), java.sql.Timestamp.from(now));
+        mvc.perform(put("/api/v1/admin/articles/" + id).with(admin()).with(csrf())
+                        .contentType("application/json")
+                        .content("{\"version\":0,\"slug\":\"" + slug + "\",\"title\":\"Tagged\",\"markdown\":\"# tagged\",\"tagIds\":[\"" + tagId + "\"]}"))
+                .andExpect(status().isOk());
+        mvc.perform(post("/api/v1/admin/articles/" + id + "/publish").with(admin()).with(csrf())
+                        .contentType("application/json").content("{\"version\":1}"))
+                .andExpect(status().isOk());
+        var versions = mvc.perform(get("/api/v1/admin/articles/" + id + "/versions").with(admin()))
+                .andExpect(status().isOk()).andReturn();
+        String revisionId = objectMapper.readTree(versions.getResponse().getContentAsString()).get("items").get(0).get("id").asText();
+        mvc.perform(put("/api/v1/admin/articles/" + id).with(admin()).with(csrf())
+                        .contentType("application/json")
+                        .content("{\"version\":2,\"slug\":\"" + slug + "\",\"title\":\"Untagged\",\"markdown\":\"# untagged\",\"tagIds\":[]}"))
+                .andExpect(status().isOk());
+        jdbc.update("DELETE FROM tag WHERE id=?", tagId);
+        mvc.perform(post("/api/v1/admin/articles/" + id + "/versions/" + revisionId + "/restore")
+                        .with(admin()).with(csrf()).contentType("application/json").content("{\"version\":3}"))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("ARTICLE_REVISION_RESTORE_CONFLICT"));
+        mvc.perform(get("/api/v1/admin/articles/" + id).with(admin()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.title").value("Untagged"))
+                .andExpect(jsonPath("$.version").value(3));
+    }
+
+    @Test
     void previewTokenIsHashedRevocableAndVersionBound() throws Exception {
         String id = create("preview-" + UUID.randomUUID().toString().substring(0, 8), "Preview", "# preview");
         var created = mvc.perform(post("/api/v1/admin/articles/" + id + "/preview-tokens").with(admin()).with(csrf())

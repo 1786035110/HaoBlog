@@ -85,5 +85,7 @@ public class ArticleRevision {
     public UUID getCoverMediaId() { return coverMediaId; }
     public Map<String, String> getCategorySnapshot() { return categorySnapshot; }
     public List<Map<String, String>> getTagSnapshot() { return tagSnapshot; }
+    public String getChangeReason() { return changeReason; }
+    public UUID getCreatedBy() { return createdBy; }
     public Instant getCreatedAt() { return createdAt; }
 }

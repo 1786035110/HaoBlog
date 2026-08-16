@@ -23,6 +23,7 @@ import java.net.URI;
 import java.util.UUID;
 
 import static io.haoblog.content.web.AdminArticleDtos.*;
+import static io.haoblog.content.web.AdminArticleVersionDtos.*;
 import static io.haoblog.content.web.ArticleWorkflowDtos.*;
 
 @RestController
@@ -59,6 +60,30 @@ public class AdminArticleController {
 
     @GetMapping("/{id}")
     public Response get(@PathVariable UUID id) { return Response.from(service.getArticle(id)); }
+
+    @GetMapping("/{id}/versions")
+    public VersionListResponse listVersions(@PathVariable UUID id,
+                                            @RequestParam(defaultValue = "0") int page,
+                                            @RequestParam(defaultValue = "20") int size) {
+        var result = service.listRevisions(id, page, size);
+        return new VersionListResponse(result.getContent().stream().map(VersionSummary::from).toList(),
+                result.getNumber(), result.getSize(), result.getTotalElements());
+    }
+
+    @GetMapping("/{id}/versions/{revisionId}")
+    public VersionResponse getVersion(@PathVariable UUID id, @PathVariable UUID revisionId) {
+        return VersionResponse.from(service.getRevision(id, revisionId));
+    }
+
+    @PostMapping("/{id}/versions/{revisionId}/restore")
+    public Response restoreVersion(@PathVariable UUID id, @PathVariable UUID revisionId,
+                                   @RequestBody @Valid VersionRequest request) {
+        try {
+            return Response.from(service.restoreRevision(id, revisionId, request.version()));
+        } catch (OptimisticLockingFailureException exception) {
+            throw versionConflict(id);
+        }
+    }
 
     @PutMapping("/{id}")
     public Response update(@PathVariable UUID id, @RequestBody @Valid UpdateRequest request) {

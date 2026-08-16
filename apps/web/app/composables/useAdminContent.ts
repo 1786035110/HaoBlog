@@ -8,6 +8,8 @@ type CreateRequest = components['schemas']['AdminArticleCreateRequest']
 type UpdateRequest = components['schemas']['AdminArticleUpdateRequest']
 type Category = components['schemas']['CategoryResponse']
 type Tag = components['schemas']['TagResponse']
+type ArticleVersionList = components['schemas']['AdminArticleVersionListResponse']
+type ArticleVersion = components['schemas']['AdminArticleVersionResponse']
 
 export function useAdminContent() {
   const session = useAdminSession()
@@ -24,6 +26,23 @@ export function useAdminContent() {
 
   async function getArticle(id: string) {
     return session.request<Article>(`/api/v1/admin/articles/${encodeURIComponent(id)}`)
+  }
+
+  async function listArticleVersions(id: string, params: { page?: number; size?: number } = {}) {
+    const query = new URLSearchParams({ page: String(params.page ?? 0), size: String(params.size ?? 20) })
+    return session.request<ArticleVersionList>(`/api/v1/admin/articles/${encodeURIComponent(id)}/versions?${query}`)
+  }
+
+  async function getArticleVersion(id: string, revisionId: string) {
+    return session.request<ArticleVersion>(`/api/v1/admin/articles/${encodeURIComponent(id)}/versions/${encodeURIComponent(revisionId)}`)
+  }
+
+  async function restoreArticleVersion(id: string, revisionId: string, version: number) {
+    return session.write<Article>(`/api/v1/admin/articles/${encodeURIComponent(id)}/versions/${encodeURIComponent(revisionId)}/restore`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ version }),
+    })
   }
 
   async function createArticle(payload: CreateRequest) {
@@ -50,7 +69,7 @@ export function useAdminContent() {
     return session.request<Tag[]>('/api/v1/admin/tags')
   }
 
-  return { listArticles, getArticle, createArticle, updateArticle, listCategories, listTags }
+  return { listArticles, getArticle, listArticleVersions, getArticleVersion, restoreArticleVersion, createArticle, updateArticle, listCategories, listTags }
 }
 
-export type { Article, ArticleSummary, Category, CreateRequest, Tag, UpdateRequest }
+export type { Article, ArticleSummary, ArticleVersion, ArticleVersionList, Category, CreateRequest, Tag, UpdateRequest }

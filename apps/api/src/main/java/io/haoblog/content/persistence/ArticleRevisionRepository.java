@@ -15,6 +15,16 @@ public interface ArticleRevisionRepository extends JpaRepository<ArticleRevision
     boolean existsByArticleId(UUID articleId);
 
     @Query("""
+            select r.id as id, r.sourceVersion as sourceVersion, r.changeReason as changeReason,
+                   r.createdBy as createdBy, r.createdAt as createdAt
+            from ArticleRevision r
+            where r.articleId = :articleId
+            """)
+    Page<SummaryProjection> findSummariesByArticleId(@Param("articleId") UUID articleId, Pageable pageable);
+
+    Optional<ArticleRevision> findByIdAndArticleId(UUID id, UUID articleId);
+
+    @Query("""
             select r from ArticleRevision r, Article a
             where r.id = a.publishedRevisionId
               and a.status in (:published, :scheduled)
@@ -57,4 +67,12 @@ public interface ArticleRevisionRepository extends JpaRepository<ArticleRevision
                               @Param("published") ArticleStatus published,
                               @Param("scheduled") ArticleStatus scheduled,
                               @Param("now") java.time.Instant now);
+
+    interface SummaryProjection {
+        UUID getId();
+        long getSourceVersion();
+        String getChangeReason();
+        UUID getCreatedBy();
+        java.time.Instant getCreatedAt();
+    }
 }

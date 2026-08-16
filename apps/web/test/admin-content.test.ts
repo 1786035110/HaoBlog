@@ -32,4 +32,18 @@ describe('admin content client', () => {
     expect(fetchMock.mock.calls[1][0]).toBe('/api/v1/admin/articles')
     expect(fetchMock.mock.calls[1][1].headers.get('X-CSRF-TOKEN')).toBe('csrf-1')
   })
+
+  it('loads version summaries and restores through the CSRF-aware path', async () => {
+    fetchMock
+      .mockResolvedValueOnce(response({ items: [{ id: 'r1', sourceArticleVersion: 2, createdAt: '2030-01-01T00:00:00Z', currentPublished: true }], page: 0, size: 20, total: 1 }))
+      .mockResolvedValueOnce(response({ token: 'csrf-2' }))
+      .mockResolvedValueOnce(response({ id: 'a1', title: 'Restored', markdown: '# old', status: 'PUBLISHED', tagIds: [], version: 3 }))
+    const content = useAdminContent()
+    await expect(content.listArticleVersions('a1')).resolves.toMatchObject({ total: 1 })
+    await content.restoreArticleVersion('a1', 'r1', 2)
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/admin/articles/a1/versions?page=0&size=20')
+    expect(fetchMock.mock.calls[2][0]).toBe('/api/v1/admin/articles/a1/versions/r1/restore')
+    expect(fetchMock.mock.calls[2][1].headers.get('X-CSRF-TOKEN')).toBe('csrf-2')
+    expect(JSON.parse(fetchMock.mock.calls[2][1].body)).toEqual({ version: 2 })
+  })
 })
