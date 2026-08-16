@@ -4,6 +4,7 @@ import io.haoblog.content.web.PublicArticleController;
 import io.haoblog.site.web.PublicSiteController;
 import org.junit.jupiter.api.Test;
 import io.haoblog.content.domain.Article;
+import io.haoblog.content.domain.ArticleRevision;
 import io.haoblog.content.domain.ArticleStatus;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -100,8 +101,7 @@ class PublicApiTest {
 
     @Test void articleDetailSupports304WithoutResponseBody() throws Exception {
         Instant publishedAt = Instant.parse("2026-01-01T00:00:00Z");
-        when(articleService.findPublicBySlug("visible")).thenReturn(Optional.of(
-                new Article("visible", "Visible", "Excerpt", "# Body", ArticleStatus.PUBLISHED, publishedAt, publishedAt)));
+        when(articleService.findPublicBySlug("visible")).thenReturn(Optional.of(revision("visible", "Visible", "Excerpt", "# Body", publishedAt)));
         var first = mvc.perform(get("/api/v1/public/articles/visible")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.markdown").value("# Body"))
                 .andExpect(header().exists("ETag")).andReturn();
@@ -121,7 +121,7 @@ class PublicApiTest {
 
     @Test void listEtagsAreIsolatedPerPageRepresentation() throws Exception {
         Instant publishedAt = Instant.parse("2026-01-01T00:00:00Z");
-        Article article = new Article("visible", "Visible", "Excerpt", "# Body", ArticleStatus.PUBLISHED, publishedAt, publishedAt);
+        ArticleRevision article = revision("visible", "Visible", "Excerpt", "# Body", publishedAt);
         var service = mock(io.haoblog.content.application.ArticleService.class);
         when(service.list(0, 20)).thenReturn(new io.haoblog.content.application.ArticleService.PageResult(new PageImpl<>(List.of(article), PageRequest.of(0, 20), 2)));
         when(service.list(1, 20)).thenReturn(new io.haoblog.content.application.ArticleService.PageResult(new PageImpl<>(List.of(), PageRequest.of(1, 20), 2)));
@@ -133,12 +133,17 @@ class PublicApiTest {
 
     @Test void articleListSupports304WithoutResponseBody() throws Exception {
         Instant publishedAt = Instant.parse("2026-01-01T00:00:00Z");
-        Article article = new Article("list-visible", "List visible", null, "# Body", ArticleStatus.PUBLISHED, publishedAt, publishedAt);
+        ArticleRevision article = revision("list-visible", "List visible", null, "# Body", publishedAt);
         doReturn(new io.haoblog.content.application.ArticleService.PageResult(
                 new PageImpl<>(List.of(article), PageRequest.of(0, 20), 1))).when(articleService).list(0, 20);
         var first = mvc.perform(get("/api/v1/public/articles")).andExpect(status().isOk())
                 .andExpect(header().exists("ETag")).andReturn();
         mvc.perform(get("/api/v1/public/articles").header("If-None-Match", first.getResponse().getHeader("ETag")))
                 .andExpect(status().isNotModified()).andExpect(header().exists("ETag")).andExpect(content().string(""));
+    }
+
+    private static ArticleRevision revision(String slug, String title, String excerpt, String markdown, Instant createdAt) {
+        return new ArticleRevision(java.util.UUID.randomUUID(), 0, title, slug, excerpt, markdown,
+                null, null, null, null, List.of(), null, null, createdAt);
     }
 }

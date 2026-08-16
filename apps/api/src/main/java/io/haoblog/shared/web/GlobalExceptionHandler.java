@@ -35,8 +35,9 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ProblemException.class)
     ResponseEntity<ProblemResponse> content(ProblemException exception) {
         HttpStatus status = exception.getCode().endsWith("_NOT_FOUND") ? HttpStatus.NOT_FOUND :
-                (exception.getCode().contains("CONFLICT") || exception.getCode().endsWith("_IN_USE")
-                        ? HttpStatus.CONFLICT : HttpStatus.BAD_REQUEST);
+                ("ARTICLE_PREVIEW_GONE".equals(exception.getCode()) ? HttpStatus.GONE :
+                        (exception.getCode().contains("CONFLICT") || exception.getCode().endsWith("_IN_USE")
+                                ? HttpStatus.CONFLICT : HttpStatus.BAD_REQUEST));
         return problemResponseWriter.response(status, exception.getCode(), exception.getTitle(), exception.getMessage(),
                 exception.getCurrentVersion());
     }

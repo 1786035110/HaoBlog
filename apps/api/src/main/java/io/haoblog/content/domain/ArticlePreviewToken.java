@@ -18,6 +18,8 @@ public class ArticlePreviewToken {
     private UUID articleId;
     @Column(name = "token_digest", nullable = false, columnDefinition = "bytea")
     private byte[] tokenDigest;
+    @Column(name = "source_version", nullable = false)
+    private long sourceVersion;
     @Column(name = "expires_at", nullable = false)
     private Instant expiresAt;
     @Column(name = "revoked_at")
@@ -27,9 +29,11 @@ public class ArticlePreviewToken {
 
     protected ArticlePreviewToken() {}
 
-    public ArticlePreviewToken(UUID articleId, byte[] tokenDigest, Instant expiresAt, Instant createdAt) {
+    public ArticlePreviewToken(UUID articleId, long sourceVersion, byte[] tokenDigest, Instant expiresAt, Instant createdAt) {
+        if (sourceVersion < 0) throw new IllegalArgumentException("Preview token source version must be non-negative");
         if (tokenDigest == null || tokenDigest.length != 32) throw new IllegalArgumentException("Preview token digest must be SHA-256");
         this.articleId = articleId;
+        this.sourceVersion = sourceVersion;
         this.tokenDigest = tokenDigest.clone();
         this.expiresAt = expiresAt;
         this.createdAt = createdAt;
@@ -37,6 +41,12 @@ public class ArticlePreviewToken {
 
     public UUID getId() { return id; }
     public UUID getArticleId() { return articleId; }
+    public long getSourceVersion() { return sourceVersion; }
     public byte[] getTokenDigest() { return tokenDigest.clone(); }
     public Instant getExpiresAt() { return expiresAt; }
+    public Instant getRevokedAt() { return revokedAt; }
+
+    public void revoke(Instant now) {
+        if (revokedAt == null) revokedAt = now;
+    }
 }

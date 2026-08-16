@@ -51,7 +51,7 @@ class ContentModelIT {
 
     @Test
     void migratesAllVersionsAndCreatesContentTables() {
-        assertEquals(6, jdbc.queryForObject("SELECT count(*) FROM flyway_schema_history", Integer.class));
+        assertEquals(7, jdbc.queryForObject("SELECT count(*) FROM flyway_schema_history", Integer.class));
         for (String table : List.of("article", "category", "tag", "article_tag", "article_revision",
                 "article_preview_token", "media_asset", "outbox_event")) {
             assertEquals(1, jdbc.queryForObject(
@@ -109,12 +109,13 @@ class ContentModelIT {
         jdbc.update("INSERT INTO article(id, slug, title, markdown_source, status, created_at, updated_at) VALUES (?, ?, ?, ?, 'DRAFT', ?, ?)",
                 articleId, "digest-test", "Digest", "# digest", timestamp, timestamp);
         byte[] digest = MessageDigest.getInstance("SHA-256").digest("secret-preview".getBytes(StandardCharsets.UTF_8));
-        jdbc.update("INSERT INTO article_preview_token(id, article_id, token_digest, expires_at, created_at) VALUES (?, ?, ?, ?, ?)",
-                UUID.randomUUID(), articleId, digest, Timestamp.from(now.plus(1, ChronoUnit.DAYS)), timestamp);
+        jdbc.update("INSERT INTO article_preview_token(id, article_id, token_digest, source_version, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                UUID.randomUUID(), articleId, digest, 0L, Timestamp.from(now.plus(1, ChronoUnit.DAYS)), timestamp);
         assertEquals(32, jdbc.queryForObject("SELECT octet_length(token_digest) FROM article_preview_token", Integer.class));
+        assertEquals(0L, jdbc.queryForObject("SELECT source_version FROM article_preview_token", Long.class));
         assertThrows(DataAccessException.class, () -> jdbc.update(
-                "INSERT INTO article_preview_token(id, article_id, token_digest, expires_at, created_at) VALUES (?, ?, ?, ?, ?)",
-                UUID.randomUUID(), articleId, digest, Timestamp.from(now.plus(1, ChronoUnit.DAYS)), timestamp));
+                "INSERT INTO article_preview_token(id, article_id, token_digest, source_version, expires_at, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                UUID.randomUUID(), articleId, digest, 0L, Timestamp.from(now.plus(1, ChronoUnit.DAYS)), timestamp));
 
         byte[] mediaHash = MessageDigest.getInstance("SHA-256").digest("image".getBytes(StandardCharsets.UTF_8));
         jdbc.update("INSERT INTO media_asset(id, object_key, mime_type, size_bytes, sha256, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'AVAILABLE', ?, ?)",
@@ -169,14 +170,19 @@ class ContentModelIT {
         Instant now = Instant.now();
         Timestamp timestamp = Timestamp.from(now);
         UUID eventId = UUID.randomUUID();
+        UUID aggregateId = UUID.randomUUID();
+        UUID revisionId = UUID.randomUUID();
         Map<String, Object> valid = Map.of(
-                "articleId", UUID.randomUUID().toString(),
-                "revisionId", UUID.randomUUID().toString(),
+                "articleId", aggregateId.toString(),
+                "revisionId", revisionId.toString(),
                 "eventType", "ARTICLE_PUBLISHED",
                 "occurredAt", now.toString());
         jdbc.update("INSERT INTO outbox_event(id, aggregate_id, event_type, payload, available_at, created_at) VALUES (?, ?, ?, ?::jsonb, ?, ?)",
-                eventId, UUID.randomUUID(), "ARTICLE_PUBLISHED", toJson(valid), timestamp, timestamp);
+                eventId, aggregateId, "ARTICLE_PUBLISHED", toJson(valid), timestamp, timestamp);
         assertNotNull(jdbc.queryForObject("SELECT payload FROM outbox_event WHERE id=?", String.class, eventId));
+        assertThrows(DataAccessException.class, () -> jdbc.update(
+                "INSERT INTO outbox_event(id, aggregate_id, event_type, payload, available_at, created_at) VALUES (?, ?, ?, ?::jsonb, ?, ?)",
+                UUID.randomUUID(), aggregateId, "ARTICLE_PUBLISHED", toJson(valid), timestamp, timestamp));
         assertThrows(DataAccessException.class, () -> jdbc.update(
                 "INSERT INTO outbox_event(id, aggregate_id, event_type, payload, available_at, created_at) VALUES (?, ?, ?, ?::jsonb, ?, ?)",
                 UUID.randomUUID(), UUID.randomUUID(), "ARTICLE_PUBLISHED", "{\"articleId\":\"x\",\"revisionId\":\"y\",\"eventType\":\"x\",\"occurredAt\":\"z\",\"markdown\":\"secret\"}", timestamp, timestamp));

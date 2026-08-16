@@ -1,7 +1,7 @@
 package io.haoblog.content.web;
 
 import io.haoblog.content.application.ArticleService;
-import io.haoblog.content.domain.Article;
+import io.haoblog.content.domain.ArticleRevision;
 import io.haoblog.shared.web.ProblemResponse;
 import org.slf4j.MDC;
 import org.springframework.http.HttpHeaders;
@@ -38,7 +38,7 @@ public class PublicArticleController {
     @GetMapping("/{slug}")
     public ResponseEntity<ArticleResponse> article(@PathVariable String slug,
                                                    @RequestHeader(value = HttpHeaders.IF_NONE_MATCH, required = false) String ifNoneMatch) {
-        Article article = service.findPublicBySlug(slug).orElseThrow(() -> new ArticleNotFoundException(slug));
+        ArticleRevision article = service.findPublicBySlug(slug).orElseThrow(() -> new ArticleNotFoundException(slug));
         var response = ArticleResponse.from(article);
         return withCache(response, representationHash(response), ifNoneMatch);
     }
@@ -67,10 +67,10 @@ public class PublicArticleController {
     }
 
     public record ArticleSummary(UUID id, String slug, String title, String excerpt, Instant publishedAt) {
-        static ArticleSummary from(Article article) { return new ArticleSummary(article.getId(), article.getSlug(), article.getTitle(), article.getExcerpt(), article.getPublishedAt()); }
+        static ArticleSummary from(ArticleRevision article) { return new ArticleSummary(article.getArticleId(), article.getSlug(), article.getTitle(), article.getExcerpt(), article.getCreatedAt()); }
     }
     public record ArticleListResponse(List<ArticleSummary> items, int page, int size, long total) {}
     public record ArticleResponse(UUID id, String slug, String title, String excerpt, Instant publishedAt, String markdown) {
-        static ArticleResponse from(Article article) { return new ArticleResponse(article.getId(), article.getSlug(), article.getTitle(), article.getExcerpt(), article.getPublishedAt(), article.getMarkdownSource()); }
+        static ArticleResponse from(ArticleRevision article) { return new ArticleResponse(article.getArticleId(), article.getSlug(), article.getTitle(), article.getExcerpt(), article.getCreatedAt(), article.getMarkdownSource()); }
     }
 }

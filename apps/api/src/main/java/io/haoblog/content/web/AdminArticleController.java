@@ -1,6 +1,7 @@
 package io.haoblog.content.web;
 
 import io.haoblog.content.application.AdminContentService;
+import io.haoblog.content.application.ArticleWorkflowService;
 import io.haoblog.content.domain.ArticleStatus;
 import io.haoblog.shared.web.ProblemException;
 import jakarta.validation.Valid;
@@ -22,13 +23,18 @@ import java.net.URI;
 import java.util.UUID;
 
 import static io.haoblog.content.web.AdminArticleDtos.*;
+import static io.haoblog.content.web.ArticleWorkflowDtos.*;
 
 @RestController
 @RequestMapping("/api/v1/admin/articles")
 public class AdminArticleController {
     private final AdminContentService service;
+    private final ArticleWorkflowService workflow;
 
-    public AdminArticleController(AdminContentService service) { this.service = service; }
+    public AdminArticleController(AdminContentService service, ArticleWorkflowService workflow) {
+        this.service = service;
+        this.workflow = workflow;
+    }
 
     @GetMapping
     public ListResponse list(@RequestParam(defaultValue = "0") int page,
@@ -69,6 +75,60 @@ public class AdminArticleController {
     public ResponseEntity<?> delete(@PathVariable UUID id) {
         var result = service.deleteArticle(id);
         return result.archived() ? ResponseEntity.ok(Response.from(result.article())) : ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/publish")
+    public ActionResponse publish(@PathVariable UUID id, @RequestBody @Valid VersionRequest request) {
+        try {
+            return ActionResponse.from(workflow.publish(id, request.version()));
+        } catch (OptimisticLockingFailureException exception) {
+            throw versionConflict(id);
+        }
+    }
+
+    @PostMapping("/{id}/schedule")
+    public ActionResponse schedule(@PathVariable UUID id, @RequestBody @Valid ScheduleRequest request) {
+        try {
+            return ActionResponse.from(workflow.schedule(id, request.version(), request.scheduledAt()));
+        } catch (OptimisticLockingFailureException exception) {
+            throw versionConflict(id);
+        }
+    }
+
+    @PostMapping("/{id}/archive")
+    public ActionResponse archive(@PathVariable UUID id, @RequestBody @Valid VersionRequest request) {
+        try {
+            return ActionResponse.from(workflow.archive(id, request.version()));
+        } catch (OptimisticLockingFailureException exception) {
+            throw versionConflict(id);
+        }
+    }
+
+    @PostMapping("/{id}/draft")
+    public ActionResponse draft(@PathVariable UUID id, @RequestBody @Valid VersionRequest request) {
+        try {
+            return ActionResponse.from(workflow.returnToDraft(id, request.version()));
+        } catch (OptimisticLockingFailureException exception) {
+            throw versionConflict(id);
+        }
+    }
+
+    @PostMapping("/{id}/preview-tokens")
+    public ResponseEntity<PreviewTokenResponse> createPreviewToken(@PathVariable UUID id,
+                                                                    @RequestBody @Valid VersionRequest request) {
+        PreviewTokenResponse response = PreviewTokenResponse.from(workflow.createPreviewToken(id, request.version()));
+        return ResponseEntity.status(201).body(response);
+    }
+
+    @DeleteMapping("/{id}/preview-tokens/{tokenId}")
+    public ResponseEntity<Void> revokePreviewToken(@PathVariable UUID id, @PathVariable UUID tokenId) {
+        workflow.revokePreviewToken(id, tokenId);
+        return ResponseEntity.noContent().build();
+    }
+
+    private ProblemException versionConflict(UUID id) {
+        return new ProblemException("ARTICLE_VERSION_CONFLICT", "Article version conflict",
+                "Reload the latest article before changing its publication state", service.currentVersion(id));
     }
 
     private static Sort.Direction parseDirection(String direction) {

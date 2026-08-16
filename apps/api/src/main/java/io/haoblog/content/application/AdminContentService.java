@@ -89,6 +89,10 @@ public class AdminContentService {
                                  String seoTitle, String seoDescription, Instant scheduledAt, UUID categoryId,
                                  UUID coverMediaId, List<UUID> tagIds) {
         Article article = getArticle(id);
+        if (article.getStatus() == ArticleStatus.ARCHIVED) {
+            throw new ProblemException("ARTICLE_STATE_CONFLICT", "Article is archived",
+                    "Return the article to draft before editing it");
+        }
         if (article.getVersion() != version) {
             throw new ProblemException("ARTICLE_VERSION_CONFLICT", "Article version conflict",
                     "Reload the latest article before saving", article.getVersion());
@@ -117,8 +121,7 @@ public class AdminContentService {
             articles.flush();
             return new DeleteResult(false, null);
         }
-        article.archive(Instant.now(clock));
-        return new DeleteResult(true, articles.saveAndFlush(article));
+        throw conflict("ARTICLE_STATE_CONFLICT", "Article cannot be deleted", "Use the article archive action with the current version");
     }
 
     @Transactional(readOnly = true)

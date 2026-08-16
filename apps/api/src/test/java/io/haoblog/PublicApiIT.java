@@ -17,6 +17,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.springframework.test.web.servlet.MockMvc;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.UUID;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -42,9 +43,9 @@ class PublicApiIT {
     @BeforeEach void seed() {
         jdbc.execute("TRUNCATE article_tag, article_preview_token, article_revision, article, category, tag, media_asset, outbox_event CASCADE");
         Instant now = Instant.now();
-        articles.save(new Article("visible", "Visible", "Now", "# now", ArticleStatus.PUBLISHED, now.minus(1, ChronoUnit.MINUTES), now));
-        articles.save(new Article("future", "Future", "Later", "# later", ArticleStatus.PUBLISHED, now.plus(1, ChronoUnit.DAYS), now));
-        articles.save(new Article("draft", "Draft", "No", "# draft", ArticleStatus.DRAFT, null, now));
+        seedPublished("visible", "Visible", "Now", "# now", now.minus(1, ChronoUnit.MINUTES), now);
+        seedPublished("future", "Future", "Later", "# later", now.plus(1, ChronoUnit.DAYS), now);
+        articles.saveAndFlush(new Article("draft", "Draft", "No", "# draft", ArticleStatus.DRAFT, null, now));
     }
 
     @Test void migrationAndPublicArticleQueryExcludeFutureAndUnpublishedRows() throws Exception {
@@ -79,5 +80,15 @@ class PublicApiIT {
         Article saved = articles.findBySlug("visible").orElseThrow();
         assertEquals(7, saved.getId().version());
         assertNull(jdbc.queryForObject("SELECT column_default FROM information_schema.columns WHERE table_name='article' AND column_name='id'", String.class));
+    }
+
+    private void seedPublished(String slug, String title, String excerpt, String markdown,
+                               Instant publishedAt, Instant now) {
+        Article article = articles.saveAndFlush(new Article(slug, title, excerpt, markdown,
+                ArticleStatus.PUBLISHED, publishedAt, now));
+        UUID revisionId = UUID.randomUUID();
+        jdbc.update("INSERT INTO article_revision(id, article_id, source_version, title, slug, excerpt, markdown_source, tag_snapshot, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, '[]'::jsonb, ?)",
+                revisionId, article.getId(), article.getVersion(), title, slug, excerpt, markdown, java.sql.Timestamp.from(publishedAt));
+        jdbc.update("UPDATE article SET published_revision_id=? WHERE id=?", revisionId, article.getId());
     }
 }

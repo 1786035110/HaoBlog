@@ -1,7 +1,7 @@
 package io.haoblog.content.application;
 
-import io.haoblog.content.persistence.ArticleRepository;
-import io.haoblog.content.domain.Article;
+import io.haoblog.content.persistence.ArticleRevisionRepository;
+import io.haoblog.content.domain.ArticleRevision;
 import io.haoblog.content.domain.ArticleStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,12 +24,12 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class ArticleServiceTest {
-    private ArticleRepository repository;
+    private ArticleRevisionRepository repository;
     private ArticleService service;
 
     @BeforeEach
     void setUp() {
-        repository = mock(ArticleRepository.class);
+        repository = mock(ArticleRevisionRepository.class);
         service = new ArticleService(repository, Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC));
     }
 
@@ -53,24 +53,22 @@ class ArticleServiceTest {
 
     @Test
     void acceptsValidPageAndSizeAndQueriesRepository() {
-        when(repository.findByStatusAndPublishedAtIsNotNullAndPublishedAtLessThanEqual(
-                eq(io.haoblog.content.domain.ArticleStatus.PUBLISHED), any(Instant.class), any()))
+        when(repository.findVisible(eq(ArticleStatus.PUBLISHED), eq(ArticleStatus.SCHEDULED), any(Instant.class), any()))
                 .thenReturn(new PageImpl<>(List.of()));
 
         assertDoesNotThrow(() -> service.list(2, 50));
-        verify(repository).findByStatusAndPublishedAtIsNotNullAndPublishedAtLessThanEqual(
-                eq(io.haoblog.content.domain.ArticleStatus.PUBLISHED), any(Instant.class), any());
+        verify(repository).findVisible(eq(ArticleStatus.PUBLISHED), eq(ArticleStatus.SCHEDULED), any(Instant.class), any());
     }
 
     @Test
     void publicDetailUsesPublishedAndDueFilter() {
         Instant publishedAt = Instant.parse("2025-12-31T00:00:00Z");
-        Article article = new Article("visible", "Visible", "Excerpt", "# Body", ArticleStatus.PUBLISHED, publishedAt, publishedAt);
-        when(repository.findBySlugAndStatusAndPublishedAtIsNotNullAndPublishedAtLessThanEqual(
-                eq("visible"), eq(ArticleStatus.PUBLISHED), any(Instant.class))).thenReturn(Optional.of(article));
+        ArticleRevision article = new ArticleRevision(null, 0, "Visible", "visible", "Excerpt", "# Body",
+                null, null, null, null, List.of(), null, null, publishedAt);
+        when(repository.findVisibleBySlug(eq("visible"), eq(ArticleStatus.PUBLISHED), eq(ArticleStatus.SCHEDULED), any(Instant.class)))
+                .thenReturn(Optional.of(article));
 
         assertEquals(article, service.findPublicBySlug("visible").orElseThrow());
-        verify(repository).findBySlugAndStatusAndPublishedAtIsNotNullAndPublishedAtLessThanEqual(
-                eq("visible"), eq(ArticleStatus.PUBLISHED), any(Instant.class));
+        verify(repository).findVisibleBySlug(eq("visible"), eq(ArticleStatus.PUBLISHED), eq(ArticleStatus.SCHEDULED), any(Instant.class));
     }
 }

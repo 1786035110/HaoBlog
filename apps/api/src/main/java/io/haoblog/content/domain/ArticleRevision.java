@@ -78,6 +78,12 @@ public class ArticleRevision {
     public long getSourceVersion() { return sourceVersion; }
     public String getTitle() { return title; }
     public String getSlug() { return slug; }
+    public String getExcerpt() { return excerpt; }
     public String getMarkdownSource() { return markdownSource; }
+    public String getSeoTitle() { return seoTitle; }
+    public String getSeoDescription() { return seoDescription; }
+    public UUID getCoverMediaId() { return coverMediaId; }
+    public Map<String, String> getCategorySnapshot() { return categorySnapshot; }
+    public List<Map<String, String>> getTagSnapshot() { return tagSnapshot; }
     public Instant getCreatedAt() { return createdAt; }
 }

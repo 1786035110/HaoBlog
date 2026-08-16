@@ -71,6 +71,20 @@ paths:
           $ref: '#/components/responses/ArticleNotFound'
         '500':
           $ref: '#/components/responses/InternalError'
+  /api/v1/public/article-previews/{token}:
+    get:
+      operationId: getPublicArticlePreview
+      parameters:
+        - { name: token, in: path, required: true, schema: { type: string, minLength: 43, maxLength: 43 } }
+      responses:
+        '200':
+          description: Uncached article working-copy preview
+          headers:
+            Cache-Control: { schema: { type: string } }
+            Referrer-Policy: { schema: { type: string } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/ArticlePreviewResponse' } } }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+        '410': { $ref: '#/components/responses/ArticlePreviewGone' }
   /api/v1/admin/articles:
     get:
       operationId: listAdminArticles
@@ -92,7 +106,8 @@ paths:
     post:
       operationId: createAdminArticle
       security: [{ sessionCookie: [] }]
-      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      parameters:
+        - { $ref: '#/components/parameters/CsrfHeader' }
       requestBody:
         content:
           application/json: { schema: { $ref: '#/components/schemas/AdminArticleCreateRequest' } }
@@ -141,6 +156,94 @@ paths:
       responses:
         '204': { description: Draft physically deleted }
         '200': { description: Article archived, content: { application/json: { schema: { $ref: '#/components/schemas/AdminArticleResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+  /api/v1/admin/articles/{id}/publish:
+    post:
+      operationId: publishAdminArticle
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { $ref: '#/components/parameters/CsrfHeader' }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ArticleVersionRequest' } } } }
+      responses:
+        '200': { description: Published article, content: { application/json: { schema: { $ref: '#/components/schemas/ArticleActionResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/articles/{id}/schedule:
+    post:
+      operationId: scheduleAdminArticle
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { $ref: '#/components/parameters/CsrfHeader' }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ScheduleArticleRequest' } } } }
+      responses:
+        '200': { description: Scheduled article, content: { application/json: { schema: { $ref: '#/components/schemas/ArticleActionResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/articles/{id}/archive:
+    post:
+      operationId: archiveAdminArticle
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { $ref: '#/components/parameters/CsrfHeader' }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ArticleVersionRequest' } } } }
+      responses:
+        '200': { description: Archived article, content: { application/json: { schema: { $ref: '#/components/schemas/ArticleActionResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/articles/{id}/draft:
+    post:
+      operationId: returnAdminArticleToDraft
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { $ref: '#/components/parameters/CsrfHeader' }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ArticleVersionRequest' } } } }
+      responses:
+        '200': { description: Editable draft, content: { application/json: { schema: { $ref: '#/components/schemas/ArticleActionResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/articles/{id}/preview-tokens:
+    post:
+      operationId: createAdminArticlePreviewToken
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { $ref: '#/components/parameters/CsrfHeader' }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ArticleVersionRequest' } } } }
+      responses:
+        '201': { description: One-time preview token, content: { application/json: { schema: { $ref: '#/components/schemas/PreviewTokenResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/articles/{id}/preview-tokens/{tokenId}:
+    delete:
+      operationId: revokeAdminArticlePreviewToken
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/CsrfHeader' }
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: tokenId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '204': { description: Preview token revoked }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/CsrfInvalid' }
         '404': { $ref: '#/components/responses/ResourceNotFound' }
@@ -350,6 +453,11 @@ components:
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/ProblemResponse' }
+    ArticlePreviewGone:
+      description: Preview token no longer matches the article version
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemResponse' }
     Conflict:
       description: Request conflicts with current resource state
       content:
@@ -460,6 +568,51 @@ components:
     ArticleStatus:
       type: string
       enum: [DRAFT, SCHEDULED, PUBLISHED, ARCHIVED]
+    ArticleVersionRequest:
+      type: object
+      required: [version]
+      properties:
+        version: { type: integer, format: int64, minimum: 0 }
+    ScheduleArticleRequest:
+      type: object
+      required: [version, scheduledAt]
+      properties:
+        version: { type: integer, format: int64, minimum: 0 }
+        scheduledAt: { type: string, format: date-time }
+    ArticleActionResponse:
+      type: object
+      required: [id, title, status, version]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: [string, 'null'] }
+        title: { type: string }
+        status: { $ref: '#/components/schemas/ArticleStatus' }
+        publishedAt: { type: [string, 'null'], format: date-time }
+        scheduledAt: { type: [string, 'null'], format: date-time }
+        version: { type: integer, format: int64, minimum: 0 }
+    PreviewTokenResponse:
+      type: object
+      required: [id, token, articleVersion, expiresAt]
+      properties:
+        id: { type: string, format: uuid }
+        token: { type: string, minLength: 43, maxLength: 43 }
+        articleVersion: { type: integer, format: int64, minimum: 0 }
+        expiresAt: { type: string, format: date-time }
+    ArticlePreviewResponse:
+      type: object
+      required: [id, title, markdown, version, tagIds]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: [string, 'null'] }
+        title: { type: string }
+        excerpt: { type: [string, 'null'] }
+        markdown: { type: string }
+        seoTitle: { type: [string, 'null'] }
+        seoDescription: { type: [string, 'null'] }
+        categoryId: { type: [string, 'null'], format: uuid }
+        coverMediaId: { type: [string, 'null'], format: uuid }
+        tagIds: { type: array, items: { type: string, format: uuid } }
+        version: { type: integer, format: int64, minimum: 0 }
     AdminArticleCreateRequest:
       type: object
       properties:

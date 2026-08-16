@@ -52,6 +52,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/public/article-previews/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getPublicArticlePreview"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/articles": {
         parameters: {
             query?: never;
@@ -81,6 +97,102 @@ export interface paths {
         put: operations["updateAdminArticle"];
         post?: never;
         delete: operations["deleteAdminArticle"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/articles/{id}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["publishAdminArticle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/articles/{id}/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["scheduleAdminArticle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/articles/{id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["archiveAdminArticle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/articles/{id}/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["returnAdminArticleToDraft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/articles/{id}/preview-tokens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["createAdminArticlePreviewToken"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/articles/{id}/preview-tokens/{tokenId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["revokeAdminArticlePreviewToken"];
         options?: never;
         head?: never;
         patch?: never;
@@ -248,6 +360,55 @@ export interface components {
         };
         /** @enum {string} */
         ArticleStatus: "DRAFT" | "SCHEDULED" | "PUBLISHED" | "ARCHIVED";
+        ArticleVersionRequest: {
+            /** Format: int64 */
+            version: number;
+        };
+        ScheduleArticleRequest: {
+            /** Format: int64 */
+            version: number;
+            /** Format: date-time */
+            scheduledAt: string;
+        };
+        ArticleActionResponse: {
+            /** Format: uuid */
+            id: string;
+            slug?: string | null;
+            title: string;
+            status: components["schemas"]["ArticleStatus"];
+            /** Format: date-time */
+            publishedAt?: string | null;
+            /** Format: date-time */
+            scheduledAt?: string | null;
+            /** Format: int64 */
+            version: number;
+        };
+        PreviewTokenResponse: {
+            /** Format: uuid */
+            id: string;
+            token: string;
+            /** Format: int64 */
+            articleVersion: number;
+            /** Format: date-time */
+            expiresAt: string;
+        };
+        ArticlePreviewResponse: {
+            /** Format: uuid */
+            id: string;
+            slug?: string | null;
+            title: string;
+            excerpt?: string | null;
+            markdown: string;
+            seoTitle?: string | null;
+            seoDescription?: string | null;
+            /** Format: uuid */
+            categoryId?: string | null;
+            /** Format: uuid */
+            coverMediaId?: string | null;
+            tagIds: string[];
+            /** Format: int64 */
+            version: number;
+        };
         AdminArticleCreateRequest: {
             slug?: string | null;
             title?: string | null;
@@ -389,6 +550,15 @@ export interface components {
         };
         /** @description Resource not found */
         ResourceNotFound: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemResponse"];
+            };
+        };
+        /** @description Preview token no longer matches the article version */
+        ArticlePreviewGone: {
             headers: {
                 [name: string]: unknown;
             };
@@ -567,6 +737,32 @@ export interface operations {
             500: components["responses"]["InternalError"];
         };
     };
+    getPublicArticlePreview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Uncached article working-copy preview */
+            200: {
+                headers: {
+                    "Cache-Control"?: string;
+                    "Referrer-Policy"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArticlePreviewResponse"];
+                };
+            };
+            404: components["responses"]["ResourceNotFound"];
+            410: components["responses"]["ArticlePreviewGone"];
+        };
+    };
     listAdminArticles: {
         parameters: {
             query?: {
@@ -709,6 +905,197 @@ export interface operations {
                 };
             };
             /** @description Draft physically deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["CsrfInvalid"];
+            404: components["responses"]["ResourceNotFound"];
+        };
+    };
+    publishAdminArticle: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-TOKEN": components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ArticleVersionRequest"];
+            };
+        };
+        responses: {
+            /** @description Published article */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArticleActionResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["CsrfInvalid"];
+            404: components["responses"]["ResourceNotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    scheduleAdminArticle: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-TOKEN": components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScheduleArticleRequest"];
+            };
+        };
+        responses: {
+            /** @description Scheduled article */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArticleActionResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["CsrfInvalid"];
+            404: components["responses"]["ResourceNotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    archiveAdminArticle: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-TOKEN": components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ArticleVersionRequest"];
+            };
+        };
+        responses: {
+            /** @description Archived article */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArticleActionResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["CsrfInvalid"];
+            404: components["responses"]["ResourceNotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    returnAdminArticleToDraft: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-TOKEN": components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ArticleVersionRequest"];
+            };
+        };
+        responses: {
+            /** @description Editable draft */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArticleActionResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["CsrfInvalid"];
+            404: components["responses"]["ResourceNotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    createAdminArticlePreviewToken: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-TOKEN": components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ArticleVersionRequest"];
+            };
+        };
+        responses: {
+            /** @description One-time preview token */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreviewTokenResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["CsrfInvalid"];
+            404: components["responses"]["ResourceNotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    revokeAdminArticlePreviewToken: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-TOKEN": components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                id: string;
+                tokenId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Preview token revoked */
             204: {
                 headers: {
                     [name: string]: unknown;

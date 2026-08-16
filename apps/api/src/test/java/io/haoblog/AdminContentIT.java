@@ -183,7 +183,7 @@ class AdminContentIT {
     }
 
     @Test
-    void revisionBearingDraftIsArchivedInsteadOfDeleted() throws Exception {
+    void revisionBearingDraftCannotBeDeletedThroughLegacyEndpoint() throws Exception {
         var article = mvc.perform(post("/api/v1/admin/articles").with(admin()).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON).content("{\"title\":\"revision boundary\",\"markdown\":\"body\"}"))
                 .andExpect(status().isCreated()).andReturn();
@@ -194,7 +194,7 @@ class AdminContentIT {
                 UUID.randomUUID(), UUID.fromString(articleId), "revision boundary", slug, "body");
 
         mvc.perform(delete("/api/v1/admin/articles/" + articleId).with(admin()).with(csrf()))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("ARCHIVED"));
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("ARTICLE_STATE_CONFLICT"));
     }
 
     @Test

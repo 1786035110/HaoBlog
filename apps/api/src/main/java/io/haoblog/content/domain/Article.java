@@ -78,6 +78,27 @@ public class Article {
 
     public void archive(Instant now) {
         this.status = ArticleStatus.ARCHIVED;
+        this.scheduledAt = null;
+        this.updatedAt = now;
+    }
+
+    public void schedule(Instant scheduledAt, Instant now) {
+        this.status = ArticleStatus.SCHEDULED;
+        this.scheduledAt = scheduledAt;
+        this.updatedAt = now;
+    }
+
+    public void publish(UUID revisionId, Instant now) {
+        this.status = ArticleStatus.PUBLISHED;
+        this.publishedRevisionId = revisionId;
+        this.publishedAt = now;
+        this.scheduledAt = null;
+        this.updatedAt = now;
+    }
+
+    public void returnToDraft(Instant now) {
+        this.status = ArticleStatus.DRAFT;
+        this.scheduledAt = null;
         this.updatedAt = now;
     }
 
