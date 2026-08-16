@@ -314,6 +314,11 @@ export interface components {
             excerpt?: string | null;
             /** Format: date-time */
             publishedAt: string;
+            markdown: string;
+            seoTitle?: string | null;
+            seoDescription?: string | null;
+            /** Format: uri */
+            coverImageUrl?: string | null;
         };
         ArticleListResponse: {
             items: components["schemas"]["ArticleSummary"][];
@@ -331,6 +336,10 @@ export interface components {
             /** Format: date-time */
             publishedAt: string;
             markdown: string;
+            seoTitle?: string | null;
+            seoDescription?: string | null;
+            /** Format: uri */
+            coverImageUrl?: string | null;
         };
         ProblemResponse: {
             code: string;

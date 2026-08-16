@@ -3,6 +3,7 @@ package io.haoblog.content.application;
 import io.haoblog.content.persistence.ArticleRevisionRepository;
 import io.haoblog.content.domain.ArticleRevision;
 import io.haoblog.content.domain.ArticleStatus;
+import io.haoblog.media.persistence.MediaAssetRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageImpl;
@@ -25,30 +26,32 @@ import static org.mockito.Mockito.when;
 
 class ArticleServiceTest {
     private ArticleRevisionRepository repository;
+    private MediaAssetRepository mediaRepository;
     private ArticleService service;
 
     @BeforeEach
     void setUp() {
         repository = mock(ArticleRevisionRepository.class);
-        service = new ArticleService(repository, Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC));
+        mediaRepository = mock(MediaAssetRepository.class);
+        service = new ArticleService(repository, mediaRepository, Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC));
     }
 
     @Test
     void rejectsNegativePageWithoutCallingRepository() {
         assertThrows(IllegalArgumentException.class, () -> service.list(-1, 20));
-        verifyNoInteractions(repository);
+        verifyNoInteractions(repository, mediaRepository);
     }
 
     @Test
     void rejectsZeroSizeWithoutCallingRepository() {
         assertThrows(IllegalArgumentException.class, () -> service.list(0, 0));
-        verifyNoInteractions(repository);
+        verifyNoInteractions(repository, mediaRepository);
     }
 
     @Test
     void rejectsOversizedPageWithoutCallingRepository() {
         assertThrows(IllegalArgumentException.class, () -> service.list(0, 51));
-        verifyNoInteractions(repository);
+        verifyNoInteractions(repository, mediaRepository);
     }
 
     @Test

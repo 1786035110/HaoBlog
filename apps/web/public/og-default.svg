@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">HaoBlog · 极夜观测站</title>
+  <desc id="desc">在夜间校准信号的开发者空间</desc>
+  <rect width="1200" height="630" fill="#06110F"/>
+  <path d="M72 94H1128" stroke="#1E3A33"/>
+  <circle cx="96" cy="94" r="6" fill="#A8FF60"/>
+  <text x="96" y="270" fill="#A8FF60" font-family="ui-monospace,monospace" font-size="28" letter-spacing="6">OBSERVATION STATION</text>
+  <text x="96" y="360" fill="#E8F1EE" font-family="system-ui,sans-serif" font-size="72" font-weight="800">HaoBlog</text>
+  <text x="96" y="420" fill="#8DB7AC" font-family="system-ui,sans-serif" font-size="30">极夜观测站</text>
+  <path d="M96 520H420" stroke="#A8FF60" stroke-width="4"/>
+</svg>

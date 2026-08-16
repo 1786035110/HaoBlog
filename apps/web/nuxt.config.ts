@@ -13,6 +13,8 @@ export default defineNuxtConfig({
   routeRules: {
     '/studio': { ssr: false },
     '/studio/**': { ssr: false },
+    '/articles': { cache: { maxAge: 60, swr: false } },
+    '/articles/**': { cache: { maxAge: 60, swr: false } },
   },
   nitro: {
     devProxy: {

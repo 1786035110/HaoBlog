@@ -506,13 +506,17 @@ components:
         description: { type: string }
     ArticleSummary:
       type: object
-      required: [id, slug, title, publishedAt]
+      required: [id, slug, title, publishedAt, markdown]
       properties:
         id: { type: string, format: uuid }
         slug: { type: string }
         title: { type: string }
         excerpt: { type: [string, 'null'] }
         publishedAt: { type: string, format: date-time }
+        markdown: { type: string }
+        seoTitle: { type: [string, 'null'] }
+        seoDescription: { type: [string, 'null'] }
+        coverImageUrl: { type: [string, 'null'], format: uri }
     ArticleListResponse:
       type: object
       required: [items, page, size, total]
@@ -531,6 +535,9 @@ components:
         excerpt: { type: [string, 'null'] }
         publishedAt: { type: string, format: date-time }
         markdown: { type: string }
+        seoTitle: { type: [string, 'null'] }
+        seoDescription: { type: [string, 'null'] }
+        coverImageUrl: { type: [string, 'null'], format: uri }
     ProblemResponse:
       type: object
       required: [code, title, detail, traceId]

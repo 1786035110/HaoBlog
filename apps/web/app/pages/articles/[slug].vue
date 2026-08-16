@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { components } from '@haoblog/api-client'
+import { buildPublicArticleSeo } from '~/utils/publicArticleSeo'
 
 type Article = components['schemas']['ArticleResponse']
 const route = useRoute()
@@ -7,8 +8,25 @@ const { data, pending, error } = await usePublicApi<Article>(`/api/v1/public/art
 if (error.value?.statusCode === 404 || (!pending.value && !data.value)) {
   throw createError({ statusCode: 404, statusMessage: 'Article not found', fatal: true })
 }
-const formatDate = (value: string) => new Intl.DateTimeFormat('zh-CN', { dateStyle: 'long' }).format(new Date(value))
-useHead(() => data.value ? { title: data.value.title, meta: [{ name: 'description', content: data.value.excerpt || data.value.title }] } : {})
+const requestUrl = useRequestURL()
+useHead(() => {
+  if (!data.value) return {}
+  const seo = buildPublicArticleSeo(data.value, requestUrl.origin)
+  return {
+    title: seo.title,
+    meta: [
+      { name: 'description', content: seo.description },
+      { property: 'og:type', content: 'article' },
+      { property: 'og:title', content: seo.title },
+      { property: 'og:description', content: seo.description },
+      { property: 'og:image', content: seo.image },
+      { name: 'twitter:card', content: 'summary_large_image' },
+      { name: 'twitter:title', content: seo.title },
+      { name: 'twitter:description', content: seo.description },
+      { name: 'twitter:image', content: seo.image },
+    ],
+  }
+})
 </script>
 
 <template>
@@ -17,13 +35,7 @@ useHead(() => data.value ? { title: data.value.title, meta: [{ name: 'descriptio
     <p v-else-if="error" class="signal-note" role="alert">文章信号暂时不可用。</p>
     <template v-else-if="data">
       <aside class="article-signal" aria-label="阅读进度">SIGNAL / READ</aside>
-      <article class="article-reading">
-        <p class="instrument-label">SIGNAL / ARTICLE</p>
-        <h1 id="article-title">{{ data.title }}</h1>
-        <p class="article-meta"><time :datetime="data.publishedAt">{{ formatDate(data.publishedAt) }}</time></p>
-        <p v-if="data.excerpt" class="article-excerpt">{{ data.excerpt }}</p>
-        <SafeMarkdown :markdown="data.markdown" />
-      </article>
+      <PublicArticleBody :article="data" />
       <aside class="article-toc" aria-label="文章航标"><span>TOC / NAV</span><p>正文结构将在后续内容阶段增强。</p></aside>
     </template>
   </section>

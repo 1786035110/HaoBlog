@@ -110,6 +110,20 @@ class PublicApiTest {
                 .andExpect(status().isNotModified()).andExpect(content().string(""));
     }
 
+    @Test void detailEtagChangesOnlyWithPublishedSnapshotIdentity() {
+        var service = mock(io.haoblog.content.application.ArticleService.class);
+        var first = revision("visible", "Title", "Excerpt", "# Body", Instant.parse("2026-01-01T00:00:00Z"));
+        var second = revision("visible", "Title", "Excerpt", "# Body", Instant.parse("2026-01-01T00:00:00Z"));
+        when(service.findPublicBySlug("visible")).thenReturn(Optional.of(first), Optional.of(second));
+        var controller = new PublicArticleController(service);
+
+        String firstEtag = controller.article("visible", null).getHeaders().getETag();
+        String secondEtag = controller.article("visible", null).getHeaders().getETag();
+
+        org.junit.jupiter.api.Assertions.assertNotEquals(first.getId(), second.getId());
+        org.junit.jupiter.api.Assertions.assertNotEquals(firstEtag, secondEtag);
+    }
+
     @Test void missingArticleIsAProblemJson404() throws Exception {
         when(articleService.findPublicBySlug("missing")).thenReturn(Optional.empty());
         mvc.perform(get("/api/v1/public/articles/missing"))

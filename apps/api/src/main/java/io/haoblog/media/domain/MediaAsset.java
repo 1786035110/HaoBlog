@@ -55,5 +55,10 @@ public class MediaAsset {
 
     public UUID getId() { return id; }
     public String getObjectKey() { return objectKey; }
+    public String getPublicUrl() { return publicUrl; }
+    public String getMimeType() { return mimeType; }
+    public Integer getWidth() { return width; }
+    public Integer getHeight() { return height; }
+    public MediaAssetStatus getStatus() { return status; }
     public byte[] getSha256() { return sha256.clone(); }
 }

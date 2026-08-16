@@ -17,8 +17,10 @@ public interface ArticleRevisionRepository extends JpaRepository<ArticleRevision
     @Query("""
             select r from ArticleRevision r, Article a
             where r.id = a.publishedRevisionId
-              and ((a.status = :published and a.publishedAt <= :now)
-                   or (a.status = :scheduled and a.publishedRevisionId is not null))
+              and a.status in (:published, :scheduled)
+              and a.publishedRevisionId is not null
+              and a.publishedAt is not null
+              and a.publishedAt <= :now
             order by a.publishedAt desc, a.id desc
             """)
     Page<ArticleRevision> findVisible(@Param("published") ArticleStatus published,
@@ -30,8 +32,10 @@ public interface ArticleRevisionRepository extends JpaRepository<ArticleRevision
             select r from ArticleRevision r, Article a
             where r.id = a.publishedRevisionId
               and r.slug = :slug
-              and ((a.status = :published and a.publishedAt <= :now)
-                   or (a.status = :scheduled and a.publishedRevisionId is not null))
+              and a.status in (:published, :scheduled)
+              and a.publishedRevisionId is not null
+              and a.publishedAt is not null
+              and a.publishedAt <= :now
             """)
     Optional<ArticleRevision> findVisibleBySlug(@Param("slug") String slug,
                                                 @Param("published") ArticleStatus published,
@@ -44,8 +48,10 @@ public interface ArticleRevisionRepository extends JpaRepository<ArticleRevision
             where r.id = a.publishedRevisionId
               and a.id <> :articleId
               and r.slug = :slug
-              and ((a.status = :published and a.publishedAt <= :now)
-                   or (a.status = :scheduled and a.publishedRevisionId is not null))
+              and a.status in (:published, :scheduled)
+              and a.publishedRevisionId is not null
+              and a.publishedAt is not null
+              and a.publishedAt <= :now
             """)
     boolean existsVisibleSlug(@Param("slug") String slug, @Param("articleId") UUID articleId,
                               @Param("published") ArticleStatus published,

@@ -54,6 +54,47 @@ class PublicApiIT {
                 .andExpect(jsonPath("$.items[0].slug").value("visible"));
     }
 
+    @Test void publicResponsesReadPublishedSnapshotMetadataAndCover() throws Exception {
+        UUID mediaId = UUID.randomUUID();
+        jdbc.update("INSERT INTO media_asset(id, object_key, public_url, mime_type, size_bytes, sha256, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, decode(repeat('00', 32), 'hex'), 'AVAILABLE', now(), now())",
+                mediaId, "covers/snapshot.png", "https://cdn.example.test/snapshot.png", "image/png", 12L);
+        UUID articleId = seedPublished("snapshot-isolation", "Working title", "Working excerpt", "# working", Instant.now().minus(1, ChronoUnit.DAYS), Instant.now());
+        UUID revisionId = UUID.randomUUID();
+        jdbc.update("INSERT INTO article_revision(id, article_id, source_version, title, slug, excerpt, markdown_source, seo_title, seo_description, cover_media_id, tag_snapshot, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '[]'::jsonb, ?)",
+                revisionId, articleId, 0L, "Published title", "snapshot-isolation", "Published excerpt", "# published", "Published SEO", "Published description", mediaId, java.sql.Timestamp.from(Instant.now().minus(1, ChronoUnit.DAYS)));
+        jdbc.update("UPDATE article SET published_revision_id=?, title=?, excerpt=?, markdown_source=?, seo_title=?, seo_description=? WHERE id=?",
+                revisionId, "Edited working title", "Edited working excerpt", "# edited", "Edited SEO", "Edited description", articleId);
+
+        mvc.perform(get("/api/v1/public/articles/snapshot-isolation"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("Published title"))
+                .andExpect(jsonPath("$.excerpt").value("Published excerpt"))
+                .andExpect(jsonPath("$.markdown").value("# published"))
+                .andExpect(jsonPath("$.seoTitle").value("Published SEO"))
+                .andExpect(jsonPath("$.seoDescription").value("Published description"))
+                .andExpect(jsonPath("$.coverImageUrl").value("https://cdn.example.test/snapshot.png"));
+        mvc.perform(get("/api/v1/public/articles"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[?(@.slug == 'snapshot-isolation')].title").value(org.hamcrest.Matchers.contains("Published title")))
+                .andExpect(jsonPath("$.items[?(@.slug == 'snapshot-isolation')].markdown").value(org.hamcrest.Matchers.contains("# published")))
+                .andExpect(jsonPath("$.items[?(@.slug == 'snapshot-isolation')].seoTitle").value(org.hamcrest.Matchers.contains("Published SEO")));
+    }
+
+    @Test void draftFutureScheduledWithoutSnapshotAndArchivedArticlesAre404() throws Exception {
+        UUID archivedId = seedPublished("archived", "Archived", "No", "# archived", Instant.now().minus(1, ChronoUnit.DAYS), Instant.now());
+        jdbc.update("UPDATE article SET status='ARCHIVED' WHERE id=?", archivedId);
+        articles.saveAndFlush(new Article("scheduled-without-snapshot", "Scheduled", "No", "# scheduled", ArticleStatus.SCHEDULED, null, Instant.now()));
+
+        mvc.perform(get("/api/v1/public/articles/draft"))
+                .andExpect(status().isNotFound());
+        mvc.perform(get("/api/v1/public/articles/future"))
+                .andExpect(status().isNotFound());
+        mvc.perform(get("/api/v1/public/articles/scheduled-without-snapshot"))
+                .andExpect(status().isNotFound());
+        mvc.perform(get("/api/v1/public/articles/archived"))
+                .andExpect(status().isNotFound());
+    }
+
     @Test void siteEndpointReadsMigratedDefaultSetting() throws Exception {
         assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM site_setting WHERE site_key = 'default'", Integer.class));
         mvc.perform(get("/api/v1/public/site")).andExpect(status().isOk())
@@ -82,7 +123,7 @@ class PublicApiIT {
         assertNull(jdbc.queryForObject("SELECT column_default FROM information_schema.columns WHERE table_name='article' AND column_name='id'", String.class));
     }
 
-    private void seedPublished(String slug, String title, String excerpt, String markdown,
+    private UUID seedPublished(String slug, String title, String excerpt, String markdown,
                                Instant publishedAt, Instant now) {
         Article article = articles.saveAndFlush(new Article(slug, title, excerpt, markdown,
                 ArticleStatus.PUBLISHED, publishedAt, now));
@@ -90,5 +131,6 @@ class PublicApiIT {
         jdbc.update("INSERT INTO article_revision(id, article_id, source_version, title, slug, excerpt, markdown_source, tag_snapshot, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, '[]'::jsonb, ?)",
                 revisionId, article.getId(), article.getVersion(), title, slug, excerpt, markdown, java.sql.Timestamp.from(publishedAt));
         jdbc.update("UPDATE article SET published_revision_id=? WHERE id=?", revisionId, article.getId());
+        return article.getId();
     }
 }

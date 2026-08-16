@@ -17,7 +17,14 @@ const expectStatus = async (path, expected) => {
 await expectStatus('/', 200);
 await expectStatus('/api/v1/public/site', 200);
 const articles = JSON.parse(await expectStatus('/api/v1/public/articles', 200));
-if (articles.items?.[0]?.slug) await expectStatus(`/api/v1/public/articles/${encodeURIComponent(articles.items[0].slug)}`, 200);
+if (articles.items?.[0]?.slug) {
+  const slug = encodeURIComponent(articles.items[0].slug);
+  const articleHtml = await expectStatus(`/articles/${slug}`, 200);
+  for (const marker of [articles.items[0].title, 'meta name="description"', 'property="og:title"', '<article']) {
+    if (!articleHtml.includes(marker)) throw new Error(`SSR article HTML is missing: ${marker}`);
+  }
+  await expectStatus('/articles/not-published', 404);
+}
 for (const path of ['/actuator', '/actuator/health']) {
   const { response } = await request(path);
   if (response.status >= 200 && response.status < 300) throw new Error(`${path}: actuator is publicly reachable`);
