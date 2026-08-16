@@ -18,16 +18,19 @@ export type PreparedImage = {
   sha256: string
 }
 
+type CreateImageBitmap = (image: ImageBitmapSource, options?: ImageBitmapOptions) => Promise<ImageBitmap>
+
 type ImageEnvironment = {
-  createImageBitmap: typeof globalThis.createImageBitmap
+  createImageBitmap: CreateImageBitmap
   createCanvas: () => HTMLCanvasElement
   digest: (data: ArrayBuffer) => Promise<ArrayBuffer>
 }
 
 const defaultEnvironment = (): ImageEnvironment => ({
-  createImageBitmap: (...args) => {
-    if (!globalThis.createImageBitmap) throw new Error('浏览器不支持图片解码')
-    return globalThis.createImageBitmap(...args)
+  createImageBitmap: (image, options) => {
+    const createImageBitmap = globalThis.createImageBitmap
+    if (!createImageBitmap) throw new Error('浏览器不支持图片解码')
+    return createImageBitmap(image, options)
   },
   createCanvas: () => document.createElement('canvas'),
   digest: data => globalThis.crypto.subtle.digest('SHA-256', data),
