@@ -6,8 +6,10 @@
     "web:typecheck": "pnpm --dir apps/web typecheck",
     "web:test": "pnpm --dir apps/web test",
     "web:build": "pnpm --dir apps/web build",
+    "web:e2e": "pnpm --dir apps/web e2e",
     "api-client:generate": "pnpm --filter @haoblog/api-client generate",
     "api-client:check": "pnpm --filter @haoblog/api-client check",
+    "compose:verify": "docker compose --env-file infra/compose/.env.ci.example -f infra/compose/compose.prod.yml config --format json | node scripts/verify-compose-resources.mjs -",
     "smoke": "node scripts/smoke-test.mjs"
   }
 }

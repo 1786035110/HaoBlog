@@ -153,6 +153,26 @@ export function createArticleAutosave(options: Options) {
     await persistLocalCopy()
   }
 
+  async function acceptServerArticle(saved: Article) {
+    serverArticle.value = saved
+    Object.assign(form, articleToForm(saved))
+    baseline.value = articleFormSnapshot(form)
+    conflictVersion.value = null
+    recovery.value = null
+    recoveryReview.value = false
+    paused.value = false
+    saveError.value = ''
+    try {
+      await store.delete(options.article.id)
+      localCopyPresent.value = false
+      localError.value = ''
+    } catch (cause) {
+      localCopyPresent.value = true
+      localError.value = cause instanceof Error ? cause.message : '服务器已保存，但本地副本清理失败。'
+    }
+    status.value = 'synced'
+  }
+
   async function saveNow(manual = false) {
     if (saving.value || recoveryReview.value || status.value === 'conflict') return false
     if (!dirty.value) return true
@@ -246,6 +266,7 @@ export function createArticleAutosave(options: Options) {
     restoreLocalCopy,
     discardLocalCopy,
     adoptLocalCopy,
+    acceptServerArticle,
   }
 }
 

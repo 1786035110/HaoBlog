@@ -25,7 +25,10 @@ type ImageEnvironment = {
 }
 
 const defaultEnvironment = (): ImageEnvironment => ({
-  createImageBitmap: globalThis.createImageBitmap,
+  createImageBitmap: (...args) => {
+    if (!globalThis.createImageBitmap) throw new Error('浏览器不支持图片解码')
+    return globalThis.createImageBitmap(...args)
+  },
   createCanvas: () => document.createElement('canvas'),
   digest: data => globalThis.crypto.subtle.digest('SHA-256', data),
 })

@@ -10,6 +10,8 @@ type Category = components['schemas']['CategoryResponse']
 type Tag = components['schemas']['TagResponse']
 type ArticleVersionList = components['schemas']['AdminArticleVersionListResponse']
 type ArticleVersion = components['schemas']['AdminArticleVersionResponse']
+type ActionResponse = components['schemas']['ArticleActionResponse']
+type PreviewToken = components['schemas']['PreviewTokenResponse']
 
 export function useAdminContent() {
   const session = useAdminSession()
@@ -61,6 +63,24 @@ export function useAdminContent() {
     })
   }
 
+  async function publishArticle(id: string, version: number) {
+    return session.write<ActionResponse>(`/api/v1/admin/articles/${encodeURIComponent(id)}/publish`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ version }),
+    })
+  }
+
+  async function scheduleArticle(id: string, version: number, scheduledAt: string) {
+    return session.write<ActionResponse>(`/api/v1/admin/articles/${encodeURIComponent(id)}/schedule`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ version, scheduledAt }),
+    })
+  }
+
+  async function createPreviewToken(id: string, version: number) {
+    return session.write<PreviewToken>(`/api/v1/admin/articles/${encodeURIComponent(id)}/preview-tokens`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ version }),
+    })
+  }
+
   async function listCategories() {
     return session.request<Category[]>('/api/v1/admin/categories')
   }
@@ -69,7 +89,7 @@ export function useAdminContent() {
     return session.request<Tag[]>('/api/v1/admin/tags')
   }
 
-  return { listArticles, getArticle, listArticleVersions, getArticleVersion, restoreArticleVersion, createArticle, updateArticle, listCategories, listTags }
+  return { listArticles, getArticle, listArticleVersions, getArticleVersion, restoreArticleVersion, createArticle, updateArticle, publishArticle, scheduleArticle, createPreviewToken, listCategories, listTags }
 }
 
-export type { Article, ArticleSummary, ArticleVersion, ArticleVersionList, Category, CreateRequest, Tag, UpdateRequest }
+export type { ActionResponse, Article, ArticleSummary, ArticleVersion, ArticleVersionList, Category, CreateRequest, PreviewToken, Tag, UpdateRequest }

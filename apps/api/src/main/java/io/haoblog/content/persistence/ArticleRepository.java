@@ -49,13 +49,24 @@ public interface ArticleRepository extends JpaRepository<Article, UUID> {
     @Query("select a from Article a where a.id = :id")
     Optional<Article> findWithTagsByIdForUpdate(@Param("id") UUID id);
 
+    Page<Article> findByStatus(ArticleStatus status, Pageable pageable);
+
     @Query("""
             select a from Article a
-            where (:status is null or a.status = :status)
-              and (:keyword is null or lower(a.title) like lower(concat('%', :keyword, '%')) escape '!'
+            where lower(a.title) like lower(concat('%', :keyword, '%')) escape '!'
+               or lower(coalesce(a.slug, '')) like lower(concat('%', :keyword, '%')) escape '!'
+            """)
+    Page<Article> findAdminArticlesByKeyword(@Param("keyword") String keyword, Pageable pageable);
+
+    @Query("""
+            select a from Article a
+            where a.status = :status
+              and (lower(a.title) like lower(concat('%', :keyword, '%')) escape '!'
                    or lower(coalesce(a.slug, '')) like lower(concat('%', :keyword, '%')) escape '!')
             """)
-    Page<Article> findAdminArticles(ArticleStatus status, String keyword, Pageable pageable);
+    Page<Article> findAdminArticlesByStatusAndKeyword(@Param("status") ArticleStatus status,
+                                                       @Param("keyword") String keyword,
+                                                       Pageable pageable);
 
     boolean existsByCategoryId(UUID categoryId);
 

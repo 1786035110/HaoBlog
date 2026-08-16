@@ -55,7 +55,12 @@ public class AdminContentService {
         String normalizedKeyword = keyword == null || keyword.isBlank() ? null : keyword.trim()
                 .replace("!", "!!").replace("%", "!%").replace("_", "!_");
         var pageable = PageRequest.of(page, size, Sort.by(direction, "updatedAt").and(Sort.by(direction, "id")));
-        return articles.findAdminArticles(status, normalizedKeyword, pageable);
+        if (normalizedKeyword == null) {
+            return status == null ? articles.findAll(pageable) : articles.findByStatus(status, pageable);
+        }
+        return status == null
+                ? articles.findAdminArticlesByKeyword(normalizedKeyword, pageable)
+                : articles.findAdminArticlesByStatusAndKeyword(status, normalizedKeyword, pageable);
     }
 
     @Transactional

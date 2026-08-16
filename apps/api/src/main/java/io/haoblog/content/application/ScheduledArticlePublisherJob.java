@@ -11,7 +11,10 @@ public class ScheduledArticlePublisherJob {
         this.publisher = publisher;
     }
 
-    @Scheduled(fixedDelay = 60_000, initialDelay = 0)
+    @Scheduled(
+            fixedDelayString = "${HAOBLOG_CONTENT_SCHEDULING_FIXED_DELAY_MS:60000}",
+            initialDelayString = "${HAOBLOG_CONTENT_SCHEDULING_INITIAL_DELAY_MS:0}"
+    )
     public void publishDueArticles() {
         publisher.publishDueBatch();
     }

@@ -14,6 +14,8 @@
       <button class="inline-action" type="button" @click="reloadForConflict">重新载入</button>
     </p>
     <p v-if="localError" class="local-warning" role="status">灾难副本提示：{{ localError }}</p>
+    <p v-if="workflowError" class="form-error" role="alert">{{ workflowError }}</p>
+    <p v-if="previewUrl" class="preview-link" role="status">预览链接已生成：<a :href="previewUrl" target="_blank" rel="noreferrer">打开限时预览</a></p>
     <p v-if="Object.keys(errors).length" class="form-error" role="alert">请先校准标记为错误的字段，当前未发送保存请求。</p>
     <div v-if="recoveryReview" class="recovery-banner" role="alert">
       本地副本已载入，仅供查看，保存已暂停。确认采用本地内容后才会以服务器最新版本继续保存。
@@ -53,7 +55,7 @@
       </div>
       <div class="field-line">
         <label for="article-scheduled-at">定时发布时间</label>
-        <input id="article-scheduled-at" v-model="form.scheduledAt" name="scheduledAt" type="datetime-local" :aria-invalid="!!errors.scheduledAt" aria-describedby="article-scheduled-error">
+        <input id="article-scheduled-at" v-model="form.scheduledAt" name="scheduledAt" type="datetime-local" step="1" :aria-invalid="!!errors.scheduledAt" aria-describedby="article-scheduled-error">
         <small v-if="errors.scheduledAt" id="article-scheduled-error" class="field-error">{{ errors.scheduledAt }}</small>
       </div>
       <div class="field-line field-wide">
@@ -112,6 +114,9 @@
     <div class="editor-actions">
       <span class="signal-note">{{ localCopyPresent ? '本地灾难副本已保留。' : (dirty ? '内容尚未保存到服务器。' : '当前工作副本已保存。') }}</span>
       <div class="action-cluster">
+        <button class="quiet-button" type="button" :disabled="actionBusy || saving || recoveryReview || status === 'conflict'" @click="createPreview">生成预览</button>
+        <button class="quiet-button" type="button" :disabled="actionBusy || saving || recoveryReview || status === 'conflict'" @click="schedule">定时发布</button>
+        <button class="instrument-button" type="button" :disabled="actionBusy || saving || recoveryReview || status === 'conflict'" @click="publish">发布</button>
         <button v-if="status === 'error'" class="quiet-button" type="button" :disabled="saving" @click="retrySave">重试保存</button>
         <button class="instrument-button" type="submit" :disabled="saving || recoveryReview || status === 'conflict'">{{ saving ? 'SAVING…' : '手动保存' }}</button>
       </div>
@@ -152,12 +157,21 @@ type Article = components['schemas']['AdminArticleResponse']
 type Category = components['schemas']['CategoryResponse']
 type Tag = components['schemas']['TagResponse']
 
-const props = defineProps<{ article: Article; categories: Category[]; tags: Tag[]; saveArticle: (form: ArticleFormModel) => Promise<Article>; draftStore?: ArticleDraftStore }>()
+const props = defineProps<{
+  article: Article
+  categories: Category[]
+  tags: Tag[]
+  saveArticle: (form: ArticleFormModel) => Promise<Article>
+  publishArticle: (article: Article) => Promise<Article>
+  scheduleArticle: (article: Article) => Promise<Article>
+  createPreview: (article: Article) => Promise<string>
+  draftStore?: ArticleDraftStore
+}>()
 const session = useAdminSession()
 const media = useAdminMedia()
 const { phase: mediaPhase, asset: mediaAsset, error: mediaError } = media
 const autosave = createArticleAutosave({ article: props.article, saveArticle: props.saveArticle, store: props.draftStore })
-const { form, dirty, status, saving, saveError, localError, localCopyPresent, conflictVersion, recovery, recoveryReview, saveNow, start, stop, restoreLocalCopy: restore, discardLocalCopy: discard, adoptLocalCopy: adopt } = autosave
+const { form, dirty, status, saving, saveError, localError, localCopyPresent, conflictVersion, recovery, recoveryReview, serverArticle, saveNow, start, stop, restoreLocalCopy: restore, discardLocalCopy: discard, adoptLocalCopy: adopt, acceptServerArticle } = autosave
 
 const errors = ref<Record<string, string>>({})
 const mode = ref<'source' | 'split' | 'preview'>('split')
@@ -165,6 +179,9 @@ const recoveryDialog = ref<HTMLDialogElement | null>(null)
 const fileInput = ref<HTMLInputElement | null>(null)
 const markdownInput = ref<HTMLTextAreaElement | null>(null)
 const showDiff = ref(false)
+const actionBusy = ref(false)
+const workflowError = ref('')
+const previewUrl = ref('')
 const modes = [
   { value: 'source' as const, label: '源码' },
   { value: 'split' as const, label: '分栏' },
@@ -180,6 +197,41 @@ function submit() {
 }
 
 function retrySave() { void saveNow(true) }
+
+async function ensureSaved() {
+  errors.value = validateArticleForm(form)
+  if (Object.keys(errors.value).length) return false
+  if (dirty.value && !(await saveNow(true))) return false
+  return true
+}
+
+async function runWorkflow(action: (article: Article) => Promise<Article>) {
+  if (actionBusy.value || !(await ensureSaved())) return
+  actionBusy.value = true
+  workflowError.value = ''
+  try {
+    await acceptServerArticle(await action(serverArticle.value))
+  } catch (cause) {
+    workflowError.value = cause instanceof Error ? cause.message : '文章工作流操作失败。'
+  } finally {
+    actionBusy.value = false
+  }
+}
+
+function publish() { void runWorkflow(props.publishArticle) }
+function schedule() { void runWorkflow(props.scheduleArticle) }
+async function createPreview() {
+  if (actionBusy.value || !(await ensureSaved())) return
+  actionBusy.value = true
+  workflowError.value = ''
+  try {
+    previewUrl.value = await props.createPreview(serverArticle.value)
+  } catch (cause) {
+    workflowError.value = cause instanceof Error ? cause.message : '预览链接生成失败。'
+  } finally {
+    actionBusy.value = false
+  }
+}
 
 function selectImage(event: Event) {
   const file = (event.target as HTMLInputElement).files?.[0]
@@ -270,6 +322,8 @@ legend { padding: 0 var(--space-2); color: var(--color-accent); font: var(--text
 .field-line small, .cover-placeholder small { color: var(--color-text-muted); font: var(--text-xs)/1.4 var(--font-mono); }
 .field-error, .form-error { color: var(--color-warn) !important; }
 .local-warning { color: var(--color-accent); font: var(--text-xs)/1.5 var(--font-mono); }
+.preview-link { color: var(--color-accent); font: var(--text-sm)/1.5 var(--font-mono); }
+.preview-link a { color: inherit; }
 .tag-list { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); }
 .tag-option { display: inline-flex; align-items: center; gap: .4rem; color: var(--color-text-main); font: var(--text-sm)/1.4 var(--font-body); cursor: pointer; }
 .cover-placeholder { display: grid; gap: .35rem; padding: var(--space-3); border: 1px dashed var(--color-border); color: var(--color-text-muted); font: var(--text-sm)/1.4 var(--font-mono); }

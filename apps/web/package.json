@@ -6,7 +6,8 @@
     "dev": "nuxt dev",
     "build": "nuxt build",
     "typecheck": "nuxt prepare && vue-tsc -b --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@haoblog/api-client": "workspace:*",
@@ -22,6 +23,7 @@
     "@vue/test-utils": "2.4.6",
     "happy-dom": "18.0.1",
     "oxc-parser": "0.142.0",
+    "@playwright/test": "1.62.1",
     "typescript": "5.9.2",
     "vitest": "3.2.4",
     "vue-tsc": "3.0.6"

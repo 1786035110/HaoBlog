@@ -17,8 +17,9 @@ const pending = ref(false)
 const error = ref('')
 const initialized = ref(false)
 let restorePromise: Promise<boolean> | null = null
+let sessionGeneration = 0
 
-async function request<T>(path: string, init: RequestInit = {}) {
+async function request<T>(path: string, init: RequestInit = {}, options: { clearSessionOnUnauthorized?: boolean } = {}) {
   const response = await fetch(path, { credentials: 'include', ...init })
   if (!response.ok) {
     let problem: ProblemResponse | undefined
@@ -28,9 +29,11 @@ async function request<T>(path: string, init: RequestInit = {}) {
       // 非 Problem JSON 响应使用通用提示，避免把服务端响应原文展示给管理员。
     }
     if (response.status === 401) {
-      session.value = null
       csrfToken.value = null
-      initialized.value = true
+      if (options.clearSessionOnUnauthorized !== false) {
+        session.value = null
+        initialized.value = true
+      }
     }
     throw new AdminSessionError(response.status, problem)
   }
@@ -73,12 +76,16 @@ export function useAdminSession() {
 
   async function restore() {
     if (restorePromise) return restorePromise
+    const generation = sessionGeneration
     restorePromise = (async () => {
       error.value = ''
       try {
-        session.value = await request<AdminSession>('/api/v1/admin/session')
+        const restored = await request<AdminSession>('/api/v1/admin/session', {}, { clearSessionOnUnauthorized: false })
+        if (generation !== sessionGeneration) return Boolean(session.value)
+        session.value = restored
         return true
       } catch (cause) {
+        if (generation !== sessionGeneration) return Boolean(session.value)
         if (!(cause instanceof AdminSessionError && cause.status === 401)) {
           error.value = cause instanceof Error ? cause.message : 'Unable to restore the session'
         }
@@ -97,6 +104,7 @@ export function useAdminSession() {
   async function login(payload: LoginPayload) {
     pending.value = true
     error.value = ''
+    sessionGeneration += 1
     try {
       session.value = await write<AdminSession>('/api/v1/admin/session', {
         method: 'POST',
@@ -116,6 +124,7 @@ export function useAdminSession() {
   async function logout() {
     pending.value = true
     error.value = ''
+    sessionGeneration += 1
     try {
       await write<void>('/api/v1/admin/session', { method: 'DELETE' })
       clear()

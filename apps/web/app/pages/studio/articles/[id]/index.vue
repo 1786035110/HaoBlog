@@ -5,20 +5,20 @@
     <div class="article-tools">
       <NuxtLink class="quiet-button" :to="`/studio/articles/${article.id}/versions`">历史版本 / 比较与恢复</NuxtLink>
     </div>
-    <LazyEditor :article="article" :categories="categories" :tags="tags" :save-article="save" />
+    <LazyEditor :article="article" :categories="categories" :tags="tags" :save-article="save" :publish-article="publish" :schedule-article="schedule" :create-preview="createPreview" />
   </template>
 </template>
 
 <script setup lang="ts">
 import type { components } from '@haoblog/api-client'
 import { defineAsyncComponent, onMounted, ref } from 'vue'
-import { formToUpdateRequest, type ArticleFormModel } from '../../../utils/studioArticleForm'
+import { formToUpdateRequest, type ArticleFormModel } from '../../../../utils/studioArticleForm'
 
 definePageMeta({ layout: 'studio' })
 
 const route = useRoute()
-const LazyEditor = defineAsyncComponent(() => import('../../../components/studio/StudioArticleEditor.client.vue'))
-const { getArticle, listCategories, listTags, updateArticle } = useAdminContent()
+const LazyEditor = defineAsyncComponent(() => import('../../../../components/studio/StudioArticleEditor.client.vue'))
+const { getArticle, listCategories, listTags, updateArticle, publishArticle, scheduleArticle, createPreviewToken } = useAdminContent()
 const article = ref<components['schemas']['AdminArticleResponse'] | null>(null)
 const categories = ref<components['schemas']['CategoryResponse'][]>([])
 const tags = ref<components['schemas']['TagResponse'][]>([])
@@ -44,6 +44,22 @@ async function save(form: ArticleFormModel) {
   const saved = await updateArticle(article.value.id, formToUpdateRequest(form))
   article.value = saved
   return saved
+}
+
+async function publish(current: components['schemas']['AdminArticleResponse']) {
+  await publishArticle(current.id, current.version)
+  return getArticle(current.id)
+}
+
+async function schedule(current: components['schemas']['AdminArticleResponse']) {
+  if (!current.scheduledAt) throw new Error('请先填写定时发布时间。')
+  await scheduleArticle(current.id, current.version, current.scheduledAt)
+  return getArticle(current.id)
+}
+
+async function createPreview(current: components['schemas']['AdminArticleResponse']) {
+  const token = await createPreviewToken(current.id, current.version)
+  return `${window.location.origin}/article-previews/${encodeURIComponent(token.token)}`
 }
 
 onMounted(load)

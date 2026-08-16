@@ -15,6 +15,7 @@ export default defineNuxtConfig({
     '/studio/**': { ssr: false },
     '/articles': { cache: { maxAge: 60, swr: false } },
     '/articles/**': { cache: { maxAge: 60, swr: false } },
+    '/article-previews/**': { cache: false, headers: { 'cache-control': 'no-store', 'referrer-policy': 'no-referrer', 'x-robots-tag': 'noindex, nofollow' } },
   },
   nitro: {
     devProxy: {

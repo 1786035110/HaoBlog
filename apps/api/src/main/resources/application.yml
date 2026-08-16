@@ -41,6 +41,9 @@ management:
       show-details: never
 server:
   port: ${API_PORT:8080}
+  tomcat:
+    threads:
+      max: ${SERVER_TOMCAT_THREADS_MAX:20}
   servlet:
     session:
       timeout: 8h
