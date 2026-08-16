@@ -59,7 +59,8 @@ public class ArticleWorkflowService {
 
     @Transactional
     public Article publish(UUID articleId, long expectedVersion) {
-        Article article = getArticle(articleId);
+        Article article = articles.findWithTagsByIdForUpdate(articleId)
+                .orElseThrow(() -> notFound("ARTICLE_NOT_FOUND", "Article not found"));
         checkVersion(article, expectedVersion);
         requireTransition(article.getStatus(), ArticleStatus.PUBLISHED);
         validatePublish(article, articleId);

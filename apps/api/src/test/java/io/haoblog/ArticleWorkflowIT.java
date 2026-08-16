@@ -3,6 +3,7 @@ package io.haoblog;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 import io.haoblog.content.persistence.ArticleRepository;
+import io.haoblog.content.application.ScheduledArticlePublisher;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -57,6 +58,7 @@ class ArticleWorkflowIT {
     @Autowired ObjectMapper objectMapper;
     @Autowired JdbcTemplate jdbc;
     @Autowired ArticleRepository articles;
+    @Autowired ScheduledArticlePublisher scheduledPublisher;
 
     @BeforeEach
     void clean() {
@@ -105,6 +107,35 @@ class ArticleWorkflowIT {
         assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM outbox_event WHERE aggregate_id=?", Integer.class, articleId));
         assertEquals("DRAFT", jdbc.queryForObject("SELECT status FROM article WHERE id=?", String.class, articleId));
         assertEquals(0, jdbc.queryForObject("SELECT count(*) FROM article WHERE id=? AND published_revision_id IS NOT NULL", Integer.class, articleId));
+    }
+
+    @Test
+    void scheduledPublicationRetriesFailuresAndRepeatedScansStayIdempotent() throws Exception {
+        String failedId = create("scheduled-failed-" + UUID.randomUUID().toString().substring(0, 8), "Failed", "# failed body");
+        String successfulId = create("scheduled-success-" + UUID.randomUUID().toString().substring(0, 8), "Successful", "# successful body");
+        schedule(failedId);
+        schedule(successfulId);
+        jdbc.update("UPDATE article SET scheduled_at=now() - interval '1 second' WHERE id IN (?, ?)",
+                UUID.fromString(failedId), UUID.fromString(successfulId));
+
+        jdbc.execute("CREATE OR REPLACE FUNCTION reject_publication_outbox() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.aggregate_id = '" + failedId + "'::uuid THEN RAISE EXCEPTION 'test scheduled publication failure'; END IF; RETURN NEW; END; $$");
+        jdbc.execute("CREATE TRIGGER reject_publication_outbox BEFORE INSERT ON outbox_event FOR EACH ROW WHEN (NEW.event_type = 'ARTICLE_PUBLISHED') EXECUTE FUNCTION reject_publication_outbox()");
+
+        scheduledPublisher.publishDueBatch();
+
+        assertEquals("SCHEDULED", jdbc.queryForObject("SELECT status FROM article WHERE id=?", String.class, UUID.fromString(failedId)));
+        assertEquals("PUBLISHED", jdbc.queryForObject("SELECT status FROM article WHERE id=?", String.class, UUID.fromString(successfulId)));
+        assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM article_revision WHERE article_id=?", Integer.class, UUID.fromString(successfulId)));
+        assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM outbox_event WHERE aggregate_id=? AND event_type='ARTICLE_PUBLISHED'", Integer.class, UUID.fromString(successfulId)));
+
+        jdbc.execute("DROP TRIGGER reject_publication_outbox ON outbox_event");
+        jdbc.execute("DROP FUNCTION reject_publication_outbox()");
+        scheduledPublisher.publishDueBatch();
+        scheduledPublisher.publishDueBatch();
+
+        assertEquals("PUBLISHED", jdbc.queryForObject("SELECT status FROM article WHERE id=?", String.class, UUID.fromString(failedId)));
+        assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM article_revision WHERE article_id=?", Integer.class, UUID.fromString(failedId)));
+        assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM outbox_event WHERE aggregate_id=? AND event_type='ARTICLE_PUBLISHED'", Integer.class, UUID.fromString(failedId)));
     }
 
     @Test
@@ -303,6 +334,12 @@ class ArticleWorkflowIT {
                         .content("{\"slug\":\"" + slug + "\",\"title\":\"" + title + "\",\"markdown\":\"" + markdown + "\"}"))
                 .andExpect(status().isCreated()).andReturn();
         return objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asText();
+    }
+
+    private void schedule(String id) throws Exception {
+        mvc.perform(post("/api/v1/admin/articles/" + id + "/schedule").with(admin()).with(csrf())
+                        .contentType("application/json").content("{\"version\":0,\"scheduledAt\":\"2099-01-01T00:00:00Z\"}"))
+                .andExpect(status().isOk());
     }
 
     private static org.springframework.test.web.servlet.request.RequestPostProcessor admin() {

@@ -7,8 +7,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import java.util.Optional;
 
@@ -25,8 +29,25 @@ public interface ArticleRepository extends JpaRepository<Article, UUID> {
     Page<Article> findByStatusAndPublishedAtIsNotNullAndPublishedAtLessThanEqual(
             ArticleStatus status, Instant now, Pageable pageable);
 
+    @Query("""
+            select a.id as id, a.version as version, a.scheduledAt as scheduledAt
+            from Article a
+            where a.status = :status
+              and a.scheduledAt is not null
+              and a.scheduledAt <= :now
+            order by a.scheduledAt asc, a.id asc
+            """)
+    List<ScheduledPublicationProjection> findDueScheduled(@Param("status") ArticleStatus status,
+                                                           @Param("now") Instant now,
+                                                           Pageable pageable);
+
     @EntityGraph(attributePaths = "tags")
     Optional<Article> findWithTagsById(UUID id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @EntityGraph(attributePaths = "tags")
+    @Query("select a from Article a where a.id = :id")
+    Optional<Article> findWithTagsByIdForUpdate(@Param("id") UUID id);
 
     @Query("""
             select a from Article a
@@ -39,4 +60,10 @@ public interface ArticleRepository extends JpaRepository<Article, UUID> {
     boolean existsByCategoryId(UUID categoryId);
 
     boolean existsByTags_Id(UUID tagId);
+
+    interface ScheduledPublicationProjection {
+        UUID getId();
+        long getVersion();
+        Instant getScheduledAt();
+    }
 }

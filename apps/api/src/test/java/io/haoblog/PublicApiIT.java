@@ -61,7 +61,7 @@ class PublicApiIT {
         UUID articleId = seedPublished("snapshot-isolation", "Working title", "Working excerpt", "# working", Instant.now().minus(1, ChronoUnit.DAYS), Instant.now());
         UUID revisionId = UUID.randomUUID();
         jdbc.update("INSERT INTO article_revision(id, article_id, source_version, title, slug, excerpt, markdown_source, seo_title, seo_description, cover_media_id, tag_snapshot, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '[]'::jsonb, ?)",
-                revisionId, articleId, 0L, "Published title", "snapshot-isolation", "Published excerpt", "# published", "Published SEO", "Published description", mediaId, java.sql.Timestamp.from(Instant.now().minus(1, ChronoUnit.DAYS)));
+                revisionId, articleId, 1L, "Published title", "snapshot-isolation", "Published excerpt", "# published", "Published SEO", "Published description", mediaId, java.sql.Timestamp.from(Instant.now().minus(1, ChronoUnit.DAYS)));
         jdbc.update("UPDATE article SET published_revision_id=?, title=?, excerpt=?, markdown_source=?, seo_title=?, seo_description=? WHERE id=?",
                 revisionId, "Edited working title", "Edited working excerpt", "# edited", "Edited SEO", "Edited description", articleId);
 

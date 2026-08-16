@@ -12,6 +12,10 @@ spring:
     open-in-view: false
     hibernate:
       ddl-auto: validate
+  task:
+    scheduling:
+      pool:
+        size: 1
   flyway:
     enabled: true
     placeholders:
