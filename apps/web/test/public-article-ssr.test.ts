@@ -115,6 +115,18 @@ describe('public article SSR contract', () => {
     expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;')
   })
 
+  it('keeps highlighted code, line metadata, and copy affordance in SSR HTML', async () => {
+    const content = buildPublicArticleContent({ ...article, markdown: '# Readable\n\n```typescript [answer.ts] {2}\nconst answer: number = 41\nconst next = answer + 1\n```' })
+    const html = await renderToString(createSSRApp(PublicArticleBody, { content }))
+    expect(html).toContain('class="shiki shiki-themes')
+    expect(html).toContain('data-filename="answer.ts"')
+    expect(html).toContain('data-line="2"')
+    expect(html).toContain('class="code-copy-button"')
+    expect(html).toContain('aria-label="复制文件 answer.ts"')
+    expect(html).toContain('const')
+    expect(html).toContain('next')
+  })
+
   it('hydrates the same structure without Vue warnings', async () => {
     const content = buildPublicArticleContent(article)
     const serverApp = createSSRApp(PublicArticleBody, { content })

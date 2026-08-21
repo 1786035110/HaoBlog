@@ -57,6 +57,41 @@ describe('public article content model', () => {
     expect(() => renderPublicArticleMarkdown(`${'['.repeat(10000)}\n${'```'.repeat(1000)}`)).not.toThrow()
   })
 
+  it('highlights every supported language through the server singleton', () => {
+    const samples: Record<string, string> = {
+      plaintext: 'plain <text>', bash: 'echo "$PATH"', shell: 'printf ok', powershell: 'Get-ChildItem',
+      java: 'class Demo {}', kotlin: 'fun main() {}', xml: '<note>ok</note>', html: '<div>ok</div>',
+      css: '.note { color: red; }', javascript: 'const answer = 42', typescript: 'const answer: number = 42',
+      json: '{"ok":true}', yaml: 'ok: true', sql: 'SELECT 1;', vue: '<template><div /></template>',
+      markdown: '# nested title', dockerfile: 'FROM node:24',
+    }
+    for (const [language, source] of Object.entries(samples)) {
+      const result = renderPublicArticleMarkdown(`\`\`\`${language}\n${source}\n\`\`\``)
+      expect(result.renderedHtml, language).toContain(`data-language="${language === 'shell' ? 'shellscript' : language}"`)
+      expect(result.renderedHtml, language).toContain('data-line="1"')
+      if (language !== 'plaintext') expect(result.renderedHtml, language).toContain('shiki-themes')
+    }
+  })
+
+  it('escapes unknown languages and code metadata without throwing', () => {
+    const result = renderPublicArticleMarkdown('```unknown [<script>.ts] {1,3-5} {0,2-1,999999999999} ignored\n<unsafe>&\nsecond\n```')
+    expect(result.renderedHtml).toContain('code-highlight-fallback')
+    expect(result.renderedHtml).toContain('&lt;unsafe&gt;&amp;')
+    expect(result.renderedHtml).toContain('data-filename="&lt;script&gt;.ts"')
+    expect(result.renderedHtml).toContain('aria-label="复制文件 &lt;script&gt;.ts"')
+    expect(result.renderedHtml).toContain('class="line is-focused" data-line="1"')
+    expect(result.renderedHtml).toContain('class="line" data-line="2"')
+    expect(result.renderedHtml).not.toContain('ignored')
+    expect(result.renderedHtml).not.toContain('<script>')
+  })
+
+  it('keeps long and empty code blocks readable', () => {
+    const longCode = Array.from({ length: 2000 }, (_, index) => `const line${index + 1} = ${index + 1}`).join('\n')
+    expect(() => renderPublicArticleMarkdown(`\`\`\`typescript\n${longCode}\n\`\`\``)).not.toThrow()
+    expect(renderPublicArticleMarkdown(`\`\`\`typescript\n${longCode}\n\`\`\``).renderedHtml).toContain('data-line="2000"')
+    expect(renderPublicArticleMarkdown('```javascript\n```').renderedHtml).toContain('data-line="1"')
+  })
+
   it('forwards backend 404, cache-control, ETag, and conditional requests', async () => {
     const fetcher = vi.fn<typeof fetch>(async (_input, init) => {
       expect(new Headers(init?.headers).get('if-none-match')).toBe('"v1"')
