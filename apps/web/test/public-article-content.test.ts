@@ -53,7 +53,13 @@ describe('public article content model', () => {
     expect(result.renderedHtml).toContain('language-ts')
     expect(result.hasMermaid).toBe(false)
 
-    expect(buildPublicArticleContent({ ...article, markdown: '```mermaid\nflowchart TD\nA-->B\n```' }).hasMermaid).toBe(true)
+    const mermaid = buildPublicArticleContent({ ...article, markdown: '```mermaid\nflowchart TD\nA-->B\n```' })
+    expect(mermaid.hasMermaid).toBe(true)
+    expect(mermaid.renderedHtml).toContain('<figure class="mermaid-figure"')
+    expect(mermaid.renderedHtml).toContain('<figcaption class="mermaid-caption">MERMAID / DIAGRAM')
+    expect(mermaid.renderedHtml).toContain('<pre class="mermaid-source"')
+    expect(mermaid.renderedHtml).toContain('<code class="language-mermaid">flowchart TD\nA--&gt;B</code>')
+    expect(buildPublicArticleContent({ ...article, markdown: '  ``` mermaid\nflowchart TD\nA-->B\n```' }).hasMermaid).toBe(true)
     expect(() => renderPublicArticleMarkdown(`${'['.repeat(10000)}\n${'```'.repeat(1000)}`)).not.toThrow()
   })
 

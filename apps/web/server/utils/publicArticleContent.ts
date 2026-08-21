@@ -151,9 +151,14 @@ function renderPlainCode(code: string, focusRanges: Array<[number, number]>) {
   return `<pre class="shiki code-highlight-fallback" tabindex="0"><code>${lines.map((line, index) => `<span class="line${focused.has(index + 1) ? ' is-focused' : ''}" data-line="${index + 1}">${escapeHtml(line)}</span>`).join('')}</code></pre>`
 }
 
+function renderMermaidFence(code: string) {
+  return `<figure class="mermaid-figure" data-mermaid-figure="true" data-mermaid-state="source"><figcaption class="mermaid-caption">MERMAID / DIAGRAM <button type="button" class="mermaid-render-button" data-mermaid-render="true" aria-label="渲染 Mermaid 图表">渲染图表</button><span class="mermaid-status" data-mermaid-status="true" role="status" aria-live="polite"></span></figcaption><div class="mermaid-output" data-mermaid-output="true" hidden aria-live="polite"></div><pre class="mermaid-source" data-mermaid-source="true" tabindex="0"><code class="language-mermaid">${escapeHtml(code)}</code></pre></figure>`
+}
+
 function renderCodeFence(token: Token) {
   const metadata = parseCodeMetadata(token.info || '')
   const code = token.content.replace(/\r\n?/g, '\n').replace(/\n$/, '')
+  if (metadata.rawLanguage === 'mermaid') return renderMermaidFence(code)
   const lineCount = Math.max(1, code.split('\n').length)
   const language = metadata.language || 'plaintext'
   const languageClass = /^[a-z0-9_-]+$/.test(metadata.rawLanguage) ? metadata.rawLanguage : 'plaintext'
@@ -310,6 +315,7 @@ function createMarkdownRenderer(toc: TocItem[]) {
 
 export function renderPublicArticleMarkdown(markdownSource: string) {
   const toc: TocItem[] = []
+  const hasMermaid = /^(?: {0,3})```[ \t]*mermaid(?:[ \t]|$)/im.test(markdownSource)
   const markdown = createMarkdownRenderer(toc)
   let rawHtml: string
   try {
@@ -321,7 +327,7 @@ export function renderPublicArticleMarkdown(markdownSource: string) {
   const renderedHtml = sanitizeHtml(rawHtml, {
     allowedTags: [
       'p', 'br', 'hr', 'h2', 'h3', 'h4', 'h5', 'h6', 'em', 'strong', 'del', 's',
-      'a', 'img', 'blockquote', 'ul', 'ol', 'li', 'pre', 'code', 'input', 'label', 'sup', 'section',
+      'a', 'img', 'blockquote', 'ul', 'ol', 'li', 'pre', 'code', 'input', 'label', 'sup', 'section', 'figure', 'figcaption',
       'table', 'thead', 'tbody', 'tr', 'th', 'td',
       'div', 'span', 'button', 'math', 'semantics', 'mrow', 'mfrac', 'mn', 'mi', 'mo', 'msup', 'msub',
       'msubsup', 'munder', 'mover', 'munderover', 'msqrt', 'mroot', 'mtable', 'mtr', 'mtd', 'mpadded',
@@ -332,11 +338,13 @@ export function renderPublicArticleMarkdown(markdownSource: string) {
       p: ['class', 'title'],
       a: ['href', 'title', 'class', 'id'],
       img: ['src', 'alt', 'title', 'loading', 'decoding'],
-      pre: ['class', 'tabindex'],
+      pre: ['class', 'tabindex', 'data-mermaid-source'],
       code: ['class'],
-      div: ['class', 'data-code-block', 'data-language', 'data-filename', 'tabindex', 'role', 'aria-label'],
-      span: ['class', 'data-line', 'style', 'title', 'aria-hidden'],
-      button: ['type', 'class', 'data-code-copy', 'aria-label'],
+      div: ['class', 'data-code-block', 'data-language', 'data-filename', 'data-mermaid-output', 'tabindex', 'role', 'aria-label', 'aria-live', 'hidden'],
+      span: ['class', 'data-line', 'data-mermaid-status', 'style', 'title', 'aria-hidden', 'role', 'aria-live'],
+      button: ['type', 'class', 'data-code-copy', 'data-mermaid-render', 'aria-label'],
+      figure: ['class', 'data-mermaid-figure', 'data-mermaid-state'],
+      figcaption: ['class'],
       ul: ['class'],
       ol: ['class'],
       li: ['id', 'class'],
@@ -354,13 +362,15 @@ export function renderPublicArticleMarkdown(markdownSource: string) {
     allowedClasses: {
       p: [/^katex-block$/, /^markdown-callout-title$/],
       code: [/^language-[\w-]+$/],
-      pre: [/^shiki$/, /^shiki-themes$/, /^light-plus$/, /^dark-plus$/, /^code-highlight-fallback$/, /^markdown-render-error$/],
-      div: [/^code-block$/, /^code-block-header$/, /^markdown-callout$/, /^markdown-callout--(?:note|tip|warning|danger)$/, /^markdown-table-scroll$/, /^katex-block$/, /^katex-error$/],
+      pre: [/^shiki$/, /^shiki-themes$/, /^light-plus$/, /^dark-plus$/, /^code-highlight-fallback$/, /^markdown-render-error$/, /^mermaid-source$/],
+      div: [/^code-block$/, /^code-block-header$/, /^markdown-callout$/, /^markdown-callout--(?:note|tip|warning|danger)$/, /^markdown-table-scroll$/, /^katex-block$/, /^katex-error$/, /^mermaid-output$/],
+      figure: [/^mermaid-figure$/],
+      figcaption: [/^mermaid-caption$/],
       span: [
-        /^code-block-language$/, /^code-block-filename$/, /^line$/, /^is-focused$/,
+        /^code-block-language$/, /^code-block-filename$/, /^line$/, /^is-focused$/, /^mermaid-status$/,
         /^(?:katex|katex-[a-z-]+|mord|mop|mbin|mrel|mopen|mclose|mpunct|minner|mfrac|frac-line|mspace|msupsub|mtight|vlist(?:-[a-z0-9]+)?|nulldelimiter|reset-size\d+|size\d+|mathnormal|op-limits|op-symbol|large-op|pstrut|svg-align|hide-tail|katex-sizing)$/,
       ],
-      button: [/^code-copy-button$/],
+      button: [/^code-copy-button$/, /^mermaid-render-button$/],
       ul: [/^task-list-container$/],
       li: [/^footnote-item$/, /^task-list-item$/],
       label: [/^task-list-item-label$/],
@@ -382,16 +392,16 @@ export function renderPublicArticleMarkdown(markdownSource: string) {
         : { tagName: 'span', attribs: {} },
     },
   })
-  return { renderedHtml, toc }
+  return { renderedHtml, toc, hasMermaid }
 }
 
 export function buildPublicArticleContent(article: Article): PublicArticleContent {
-  const { renderedHtml, toc } = renderPublicArticleMarkdown(article.markdown)
+  const { renderedHtml, toc, hasMermaid } = renderPublicArticleMarkdown(article.markdown)
   return {
     article,
     renderedHtml,
     toc,
-    hasMermaid: /(^|\n)```mermaid(?:\s|$)/im.test(article.markdown),
+    hasMermaid,
   }
 }
 

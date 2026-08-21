@@ -127,6 +127,16 @@ describe('public article SSR contract', () => {
     expect(html).toContain('next')
   })
 
+  it('keeps Mermaid figure, caption, and escaped source in SSR HTML', async () => {
+    const content = buildPublicArticleContent({ ...article, markdown: '```mermaid\nflowchart TD\nA[<script>]-->B\n```' })
+    const html = await renderToString(createSSRApp(PublicArticleBody, { content }))
+    expect(html).toContain('class="mermaid-figure"')
+    expect(html).toContain('<figcaption class="mermaid-caption">MERMAID / DIAGRAM')
+    expect(html).toContain('<pre class="mermaid-source"')
+    expect(html).toContain('A[&lt;script&gt;]--&gt;B')
+    expect(html).not.toContain('<script>')
+  })
+
   it('hydrates the same structure without Vue warnings', async () => {
     const content = buildPublicArticleContent(article)
     const serverApp = createSSRApp(PublicArticleBody, { content })

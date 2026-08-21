@@ -1,3 +1,5 @@
+import { onBeforeUnmount, onMounted, readonly, ref } from 'vue'
+
 export function useMotionPreference() {
   const reduced = ref(false)
   let media: MediaQueryList | undefined

@@ -1,3 +1,5 @@
+import { onBeforeUnmount, onMounted, readonly, ref } from 'vue'
+
 export function useDataSaver() {
   const enabled = ref(false)
   let connection: (EventTarget & { saveData?: boolean }) | undefined
