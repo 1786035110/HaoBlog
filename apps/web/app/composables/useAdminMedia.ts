@@ -22,7 +22,7 @@ export function useAdminMedia() {
     })
   }
 
-  async function putToCos(currentGrant: UploadGrant, image: PreparedImage) {
+  async function putToOss(currentGrant: UploadGrant, image: PreparedImage) {
     const body = new FormData()
     for (const [key, value] of Object.entries(currentGrant.fields)) body.append(key, value)
     body.append('file', image.blob, 'image')
@@ -45,7 +45,7 @@ export function useAdminMedia() {
       prepared.value = image
       phase.value = 'uploading'
       grant.value = await createGrant(image)
-      await putToCos(grant.value, image)
+      await putToOss(grant.value, image)
       phase.value = 'confirming'
       asset.value = await confirm(grant.value)
       phase.value = 'done'
@@ -64,7 +64,7 @@ export function useAdminMedia() {
     try {
       if (!grant.value) grant.value = await createGrant(prepared.value)
       phase.value = 'uploading'
-      await putToCos(grant.value, prepared.value)
+      await putToOss(grant.value, prepared.value)
       phase.value = 'confirming'
       asset.value = await confirm(grant.value)
       phase.value = 'done'

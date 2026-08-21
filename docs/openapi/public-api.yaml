@@ -131,7 +131,7 @@ paths:
         content: { application/json: { schema: { $ref: '#/components/schemas/MediaUploadRequest' } } }
       responses:
         '201':
-          description: Short-lived COS POST policy
+          description: Short-lived OSS POST policy
           content: { application/json: { schema: { $ref: '#/components/schemas/MediaUploadResponse' } } }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthenticated' }

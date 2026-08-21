@@ -2,7 +2,7 @@ package io.haoblog.media.application;
 
 import io.haoblog.media.domain.MediaAsset;
 import io.haoblog.media.domain.MediaAssetStatus;
-import io.haoblog.media.infrastructure.TencentCosProperties;
+import io.haoblog.media.infrastructure.AliyunOssProperties;
 import io.haoblog.media.persistence.MediaAssetRepository;
 import io.haoblog.media.persistence.MediaUpload;
 import io.haoblog.media.persistence.MediaUploadRepository;
@@ -23,7 +23,7 @@ import java.util.UUID;
 import java.util.regex.Pattern;
 
 @Service
-@ConditionalOnProperty(prefix = "haoblog.media.cos", name = "enabled", havingValue = "true")
+@ConditionalOnProperty(prefix = "haoblog.media.oss", name = "enabled", havingValue = "true")
 public class MediaUploadService {
     private static final Set<String> MIME_TYPES = Set.of("image/jpeg", "image/png", "image/webp");
     private static final Pattern SHA256 = Pattern.compile("[0-9a-f]{64}");
@@ -31,12 +31,12 @@ public class MediaUploadService {
     private final MediaAssetRepository assets;
     private final ObjectStorage storage;
     private final MediaReferenceQuery references;
-    private final TencentCosProperties properties;
+    private final AliyunOssProperties properties;
     private final Clock clock;
 
     public MediaUploadService(MediaUploadRepository uploads, MediaAssetRepository assets,
                               ObjectStorage storage, MediaReferenceQuery references,
-                              TencentCosProperties properties, Clock clock) {
+                              AliyunOssProperties properties, Clock clock) {
         this.uploads = uploads;
         this.assets = assets;
         this.storage = storage;

@@ -73,7 +73,7 @@
         <small v-else>暂无可用标签。</small>
       </div>
       <div class="field-line field-wide">
-        <span class="field-label">媒体 / DIRECT COS UPLOAD</span>
+        <span class="field-label">媒体 / DIRECT OSS UPLOAD</span>
         <div class="media-upload-box">
           <input ref="fileInput" class="sr-only" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" @change="selectImage">
           <div class="media-upload-line">

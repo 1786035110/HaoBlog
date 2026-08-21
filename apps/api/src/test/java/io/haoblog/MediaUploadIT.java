@@ -40,12 +40,13 @@ class MediaUploadIT {
         registry.add("spring.datasource.password", postgres::getPassword);
         registry.add("spring.flyway.placeholders.admin_username", () -> "admin");
         registry.add("spring.flyway.placeholders.admin_password_hash", () -> "$2a$10$0V.Xs7CLOUYSekm7RKq3Z.iY76KUan/Xbeu5vjmLpX.sVd4pcFpIu");
-        registry.add("haoblog.media.cos.enabled", () -> true);
-        registry.add("haoblog.media.cos.bucket", () -> "test-bucket");
-        registry.add("haoblog.media.cos.region", () -> "ap-test");
-        registry.add("haoblog.media.cos.secret-id", () -> "test-id");
-        registry.add("haoblog.media.cos.secret-key", () -> "test-key");
-        registry.add("haoblog.media.cos.public-base-url", () -> "https://cdn.test");
+        registry.add("haoblog.media.oss.enabled", () -> true);
+        registry.add("haoblog.media.oss.bucket", () -> "test-bucket");
+        registry.add("haoblog.media.oss.region", () -> "cn-guangzhou");
+        registry.add("haoblog.media.oss.endpoint", () -> "https://oss-cn-guangzhou.aliyuncs.com");
+        registry.add("haoblog.media.oss.access-key-id", () -> "test-id");
+        registry.add("haoblog.media.oss.access-key-secret", () -> "test-key");
+        registry.add("haoblog.media.oss.public-base-url", () -> "https://cdn.test");
     }
 
     @Autowired MockMvc mvc;

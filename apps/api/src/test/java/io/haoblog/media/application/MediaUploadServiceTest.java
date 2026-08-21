@@ -2,7 +2,7 @@ package io.haoblog.media.application;
 
 import io.haoblog.media.domain.MediaAsset;
 import io.haoblog.media.domain.MediaAssetStatus;
-import io.haoblog.media.infrastructure.TencentCosProperties;
+import io.haoblog.media.infrastructure.AliyunOssProperties;
 import io.haoblog.media.persistence.MediaAssetRepository;
 import io.haoblog.media.persistence.MediaUpload;
 import io.haoblog.media.persistence.MediaUploadRepository;
@@ -28,7 +28,7 @@ class MediaUploadServiceTest {
     private final MediaAssetRepository assets = mock(MediaAssetRepository.class);
     private final ObjectStorage storage = mock(ObjectStorage.class);
     private final MediaReferenceQuery references = mock(MediaReferenceQuery.class);
-    private final TencentCosProperties properties = new TencentCosProperties();
+    private final AliyunOssProperties properties = new AliyunOssProperties();
     private MediaUploadService service;
     private final Instant now = Instant.parse("2030-01-01T00:00:00Z");
 

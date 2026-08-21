@@ -64,4 +64,4 @@ cd apps/api && ./mvnw -DskipITs verify && ./mvnw failsafe:integration-test fails
 - 数据库迁移失败：先查看 API 日志和 PostgreSQL 健康状态，再执行 `docker compose --env-file .env -f infra/compose/compose.dev.yml down -v` 清理本地开发 volume 后重试。
 - Web 无法连接 API：确认 API 健康后检查容器内地址 `http://api:8080`，不要在 Compose 内使用 `localhost`。
 
-阶段二验收顺序是 API `-DskipITs verify`、Web typecheck/test/build、OpenAPI 一致性、Compose 配置与资源边界、PostgreSQL/pgvector Failsafe 集成测试、生产 Compose 健康检查和 Chromium Playwright E2E。`mvn verify` 的 Failsafe 集成测试默认需要 Docker；分阶段命令用于保持 CI 顺序并避免重复运行单元测试。阶段二已包含管理员会话、文章工作流、版本、定时发布、SSR 和 COS 直传边界；评论、AI 和工具箱仍不在本阶段范围内。
+阶段二验收顺序是 API `-DskipITs verify`、Web typecheck/test/build、OpenAPI 一致性、Compose 配置与资源边界、PostgreSQL/pgvector Failsafe 集成测试、生产 Compose 健康检查和 Chromium Playwright E2E。`mvn verify` 的 Failsafe 集成测试默认需要 Docker；分阶段命令用于保持 CI 顺序并避免重复运行单元测试。阶段二已包含管理员会话、文章工作流、版本、定时发布、SSR 和 OSS 直传边界；评论、AI 和工具箱仍不在本阶段范围内。

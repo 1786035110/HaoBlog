@@ -1059,7 +1059,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Short-lived COS POST policy */
+            /** @description Short-lived OSS POST policy */
             201: {
                 headers: {
                     [name: string]: unknown;

@@ -10,16 +10,16 @@ import java.net.http.HttpClient;
 import java.time.Duration;
 
 @Configuration
-@EnableConfigurationProperties(TencentCosProperties.class)
-@ConditionalOnProperty(prefix = "haoblog.media.cos", name = "enabled", havingValue = "true")
-public class TencentCosConfiguration {
+@EnableConfigurationProperties(AliyunOssProperties.class)
+@ConditionalOnProperty(prefix = "haoblog.media.oss", name = "enabled", havingValue = "true")
+public class AliyunOssConfiguration {
     @Bean
-    HttpClient cosHttpClient() {
+    HttpClient ossHttpClient() {
         return HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build();
     }
 
     @Bean
-    ObjectStorage objectStorage(TencentCosProperties properties, HttpClient cosHttpClient) {
-        return new TencentCosObjectStorage(properties, cosHttpClient);
+    ObjectStorage objectStorage(AliyunOssProperties properties, HttpClient ossHttpClient) {
+        return new AliyunOssObjectStorage(properties, ossHttpClient);
     }
 }

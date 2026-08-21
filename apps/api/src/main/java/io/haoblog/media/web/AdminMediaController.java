@@ -17,7 +17,7 @@ import static io.haoblog.media.web.AdminMediaDtos.*;
 
 @RestController
 @RequestMapping("/api/v1/admin/media")
-@ConditionalOnProperty(prefix = "haoblog.media.cos", name = "enabled", havingValue = "true")
+@ConditionalOnProperty(prefix = "haoblog.media.oss", name = "enabled", havingValue = "true")
 public class AdminMediaController {
     private final MediaUploadService service;
 
