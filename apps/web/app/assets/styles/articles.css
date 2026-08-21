@@ -1,3 +1,5 @@
+@import 'katex/dist/katex.min.css';
+
 .article-index { max-width: 64rem; }
 .observation-timeline { list-style: none; margin: 3rem 0 0; padding: 0 0 3rem 2rem; border-left: 1px solid var(--color-border); }
 .observation-entry { position: relative; display: grid; grid-template-columns: 8rem minmax(0, 1fr); gap: 2rem; padding: 0 0 2.5rem 1.5rem; }
@@ -49,3 +51,24 @@ html[data-theme='blueprint'] .safe-markdown .shiki span { color: var(--shiki-lig
 .safe-markdown img { display: block; max-width: 100%; height: auto; margin: 1.5rem 0; border: 1px solid var(--color-border); }
 .article-toc { padding-top: 4rem; border-left: 1px solid var(--color-border); padding-left: 1rem; }
 @media (max-width: 767px) { .observation-entry { grid-template-columns: 1fr; gap: .4rem; padding-left: 1rem; }.article-pagination { padding-left: 1rem; }.recent-list li { grid-template-columns: 1fr; gap: .4rem; }.article-instrument { display: block; margin-top: 4vh; }.article-signal { height: 1px; margin-bottom: 2rem; overflow: hidden; background: var(--color-accent); }.article-toc { margin-top: 3rem; padding: 1rem 0 0; border-left: 0; border-top: 1px solid var(--color-border); } }
+.safe-markdown .katex { font-size: 1em; }
+.safe-markdown .katex-block { display: block; max-width: 100%; margin: 1.75rem 0; overflow-x: auto; padding: .25rem 0; text-align: center; }
+.safe-markdown .katex-error { color: var(--color-warn); font-family: var(--font-mono); font-size: .9em; }
+.safe-markdown .markdown-callout { margin: 1.75rem 0; padding: 0 1rem 1rem; border: 1px solid var(--color-border); border-left: 3px solid var(--color-accent); background: color-mix(in srgb, var(--color-bg-sub) 60%, transparent); }
+.safe-markdown .markdown-callout--tip { border-left-color: var(--color-accent); }
+.safe-markdown .markdown-callout--warning, .safe-markdown .markdown-callout--danger { border-left-color: var(--color-warn); }
+.safe-markdown .markdown-callout-title { margin: 0 -1rem 1rem; padding: .65rem 1rem; border-bottom: 1px solid var(--color-border); color: var(--color-text-main); font: var(--text-xs)/1.4 var(--font-mono); letter-spacing: .08em; }
+.safe-markdown .markdown-callout--warning .markdown-callout-title, .safe-markdown .markdown-callout--danger .markdown-callout-title { color: var(--color-warn); }
+.safe-markdown .markdown-table-scroll { max-width: 100%; margin: 1.5rem 0; overflow-x: auto; border: 1px solid var(--color-border); }
+.safe-markdown .markdown-table-scroll:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.safe-markdown table { width: 100%; min-width: 32rem; border-collapse: collapse; font-size: .95em; }
+.safe-markdown th, .safe-markdown td { padding: .65rem .8rem; border: 1px solid var(--color-border); text-align: left; vertical-align: top; }
+.safe-markdown th { color: var(--color-accent); font: var(--text-xs)/1.4 var(--font-mono); letter-spacing: .06em; }
+.safe-markdown .task-list-container { padding-left: 0; list-style: none; }
+.safe-markdown .task-list-item { display: flex; align-items: baseline; gap: .55rem; }
+.safe-markdown .task-list-item-checkbox { flex: 0 0 auto; accent-color: var(--color-accent); }
+.safe-markdown .footnotes-sep { margin: 3rem 0 1rem; }
+.safe-markdown .footnotes { color: var(--color-text-muted); font-size: .92em; }
+.safe-markdown .footnote-ref a, .safe-markdown .footnote-backref { color: var(--color-accent); text-decoration: none; }
+.safe-markdown .footnote-ref a:focus-visible, .safe-markdown .footnote-backref:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.safe-markdown .footnote-backref { margin-left: .35rem; white-space: nowrap; }

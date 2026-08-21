@@ -16,6 +16,18 @@ importers:
       '@haoblog/api-client':
         specifier: workspace:*
         version: link:../../packages/api-client
+      '@mdit/plugin-container':
+        specifier: 2.0.0
+        version: 2.0.0(markdown-it@15.0.0)
+      '@mdit/plugin-footnote':
+        specifier: 1.1.0
+        version: 1.1.0(markdown-it@15.0.0)
+      '@mdit/plugin-katex':
+        specifier: 1.1.0
+        version: 1.1.0(markdown-it@15.0.0)
+      '@mdit/plugin-tasklist':
+        specifier: 1.1.0
+        version: 1.1.0(markdown-it@15.0.0)
       '@pinia/nuxt':
         specifier: 0.11.2
         version: 0.11.2(magic-string@1.1.0)(magicast@0.5.4)(oxc-parser@0.142.0)(pinia@3.0.3(typescript@5.9.2)(vue@3.5.18(typescript@5.9.2)))(rolldown@1.2.3)(unplugin@3.3.0(esbuild@0.28.2)(rolldown@1.2.3)(rollup@4.62.4)(vite@7.3.6(@types/node@26.2.0)(jiti@2.7.0)(lightningcss@1.33.0)(terser@5.49.2)(yaml@2.9.0))(webpack@5.109.2(cssnano@8.0.5(postcss@8.5.26))(csso@5.0.5)(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.26)))
@@ -31,6 +43,9 @@ importers:
       diff:
         specifier: 8.0.4
         version: 8.0.4
+      katex:
+        specifier: 0.18.4
+        version: 0.18.4
       markdown-it:
         specifier: 15.0.0
         version: 15.0.0
@@ -495,6 +510,57 @@ packages:
     resolution: {integrity: sha512-llMXd39jtP0HpQLVI37Bf1m2ADlEb35GYSh1SDSLsBhR+5iCxiNGlT31yqbNtVHygHAtMy6dWFERpU2JgufhPg==}
     engines: {node: '>=18'}
     hasBin: true
+
+  '@mdit/helper@1.1.0':
+    resolution: {integrity: sha512-IWOUioaLobXA4ueulPfJopKaOHEGAH2pYDyK3u0cy4ItzxHXFssIJYksvdhUOC4JSHWfSjCArw41LBQdKOgFiw==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      markdown-it: ^15.0.0
+    peerDependenciesMeta:
+      markdown-it:
+        optional: true
+
+  '@mdit/plugin-container@2.0.0':
+    resolution: {integrity: sha512-g5dcpOpXRrpp0Sy3A6HPuAKPHb5oo6m4V/1Ba4xnGV3MNSQ6ca0jRXGZmKkqQLGbXdTv4jNp/9UINm6NetDH2g==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      markdown-it: ^15.0.0
+    peerDependenciesMeta:
+      markdown-it:
+        optional: true
+
+  '@mdit/plugin-footnote@1.1.0':
+    resolution: {integrity: sha512-EeVs4w9La5nQJbsU7GVq3aBhhgaNxkO89q8EguWc1ogkNaomL0d2B8jZKbDoZBGo1yg6m2nimraCWQI4jqmXWA==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      markdown-it: ^15.0.0
+
+  '@mdit/plugin-katex@1.1.0':
+    resolution: {integrity: sha512-/YGaXjDg3Xf88Xb8YtX1WgvfBAuMdSxAlbPE1s4d7NIRNzb8/RlWlQglNODOvTrye0RZgWz4Ep4mxH4A+pynwg==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      markdown-it: ^15.0.0
+    peerDependenciesMeta:
+      markdown-it:
+        optional: true
+
+  '@mdit/plugin-tasklist@1.1.0':
+    resolution: {integrity: sha512-A9H9hLKcfKpQQhWkuLeFmTKRiXAYntkDC8nL7HspIRUdn+NV98F7BmrIlQpZfxXU5MYyyNGmK6VYtIY+uwgtRQ==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      markdown-it: ^15.0.0
+    peerDependenciesMeta:
+      markdown-it:
+        optional: true
+
+  '@mdit/plugin-tex@1.1.0':
+    resolution: {integrity: sha512-rKQ0D5+PHE7d78aTvy1XNukPonXEHbo3Ca7NilIJmIUDfZACnatZ060t8Cjqnw/ajJyk+X+Ukv1p/ByeIPC3rg==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      markdown-it: ^15.0.0
+    peerDependenciesMeta:
+      markdown-it:
+        optional: true
 
   '@napi-rs/lzma-linux-x64-gnu@1.5.1':
     resolution: {integrity: sha512-oTXEIha4SsuXdTA4Iyskj0kpdx2yVXdhd75c2v3xGrHFfVMsbhTPZU/nMPL4sWKo4pBHm3aucLaqGlF696dTyQ==}
@@ -1884,6 +1950,10 @@ packages:
   commander@2.20.0:
     resolution: {integrity: sha512-7j2y+40w61zy6YC2iRNpUe/NwhNyoXrYpHMrSunaMG64nRnaf96zO/KMQR4OyN/UnE5KLyEBnKHd4aG3rskjpQ==}
 
+  commander@8.3.0:
+    resolution: {integrity: sha512-OkTL9umf+He2DZkUq8f8J9of7yL6RJKI24dVITBmNfZBmri9zYZQrKkuXiKhyfPSu8tUhnVBB1iKXevvnlR4Ww==}
+    engines: {node: '>= 12'}
+
   commondir@1.0.1:
     resolution: {integrity: sha512-W9pAhw0ja1Edb5GVdIF1mjZw/ASI0AlShXM83UUGe2DVr5TdAPEA1OA8m/g8zWp9x6On7gqufY+FatDbC3MDQg==}
 
@@ -2641,6 +2711,10 @@ packages:
   json5@2.2.3:
     resolution: {integrity: sha512-XmOWe7eyHYH14cLdVPoyg+GOH3rYX++KpzrylJwSW98t3Nk+U8XOl8FWKOgwtzdb8lXGf6zYwDUzeHMWfxasyg==}
     engines: {node: '>=6'}
+    hasBin: true
+
+  katex@0.18.4:
+    resolution: {integrity: sha512-IMPntbRLOU+eu88XDiFKqQ8Akhr9Tv7jDMXqPhjG9SI1JMA4DIgXk4x9k4skJz2NZJXBRbC+2pYBLj9olqcZow==}
     hasBin: true
 
   kleur@4.1.5:
@@ -4858,6 +4932,41 @@ snapshots:
       - encoding
       - supports-color
 
+  '@mdit/helper@1.1.0(markdown-it@15.0.0)':
+    optionalDependencies:
+      markdown-it: 15.0.0
+
+  '@mdit/plugin-container@2.0.0(markdown-it@15.0.0)':
+    dependencies:
+      '@mdit/helper': 1.1.0(markdown-it@15.0.0)
+    optionalDependencies:
+      markdown-it: 15.0.0
+
+  '@mdit/plugin-footnote@1.1.0(markdown-it@15.0.0)':
+    dependencies:
+      '@mdit/helper': 1.1.0(markdown-it@15.0.0)
+      markdown-it: 15.0.0
+
+  '@mdit/plugin-katex@1.1.0(markdown-it@15.0.0)':
+    dependencies:
+      '@mdit/helper': 1.1.0(markdown-it@15.0.0)
+      '@mdit/plugin-tex': 1.1.0(markdown-it@15.0.0)
+      katex: 0.18.4
+    optionalDependencies:
+      markdown-it: 15.0.0
+
+  '@mdit/plugin-tasklist@1.1.0(markdown-it@15.0.0)':
+    dependencies:
+      '@mdit/helper': 1.1.0(markdown-it@15.0.0)
+    optionalDependencies:
+      markdown-it: 15.0.0
+
+  '@mdit/plugin-tex@1.1.0(markdown-it@15.0.0)':
+    dependencies:
+      '@mdit/helper': 1.1.0(markdown-it@15.0.0)
+    optionalDependencies:
+      markdown-it: 15.0.0
+
   '@napi-rs/lzma-linux-x64-gnu@1.5.1':
     optional: true
 
@@ -6555,6 +6664,8 @@ snapshots:
 
   commander@2.20.0: {}
 
+  commander@8.3.0: {}
+
   commondir@1.0.1: {}
 
   compatx@0.2.0: {}
@@ -7278,6 +7389,10 @@ snapshots:
   json-schema-traverse@1.0.0: {}
 
   json5@2.2.3: {}
+
+  katex@0.18.4:
+    dependencies:
+      commander: 8.3.0
 
   kleur@4.1.5: {}
 

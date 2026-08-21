@@ -57,6 +57,80 @@ describe('public article content model', () => {
     expect(() => renderPublicArticleMarkdown(`${'['.repeat(10000)}\n${'```'.repeat(1000)}`)).not.toThrow()
   })
 
+  it('renders inline and block KaTeX with both delimiter styles on the server', () => {
+    const result = renderPublicArticleMarkdown(String.raw`Inline $E=mc^2$ and \(x^2\).
+
+$$
+\frac{1}{2}
+$$
+
+\[
+\sqrt{x}
+\]`)
+    expect(result.renderedHtml).toContain('class="katex"')
+    expect(result.renderedHtml).toContain('class="katex-block"')
+    expect(result.renderedHtml).toContain('annotation')
+    expect(result.renderedHtml).toContain('E=mc^2')
+    expect(result.renderedHtml).toContain('\\frac{1}{2}')
+    expect(result.renderedHtml).toContain('<svg')
+  })
+
+  it('keeps invalid, unsafe, and over-expanded formulas readable without throwing', () => {
+    const result = renderPublicArticleMarkdown(String.raw`$\htmlClass{evil}{x}$ $\badcommand$
+
+$$
+\def\loop{\loop}\loop
+$$`)
+    expect(result.renderedHtml).toContain('katex-error')
+    expect(result.renderedHtml).toContain('title="公式解析失败"')
+    expect(result.renderedHtml).not.toContain('ParseError')
+    expect(result.renderedHtml).toContain(String.raw`\htmlClass{evil}{x}`)
+    expect(result.renderedHtml).toContain(String.raw`\badcommand`)
+    expect(result.renderedHtml).toContain(String.raw`\def\loop`)
+    expect(result.renderedHtml).not.toContain('class="evil"')
+    expect(() => renderPublicArticleMarkdown(String.raw`$\htmlStyle{color:red}{x}$`)).not.toThrow()
+  })
+
+  it('renders duplicate footnote references with keyboard-reachable back links', () => {
+    const result = renderPublicArticleMarkdown('A[^source] and again[^source]. Inline^[Inline text].\n\n[^source]: Footnote text.')
+    expect(result.renderedHtml).toContain('class="footnote-ref"')
+    expect(result.renderedHtml).toContain('href="#footnote1"')
+    expect(result.renderedHtml).toContain('href="#footnote-ref1"')
+    expect(result.renderedHtml).toContain('href="#footnote-ref1:1"')
+    expect(result.renderedHtml).toContain('class="footnote-backref"')
+    expect(result.renderedHtml).toContain('Inline text')
+  })
+
+  it('renders nested readonly task lists and all approved callouts only', () => {
+    const result = renderPublicArticleMarkdown(`- [x] done\n  - [ ] nested\n\n::: note Custom note\nNote body\n:::\n\n::: tip\nTip body\n:::\n\n::: warning\nWarning body\n:::\n\n::: danger\nDanger body\n:::\n\n::: nope\nShould stay plain\n:::`)
+    expect(result.renderedHtml).toContain('class="task-list-container"')
+    expect(result.renderedHtml).toContain('class="task-list-item-checkbox"')
+    expect(result.renderedHtml).toContain('disabled="disabled"')
+    expect(result.renderedHtml).toContain('checked="checked"')
+    expect(result.renderedHtml).toContain('class="markdown-callout markdown-callout--note" role="note"')
+    expect(result.renderedHtml).toContain('注记：Custom note')
+    expect(result.renderedHtml).toContain('markdown-callout--tip')
+    expect(result.renderedHtml).toContain('markdown-callout--warning" role="alert"')
+    expect(result.renderedHtml).toContain('markdown-callout--danger" role="alert"')
+    expect(result.renderedHtml).toContain('::: nope')
+    expect(result.renderedHtml).not.toContain('markdown-callout--nope')
+  })
+
+  it('wraps tables in a keyboard-focusable horizontal scroll region', () => {
+    const result = renderPublicArticleMarkdown('| A | B |\n|---|---|\n| wide | value |')
+    expect(result.renderedHtml).toContain('<div class="markdown-table-scroll" tabindex="0" role="region"')
+    expect(result.renderedHtml).toContain('<table>')
+    expect(result.renderedHtml).toContain('</table>\n</div>')
+  })
+
+  it('does not widen the XSS whitelist for raw HTML or unsafe protocols', () => {
+    const result = renderPublicArticleMarkdown('<svg onload="alert(1)"><script>alert(2)</script></svg>\n\n[bad](javascript:alert(3))')
+    expect(result.renderedHtml).not.toContain('<svg ')
+    expect(result.renderedHtml).not.toContain('<script')
+    expect(result.renderedHtml).toContain('&lt;svg')
+    expect(result.renderedHtml).not.toContain('href="javascript:')
+  })
+
   it('highlights every supported language through the server singleton', () => {
     const samples: Record<string, string> = {
       plaintext: 'plain <text>', bash: 'echo "$PATH"', shell: 'printf ok', powershell: 'Get-ChildItem',

@@ -2,6 +2,10 @@ import MarkdownIt from 'markdown-it'
 import sanitizeHtml from 'sanitize-html'
 import type { components } from '@haoblog/api-client'
 import type { Token } from 'markdown-it'
+import { container } from '@mdit/plugin-container'
+import { footnote } from '@mdit/plugin-footnote'
+import { katex } from '@mdit/plugin-katex'
+import { tasklist } from '@mdit/plugin-tasklist'
 import { createHighlighterCoreSync } from 'shiki/core'
 import { createJavaScriptRegexEngine } from 'shiki/engine/javascript'
 import bash from '@shikijs/langs/bash'
@@ -29,6 +33,15 @@ type TocItem = PublicArticleContent['toc'][number]
 
 const LINK_CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/
 const MAX_METADATA_LINE = 100_000
+const KATEX_MAX_SIZE = 10
+const KATEX_MAX_EXPAND = 100
+
+const CALLOUTS = {
+  note: { label: '注记', role: 'note' },
+  tip: { label: '提示', role: 'note' },
+  warning: { label: '警告', role: 'alert' },
+  danger: { label: '危险', role: 'alert' },
+} as const
 
 const shikiHighlighter = (() => {
   try {
@@ -185,6 +198,10 @@ function isAllowedImage(value: string | undefined) {
   }
 }
 
+function isAllowedFootnoteLink(value: string | undefined) {
+  return typeof value === 'string' && /^#footnote(?:-ref)?\d+(?::\d+)?$/i.test(value)
+}
+
 function headingLabel(token: Token) {
   return (token.children || []).map(child => {
     if (child.type === 'image') return child.attrGet('alt') || ''
@@ -199,6 +216,29 @@ function headingId(label: string, seen: Map<string, number>) {
   return count === 1 ? base : `${base}-${count}`
 }
 
+function renderCalloutOpen(name: keyof typeof CALLOUTS, tokens: Token[], index: number) {
+  const token = tokens[index]!
+  const title = token.info.trim().replace(new RegExp(`^${name}\\b`, 'i'), '').trim()
+  const callout = CALLOUTS[name]
+  const heading = title ? `${callout.label}：${title}` : callout.label
+  return `<div class="markdown-callout markdown-callout--${name}" role="${callout.role}"><p class="markdown-callout-title">${escapeHtml(heading)}</p>\n`
+}
+
+function renderKatexOutput(content: string, displayMode: boolean) {
+  const hasError = content.includes('katex-error')
+  let safeContent = content
+  if (hasError) {
+    safeContent = safeContent.replace(/\s+title=['"][^'"]*['"]/, ' title="公式解析失败"')
+    if (!safeContent.includes('title="公式解析失败"')) {
+      safeContent = safeContent.replace(/(<(?:span|p)[^>]*class=['"][^'"]*\bkatex-error\b[^'"]*['"])/, '$1 title="公式解析失败"')
+    }
+  }
+  if (!displayMode) return safeContent
+  return safeContent
+    .replace(/^<p class=['"]katex-block(?:\s+katex-error)?['"]([^>]*)>/, `<div class="katex-block${hasError ? ' katex-error' : ''}"$1 role="group" aria-label="数学公式">`)
+    .replace(/<\/p>\n?$/, '</div>\n')
+}
+
 function createMarkdownRenderer(toc: TocItem[]) {
   const seenIds = new Map<string, number>()
   const markdown = new MarkdownIt({
@@ -206,6 +246,31 @@ function createMarkdownRenderer(toc: TocItem[]) {
     linkify: false,
     typographer: false,
   })
+
+  markdown
+    .use(footnote)
+    .use(tasklist, { disabled: true, label: true })
+    .use(katex, {
+      delimiters: 'all',
+      output: 'htmlAndMathml',
+      trust: false,
+      strict: 'error',
+      throwOnError: false,
+      maxSize: KATEX_MAX_SIZE,
+      maxExpand: KATEX_MAX_EXPAND,
+      globalGroup: false,
+      macros: {},
+      logger: () => 'error' as const,
+      transformer: renderKatexOutput,
+    })
+
+  for (const name of Object.keys(CALLOUTS) as Array<keyof typeof CALLOUTS>) {
+    markdown.use(container, {
+      name,
+      openRenderer: (tokens, index) => renderCalloutOpen(name, tokens, index),
+      closeRenderer: () => '</div>\n',
+    })
+  }
 
   markdown.validateLink = isAllowedLink
   markdown.renderer.rules.heading_open = (tokens, index, options, env, self) => {
@@ -237,6 +302,8 @@ function createMarkdownRenderer(toc: TocItem[]) {
     return self.renderToken(tokens, index, options)
   }
   markdown.renderer.rules.fence = (tokens, index) => renderCodeFence(tokens[index]!)
+  markdown.renderer.rules.table_open = () => '<div class="markdown-table-scroll" tabindex="0" role="region" aria-label="可横向滚动的表格">\n<table>\n'
+  markdown.renderer.rules.table_close = () => '</table>\n</div>\n'
 
   return markdown
 }
@@ -244,30 +311,65 @@ function createMarkdownRenderer(toc: TocItem[]) {
 export function renderPublicArticleMarkdown(markdownSource: string) {
   const toc: TocItem[] = []
   const markdown = createMarkdownRenderer(toc)
-  const renderedHtml = sanitizeHtml(markdown.render(markdownSource), {
+  let rawHtml: string
+  try {
+    rawHtml = markdown.render(markdownSource)
+  } catch {
+    toc.length = 0
+    rawHtml = `<pre class="markdown-render-error"><code>${escapeHtml(markdownSource)}</code></pre>`
+  }
+  const renderedHtml = sanitizeHtml(rawHtml, {
     allowedTags: [
       'p', 'br', 'hr', 'h2', 'h3', 'h4', 'h5', 'h6', 'em', 'strong', 'del', 's',
-      'a', 'img', 'blockquote', 'ul', 'ol', 'li', 'pre', 'code',
+      'a', 'img', 'blockquote', 'ul', 'ol', 'li', 'pre', 'code', 'input', 'label', 'sup', 'section',
       'table', 'thead', 'tbody', 'tr', 'th', 'td',
-      'div', 'span', 'button',
+      'div', 'span', 'button', 'math', 'semantics', 'mrow', 'mfrac', 'mn', 'mi', 'mo', 'msup', 'msub',
+      'msubsup', 'munder', 'mover', 'munderover', 'msqrt', 'mroot', 'mtable', 'mtr', 'mtd', 'mpadded',
+      'mstyle', 'mspace', 'menclose', 'mtext', 'annotation', 'svg', 'path',
     ],
     allowedAttributes: {
       h2: ['id'], h3: ['id'], h4: ['id'], h5: ['id'], h6: ['id'],
-      a: ['href', 'title'],
+      p: ['class', 'title'],
+      a: ['href', 'title', 'class', 'id'],
       img: ['src', 'alt', 'title', 'loading', 'decoding'],
-      pre: ['class', 'tabindex', 'style'],
+      pre: ['class', 'tabindex'],
       code: ['class'],
-      div: ['class', 'data-code-block', 'data-language', 'data-filename'],
-      span: ['class', 'data-line', 'style'],
+      div: ['class', 'data-code-block', 'data-language', 'data-filename', 'tabindex', 'role', 'aria-label'],
+      span: ['class', 'data-line', 'style', 'title', 'aria-hidden'],
       button: ['type', 'class', 'data-code-copy', 'aria-label'],
+      ul: ['class'],
+      ol: ['class'],
+      li: ['id', 'class'],
+      hr: ['class'],
+      section: ['class'],
+      sup: ['class'],
+      input: ['type', 'class', 'id', 'checked', 'disabled'],
+      label: ['class', 'for'],
       th: ['colspan', 'rowspan'], td: ['colspan', 'rowspan'],
+      math: ['xmlns', 'display'],
+      annotation: ['encoding'],
+      svg: ['xmlns', 'width', 'height', 'viewBox', 'preserveAspectRatio'],
+      path: ['d'],
     },
     allowedClasses: {
+      p: [/^katex-block$/, /^markdown-callout-title$/],
       code: [/^language-[\w-]+$/],
-      pre: [/^shiki$/, /^shiki-themes$/, /^light-plus$/, /^dark-plus$/, /^code-highlight-fallback$/],
-      div: [/^code-block$/, /^code-block-header$/],
-      span: [/^code-block-language$/, /^code-block-filename$/, /^line$/, /^is-focused$/],
+      pre: [/^shiki$/, /^shiki-themes$/, /^light-plus$/, /^dark-plus$/, /^code-highlight-fallback$/, /^markdown-render-error$/],
+      div: [/^code-block$/, /^code-block-header$/, /^markdown-callout$/, /^markdown-callout--(?:note|tip|warning|danger)$/, /^markdown-table-scroll$/, /^katex-block$/, /^katex-error$/],
+      span: [
+        /^code-block-language$/, /^code-block-filename$/, /^line$/, /^is-focused$/,
+        /^(?:katex|katex-[a-z-]+|mord|mop|mbin|mrel|mopen|mclose|mpunct|minner|mfrac|frac-line|mspace|msupsub|mtight|vlist(?:-[a-z0-9]+)?|nulldelimiter|reset-size\d+|size\d+|mathnormal|op-limits|op-symbol|large-op|pstrut|svg-align|hide-tail|katex-sizing)$/,
+      ],
       button: [/^code-copy-button$/],
+      ul: [/^task-list-container$/],
+      li: [/^footnote-item$/, /^task-list-item$/],
+      label: [/^task-list-item-label$/],
+      input: [/^task-list-item-checkbox$/],
+      hr: [/^footnotes-sep$/],
+      section: [/^footnotes$/],
+      ol: [/^footnotes-list$/],
+      sup: [/^footnote-ref$/],
+      a: [/^footnote-anchor$/, /^footnote-backref$/],
     },
     allowedSchemes: ['https', 'mailto'],
     allowedSchemesByTag: { a: ['https', 'mailto'], img: ['https'] },
@@ -275,7 +377,7 @@ export function renderPublicArticleMarkdown(markdownSource: string) {
     allowProtocolRelative: false,
     disallowedTagsMode: 'escape',
     transformTags: {
-      a: (tagName, attributes) => isAllowedLink(attributes.href)
+      a: (tagName, attributes) => (isAllowedLink(attributes.href) || isAllowedFootnoteLink(attributes.href))
         ? { tagName, attribs: attributes }
         : { tagName: 'span', attribs: {} },
     },
