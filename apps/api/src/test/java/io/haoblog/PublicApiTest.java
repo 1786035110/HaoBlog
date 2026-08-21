@@ -70,6 +70,23 @@ class PublicApiTest {
                 .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("/"))));
     }
 
+    @Test void siteResponseIncludesConfiguredPublicIdentityAndSupports304() throws Exception {
+        when(siteService.get()).thenReturn(new io.haoblog.site.application.SiteService.SiteResult(
+                "HaoBlog", "Night station", "https://blog.example.test", "Hao"));
+
+        var first = mvc.perform(get("/api/v1/public/site"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.siteUrl").value("https://blog.example.test"))
+                .andExpect(jsonPath("$.authorName").value("Hao"))
+                .andExpect(header().exists("ETag"))
+                .andExpect(header().string("Cache-Control", "public, max-age=0, s-maxage=60, must-revalidate"))
+                .andReturn();
+
+        mvc.perform(get("/api/v1/public/site").header("If-None-Match", first.getResponse().getHeader("ETag")))
+                .andExpect(status().isNotModified())
+                .andExpect(content().string(""));
+    }
+
     @Test void unknownStaticResourcePathReturnsSafeProblem() throws Exception {
         mvc.perform(get("/missing.css").header("X-Request-ID", "request-static-404"))
                 .andExpect(status().isNotFound())
@@ -101,7 +118,7 @@ class PublicApiTest {
 
     @Test void articleDetailSupports304WithoutResponseBody() throws Exception {
         Instant publishedAt = Instant.parse("2026-01-01T00:00:00Z");
-        when(articleService.findPublicBySlug("visible")).thenReturn(Optional.of(revision("visible", "Visible", "Excerpt", "# Body", publishedAt)));
+        when(articleService.findPublicBySlug("visible")).thenReturn(Optional.of(publicArticle("visible", "Visible", "Excerpt", "# Body", publishedAt, publishedAt)));
         var first = mvc.perform(get("/api/v1/public/articles/visible")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.markdown").value("# Body"))
                 .andExpect(header().exists("ETag")).andReturn();
@@ -114,7 +131,9 @@ class PublicApiTest {
         var service = mock(io.haoblog.content.application.ArticleService.class);
         var first = revision("visible", "Title", "Excerpt", "# Body", Instant.parse("2026-01-01T00:00:00Z"));
         var second = revision("visible", "Title", "Excerpt", "# Body", Instant.parse("2026-01-01T00:00:00Z"));
-        when(service.findPublicBySlug("visible")).thenReturn(Optional.of(first), Optional.of(second));
+        var publishedAt = Instant.parse("2026-01-01T00:00:00Z");
+        when(service.findPublicBySlug("visible")).thenReturn(Optional.of(new io.haoblog.content.application.ArticleService.PublicArticle(first, publishedAt)),
+                Optional.of(new io.haoblog.content.application.ArticleService.PublicArticle(second, publishedAt)));
         var controller = new PublicArticleController(service);
 
         String firstEtag = controller.article("visible", null).getHeaders().getETag();
@@ -135,7 +154,7 @@ class PublicApiTest {
 
     @Test void listEtagsAreIsolatedPerPageRepresentation() throws Exception {
         Instant publishedAt = Instant.parse("2026-01-01T00:00:00Z");
-        ArticleRevision article = revision("visible", "Visible", "Excerpt", "# Body", publishedAt);
+        var article = publicArticle("visible", "Visible", "Excerpt", "# Body", publishedAt, publishedAt);
         var service = mock(io.haoblog.content.application.ArticleService.class);
         when(service.list(0, 20)).thenReturn(new io.haoblog.content.application.ArticleService.PageResult(new PageImpl<>(List.of(article), PageRequest.of(0, 20), 2)));
         when(service.list(1, 20)).thenReturn(new io.haoblog.content.application.ArticleService.PageResult(new PageImpl<>(List.of(), PageRequest.of(1, 20), 2)));
@@ -147,13 +166,40 @@ class PublicApiTest {
 
     @Test void articleListSupports304WithoutResponseBody() throws Exception {
         Instant publishedAt = Instant.parse("2026-01-01T00:00:00Z");
-        ArticleRevision article = revision("list-visible", "List visible", null, "# Body", publishedAt);
+        var article = publicArticle("list-visible", "List visible", null, "# Body", publishedAt, publishedAt);
         doReturn(new io.haoblog.content.application.ArticleService.PageResult(
                 new PageImpl<>(List.of(article), PageRequest.of(0, 20), 1))).when(articleService).list(0, 20);
         var first = mvc.perform(get("/api/v1/public/articles")).andExpect(status().isOk())
                 .andExpect(header().exists("ETag")).andReturn();
         mvc.perform(get("/api/v1/public/articles").header("If-None-Match", first.getResponse().getHeader("ETag")))
                 .andExpect(status().isNotModified()).andExpect(header().exists("ETag")).andExpect(content().string(""));
+    }
+
+    @Test void listEtagChangesWhenCoverRepresentationChanges() {
+        Instant publishedAt = Instant.parse("2026-01-01T00:00:00Z");
+        var mediaId = java.util.UUID.randomUUID();
+        var revision = new ArticleRevision(java.util.UUID.randomUUID(), 0, "Visible", "visible", "Excerpt", "# Body",
+                null, null, mediaId, null, List.of(), null, null, publishedAt);
+        var article = new io.haoblog.content.application.ArticleService.PublicArticle(revision, publishedAt);
+        var service = mock(io.haoblog.content.application.ArticleService.class);
+        when(service.list(0, 20)).thenReturn(new io.haoblog.content.application.ArticleService.PageResult(
+                new PageImpl<>(List.of(article), PageRequest.of(0, 20), 1)));
+        when(service.publicCoverUrls(java.util.Set.of(mediaId)))
+                .thenReturn(java.util.Map.of(mediaId, "https://cdn.example.test/one.png"),
+                        java.util.Map.of(mediaId, "https://cdn.example.test/two.png"));
+        var controller = new PublicArticleController(service);
+
+        String first = controller.articles(0, 20, null).getHeaders().getETag();
+        String second = controller.articles(0, 20, null).getHeaders().getETag();
+
+        org.junit.jupiter.api.Assertions.assertNotEquals(first, second);
+    }
+
+    private static io.haoblog.content.application.ArticleService.PublicArticle publicArticle(String slug, String title,
+                                                                                              String excerpt, String markdown,
+                                                                                              Instant publishedAt, Instant modifiedAt) {
+        return new io.haoblog.content.application.ArticleService.PublicArticle(
+                revision(slug, title, excerpt, markdown, modifiedAt), publishedAt);
     }
 
     private static ArticleRevision revision(String slug, String title, String excerpt, String markdown, Instant createdAt) {

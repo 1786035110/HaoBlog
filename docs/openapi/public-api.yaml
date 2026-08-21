@@ -8,13 +8,23 @@ paths:
   /api/v1/public/site:
     get:
       operationId: getPublicSite
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
       responses:
         '200':
           description: Site settings
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            Cache-Control: { schema: { type: string } }
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/SiteResponse'
+        '304':
+          description: Site representation has not changed
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            Cache-Control: { schema: { type: string } }
         '500':
           $ref: '#/components/responses/InternalError'
   /api/v1/public/articles:
@@ -33,6 +43,7 @@ paths:
           description: Published articles
           headers:
             ETag: { $ref: '#/components/headers/ETag' }
+            Cache-Control: { schema: { type: string } }
           content:
             application/json:
               schema:
@@ -41,6 +52,7 @@ paths:
           description: Public article list representation has not changed
           headers:
             ETag: { $ref: '#/components/headers/ETag' }
+            Cache-Control: { schema: { type: string } }
         '400':
           $ref: '#/components/responses/BadRequest'
         '500':
@@ -59,6 +71,7 @@ paths:
           description: Published article detail
           headers:
             ETag: { $ref: '#/components/headers/ETag' }
+            Cache-Control: { schema: { type: string } }
           content:
             application/json:
               schema:
@@ -67,6 +80,7 @@ paths:
           description: Public article representation has not changed
           headers:
             ETag: { $ref: '#/components/headers/ETag' }
+            Cache-Control: { schema: { type: string } }
         '404':
           $ref: '#/components/responses/ArticleNotFound'
         '500':
@@ -620,22 +634,21 @@ components:
   schemas:
     SiteResponse:
       type: object
-      required: [title, description]
+      required: [title, description, siteUrl, authorName]
       properties:
         title: { type: string }
         description: { type: string }
+        siteUrl: { type: string, format: uri }
+        authorName: { type: string }
     ArticleSummary:
       type: object
-      required: [id, slug, title, publishedAt, markdown]
+      required: [id, slug, title, excerpt, publishedAt, coverImageUrl]
       properties:
         id: { type: string, format: uuid }
         slug: { type: string }
         title: { type: string }
         excerpt: { type: [string, 'null'] }
         publishedAt: { type: string, format: date-time }
-        markdown: { type: string }
-        seoTitle: { type: [string, 'null'] }
-        seoDescription: { type: [string, 'null'] }
         coverImageUrl: { type: [string, 'null'], format: uri }
     ArticleListResponse:
       type: object
@@ -647,13 +660,14 @@ components:
         total: { type: integer, format: int64 }
     ArticleResponse:
       type: object
-      required: [id, slug, title, publishedAt, markdown]
+      required: [id, slug, title, excerpt, publishedAt, modifiedAt, markdown, seoTitle, seoDescription, coverImageUrl]
       properties:
         id: { type: string, format: uuid }
         slug: { type: string }
         title: { type: string }
         excerpt: { type: [string, 'null'] }
         publishedAt: { type: string, format: date-time }
+        modifiedAt: { type: string, format: date-time }
         markdown: { type: string }
         seoTitle: { type: [string, 'null'] }
         seoDescription: { type: [string, 'null'] }

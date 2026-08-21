@@ -58,10 +58,13 @@ class PublicApiIT {
         UUID mediaId = UUID.randomUUID();
         jdbc.update("INSERT INTO media_asset(id, object_key, public_url, mime_type, size_bytes, sha256, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, decode(repeat('00', 32), 'hex'), 'AVAILABLE', now(), now())",
                 mediaId, "covers/snapshot.png", "https://cdn.example.test/snapshot.png", "image/png", 12L);
-        UUID articleId = seedPublished("snapshot-isolation", "Working title", "Working excerpt", "# working", Instant.now().minus(1, ChronoUnit.DAYS), Instant.now());
+        Instant publishedAt = Instant.parse("2026-01-01T00:00:00Z");
+        Instant modifiedAt = Instant.parse("2026-01-02T00:00:00Z");
+        UUID articleId = articles.saveAndFlush(new Article("snapshot-isolation", "Working title", "Working excerpt", "# working",
+                ArticleStatus.PUBLISHED, publishedAt, modifiedAt)).getId();
         UUID revisionId = UUID.randomUUID();
         jdbc.update("INSERT INTO article_revision(id, article_id, source_version, title, slug, excerpt, markdown_source, seo_title, seo_description, cover_media_id, tag_snapshot, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '[]'::jsonb, ?)",
-                revisionId, articleId, 1L, "Published title", "snapshot-isolation", "Published excerpt", "# published", "Published SEO", "Published description", mediaId, java.sql.Timestamp.from(Instant.now().minus(1, ChronoUnit.DAYS)));
+                revisionId, articleId, 1L, "Published title", "snapshot-isolation", "Published excerpt", "# published", "Published SEO", "Published description", mediaId, java.sql.Timestamp.from(modifiedAt));
         jdbc.update("UPDATE article SET published_revision_id=?, title=?, excerpt=?, markdown_source=?, seo_title=?, seo_description=? WHERE id=?",
                 revisionId, "Edited working title", "Edited working excerpt", "# edited", "Edited SEO", "Edited description", articleId);
 
@@ -69,6 +72,8 @@ class PublicApiIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.title").value("Published title"))
                 .andExpect(jsonPath("$.excerpt").value("Published excerpt"))
+                .andExpect(jsonPath("$.publishedAt").value("2026-01-01T00:00:00Z"))
+                .andExpect(jsonPath("$.modifiedAt").value("2026-01-02T00:00:00Z"))
                 .andExpect(jsonPath("$.markdown").value("# published"))
                 .andExpect(jsonPath("$.seoTitle").value("Published SEO"))
                 .andExpect(jsonPath("$.seoDescription").value("Published description"))
@@ -76,8 +81,11 @@ class PublicApiIT {
         mvc.perform(get("/api/v1/public/articles"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items[?(@.slug == 'snapshot-isolation')].title").value(org.hamcrest.Matchers.contains("Published title")))
-                .andExpect(jsonPath("$.items[?(@.slug == 'snapshot-isolation')].markdown").value(org.hamcrest.Matchers.contains("# published")))
-                .andExpect(jsonPath("$.items[?(@.slug == 'snapshot-isolation')].seoTitle").value(org.hamcrest.Matchers.contains("Published SEO")));
+                .andExpect(jsonPath("$.items[?(@.slug == 'snapshot-isolation')].publishedAt").value(org.hamcrest.Matchers.contains("2026-01-01T00:00:00Z")))
+                .andExpect(jsonPath("$.items[?(@.slug == 'snapshot-isolation')].coverImageUrl").value(org.hamcrest.Matchers.contains("https://cdn.example.test/snapshot.png")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("\"markdown\""))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("\"seoTitle\""))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("\"seoDescription\""))));
     }
 
     @Test void draftFutureScheduledWithoutSnapshotAndArchivedArticlesAre404() throws Exception {

@@ -30,7 +30,8 @@ public interface ArticleRevisionRepository extends JpaRepository<ArticleRevision
     Optional<ArticleRevision> findByIdAndArticleId(UUID id, UUID articleId);
 
     @Query("""
-            select r from ArticleRevision r, Article a
+            select r as revision, a.publishedAt as publishedAt
+            from ArticleRevision r, Article a
             where r.id = a.publishedRevisionId
               and a.status in (:published, :scheduled)
               and a.publishedRevisionId is not null
@@ -38,13 +39,14 @@ public interface ArticleRevisionRepository extends JpaRepository<ArticleRevision
               and a.publishedAt <= :now
             order by a.publishedAt desc, a.id desc
             """)
-    Page<ArticleRevision> findVisible(@Param("published") ArticleStatus published,
-                                     @Param("scheduled") ArticleStatus scheduled,
-                                     @Param("now") java.time.Instant now,
-                                     Pageable pageable);
+    Page<PublicArticleProjection> findVisible(@Param("published") ArticleStatus published,
+                                              @Param("scheduled") ArticleStatus scheduled,
+                                              @Param("now") java.time.Instant now,
+                                              Pageable pageable);
 
     @Query("""
-            select r from ArticleRevision r, Article a
+            select r as revision, a.publishedAt as publishedAt
+            from ArticleRevision r, Article a
             where r.id = a.publishedRevisionId
               and r.slug = :slug
               and a.status in (:published, :scheduled)
@@ -52,10 +54,10 @@ public interface ArticleRevisionRepository extends JpaRepository<ArticleRevision
               and a.publishedAt is not null
               and a.publishedAt <= :now
             """)
-    Optional<ArticleRevision> findVisibleBySlug(@Param("slug") String slug,
-                                                @Param("published") ArticleStatus published,
-                                                @Param("scheduled") ArticleStatus scheduled,
-                                                @Param("now") java.time.Instant now);
+    Optional<PublicArticleProjection> findVisibleBySlug(@Param("slug") String slug,
+                                                        @Param("published") ArticleStatus published,
+                                                        @Param("scheduled") ArticleStatus scheduled,
+                                                        @Param("now") java.time.Instant now);
 
     @Query("""
             select case when count(r) > 0 then true else false end
@@ -72,6 +74,11 @@ public interface ArticleRevisionRepository extends JpaRepository<ArticleRevision
                               @Param("published") ArticleStatus published,
                               @Param("scheduled") ArticleStatus scheduled,
                               @Param("now") java.time.Instant now);
+
+    interface PublicArticleProjection {
+        ArticleRevision getRevision();
+        java.time.Instant getPublishedAt();
+    }
 
     interface SummaryProjection {
         UUID getId();

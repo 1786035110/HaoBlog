@@ -1,8 +1,16 @@
 <script setup lang="ts">
+import type { components } from '@haoblog/api-client'
+
+type Site = components['schemas']['SiteResponse']
 const config = useRuntimeConfig()
-const { data: site } = await useFetch<{ title: string; description: string }>('/api/v1/public/site', {
+const { data: site } = await useFetch<Site>('/api/v1/public/site', {
   baseURL: config.public.apiBase,
-  default: () => ({ title: 'HaoBlog', description: '极夜观测站' }),
+  default: () => ({
+    title: 'HaoBlog',
+    description: '极夜观测站',
+    siteUrl: 'http://localhost:3000',
+    authorName: 'Hao',
+  }) as Site,
 })
 </script>
 

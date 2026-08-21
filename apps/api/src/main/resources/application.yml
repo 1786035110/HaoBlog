@@ -56,6 +56,9 @@ server:
     whitelabel:
       enabled: false
 haoblog:
+  site:
+    public-base-url: ${HAOBLOG_PUBLIC_BASE_URL:http://localhost:3000}
+    author-name: ${HAOBLOG_AUTHOR_NAME:Hao}
   security:
     session-cookie-secure: ${HAOBLOG_SESSION_COOKIE_SECURE:false}
   seed:

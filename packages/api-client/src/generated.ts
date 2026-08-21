@@ -409,20 +409,20 @@ export interface components {
         SiteResponse: {
             title: string;
             description: string;
+            /** Format: uri */
+            siteUrl: string;
+            authorName: string;
         };
         ArticleSummary: {
             /** Format: uuid */
             id: string;
             slug: string;
             title: string;
-            excerpt?: string | null;
+            excerpt: string | null;
             /** Format: date-time */
             publishedAt: string;
-            markdown: string;
-            seoTitle?: string | null;
-            seoDescription?: string | null;
             /** Format: uri */
-            coverImageUrl?: string | null;
+            coverImageUrl: string | null;
         };
         ArticleListResponse: {
             items: components["schemas"]["ArticleSummary"][];
@@ -436,14 +436,16 @@ export interface components {
             id: string;
             slug: string;
             title: string;
-            excerpt?: string | null;
+            excerpt: string | null;
             /** Format: date-time */
             publishedAt: string;
+            /** Format: date-time */
+            modifiedAt: string;
             markdown: string;
-            seoTitle?: string | null;
-            seoDescription?: string | null;
+            seoTitle: string | null;
+            seoDescription: string | null;
             /** Format: uri */
-            coverImageUrl?: string | null;
+            coverImageUrl: string | null;
         };
         ProblemResponse: {
             code: string;
@@ -868,7 +870,9 @@ export interface operations {
     getPublicSite: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "If-None-Match"?: components["parameters"]["IfNoneMatch"];
+            };
             path?: never;
             cookie?: never;
         };
@@ -877,11 +881,22 @@ export interface operations {
             /** @description Site settings */
             200: {
                 headers: {
+                    ETag: components["headers"]["ETag"];
+                    "Cache-Control"?: string;
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": components["schemas"]["SiteResponse"];
                 };
+            };
+            /** @description Site representation has not changed */
+            304: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    "Cache-Control"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             500: components["responses"]["InternalError"];
         };
@@ -904,6 +919,7 @@ export interface operations {
             200: {
                 headers: {
                     ETag: components["headers"]["ETag"];
+                    "Cache-Control"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -914,6 +930,7 @@ export interface operations {
             304: {
                 headers: {
                     ETag: components["headers"]["ETag"];
+                    "Cache-Control"?: string;
                     [name: string]: unknown;
                 };
                 content?: never;
@@ -939,6 +956,7 @@ export interface operations {
             200: {
                 headers: {
                     ETag: components["headers"]["ETag"];
+                    "Cache-Control"?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -949,6 +967,7 @@ export interface operations {
             304: {
                 headers: {
                     ETag: components["headers"]["ETag"];
+                    "Cache-Control"?: string;
                     [name: string]: unknown;
                 };
                 content?: never;

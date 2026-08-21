@@ -66,12 +66,18 @@ class ArticleServiceTest {
     @Test
     void publicDetailUsesPublishedAndDueFilter() {
         Instant publishedAt = Instant.parse("2025-12-31T00:00:00Z");
+        Instant modifiedAt = Instant.parse("2026-01-01T00:00:00Z");
         ArticleRevision article = new ArticleRevision(null, 0, "Visible", "visible", "Excerpt", "# Body",
-                null, null, null, null, List.of(), null, null, publishedAt);
+                null, null, null, null, List.of(), null, null, modifiedAt);
+        var projection = mock(ArticleRevisionRepository.PublicArticleProjection.class);
+        when(projection.getRevision()).thenReturn(article);
+        when(projection.getPublishedAt()).thenReturn(publishedAt);
         when(repository.findVisibleBySlug(eq("visible"), eq(ArticleStatus.PUBLISHED), eq(ArticleStatus.SCHEDULED), any(Instant.class)))
-                .thenReturn(Optional.of(article));
+                .thenReturn(Optional.of(projection));
 
-        assertEquals(article, service.findPublicBySlug("visible").orElseThrow());
+        var result = service.findPublicBySlug("visible").orElseThrow();
+        assertEquals(article, result.revision());
+        assertEquals(publishedAt, result.publishedAt());
         verify(repository).findVisibleBySlug(eq("visible"), eq(ArticleStatus.PUBLISHED), eq(ArticleStatus.SCHEDULED), any(Instant.class));
     }
 }

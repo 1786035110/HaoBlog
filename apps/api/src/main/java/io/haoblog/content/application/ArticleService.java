@@ -30,14 +30,15 @@ public class ArticleService {
     public PageResult list(int page, int size) {
         if (page < 0 || size < 1 || size > 50) throw new IllegalArgumentException("page/size out of range");
         var pageable = PageRequest.of(page, size);
-        Page<ArticleRevision> result = repository.findVisible(ArticleStatus.PUBLISHED, ArticleStatus.SCHEDULED,
-                java.time.Instant.now(clock), pageable);
-        return new PageResult(result);
+        Page<ArticleRevisionRepository.PublicArticleProjection> result = repository.findVisible(
+                ArticleStatus.PUBLISHED, ArticleStatus.SCHEDULED, java.time.Instant.now(clock), pageable);
+        return new PageResult(result.map(this::toPublicArticle));
     }
-    public Optional<ArticleRevision> findPublicBySlug(String slug) {
+    public Optional<PublicArticle> findPublicBySlug(String slug) {
         if (slug == null || slug.isBlank()) return Optional.empty();
         return repository.findVisibleBySlug(slug, ArticleStatus.PUBLISHED, ArticleStatus.SCHEDULED,
-                java.time.Instant.now(clock));
+                        java.time.Instant.now(clock))
+                .map(this::toPublicArticle);
     }
     public Map<UUID, String> publicCoverUrls(Collection<UUID> mediaIds) {
         if (mediaIds == null || mediaIds.isEmpty()) return Map.of();
@@ -46,5 +47,10 @@ public class ArticleService {
                 .filter(asset -> asset.getPublicUrl() != null && !asset.getPublicUrl().isBlank())
                 .collect(Collectors.toUnmodifiableMap(MediaAsset::getId, MediaAsset::getPublicUrl));
     }
-    public record PageResult(Page<ArticleRevision> page) {}
+    private PublicArticle toPublicArticle(ArticleRevisionRepository.PublicArticleProjection projection) {
+        return new PublicArticle(projection.getRevision(), projection.getPublishedAt());
+    }
+
+    public record PublicArticle(ArticleRevision revision, java.time.Instant publishedAt) {}
+    public record PageResult(Page<PublicArticle> page) {}
 }
