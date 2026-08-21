@@ -17,6 +17,9 @@ describe('public article content model', () => {
       { id: 'section', label: '!!!', level: 2 },
       { id: '子标题', label: '子标题', level: 3 },
     ])
+    const renderedIds = [...result.renderedHtml.matchAll(/<h[23] id="([^"]+)">/g)].map(match => match[1])
+    expect(renderedIds).toEqual(result.toc.map(item => item.id))
+    expect(new Set(renderedIds).size).toBe(renderedIds.length)
     expect(result.renderedHtml).toContain('<h2 id="中文-标题">中文 标题</h2>')
     expect(result.renderedHtml).toContain('<h4 id="深层标题">深层标题</h4>')
     expect(result.renderedHtml).not.toContain('<h1')

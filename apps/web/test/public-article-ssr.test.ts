@@ -1,6 +1,7 @@
 import { createSSRApp, h } from 'vue'
 import { renderToString } from 'vue/server-renderer'
-import { describe, expect, it } from 'vitest'
+import { mount } from '@vue/test-utils'
+import { describe, expect, it, vi } from 'vitest'
 import PublicArticleList from '../app/components/articles/PublicArticleList.vue'
 import PublicArticleBody from '../app/components/articles/PublicArticleBody.vue'
 import PublicHomeOverview from '../app/components/home/PublicHomeOverview.vue'
@@ -125,6 +126,27 @@ describe('public article SSR contract', () => {
     expect(html).toContain('aria-label="复制文件 answer.ts"')
     expect(html).toContain('const')
     expect(html).toContain('next')
+  })
+
+  it('copies code through one delegated listener and announces success or failure', async () => {
+    const content = buildPublicArticleContent({ ...article, markdown: '```typescript\nconst answer = 42\n```' })
+    const originalClipboard = navigator.clipboard
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
+    const wrapper = mount(PublicArticleBody, { props: { content } })
+
+    await wrapper.find('[data-code-copy]').trigger('click')
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(writeText).toHaveBeenCalledWith('const answer = 42')
+    expect(wrapper.get('[role="status"]').text()).toContain('代码已复制')
+
+    writeText.mockRejectedValueOnce(new Error('denied'))
+    await wrapper.find('[data-code-copy]').trigger('click')
+    await new Promise(resolve => setTimeout(resolve, 0))
+    expect(wrapper.get('[role="status"]').text()).toContain('复制失败，请手动选择代码复制。')
+
+    wrapper.unmount()
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: originalClipboard })
   })
 
   it('keeps Mermaid figure, caption, and escaped source in SSR HTML', async () => {
