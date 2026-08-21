@@ -39,6 +39,8 @@ jobs:
           docker compose --env-file infra/compose/.env.ci.example -f infra/compose/compose.prod.yml config --quiet
           corepack pnpm compose:verify
       - name: PostgreSQL integration tests
+        env:
+          HAOBLOG_PUBLIC_BASE_URL: http://localhost:3000
         run: ./mvnw failsafe:integration-test failsafe:verify
         working-directory: apps/api
 
