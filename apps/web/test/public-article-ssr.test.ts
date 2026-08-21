@@ -6,6 +6,7 @@ import PublicArticleBody from '../app/components/articles/PublicArticleBody.vue'
 import PublicHomeOverview from '../app/components/home/PublicHomeOverview.vue'
 import { isPublicArticlePageOutOfRange, parsePublicArticlePage, publicArticlePageUrl } from '../app/utils/publicArticlePagination'
 import { buildPublicArticleSeo } from '../app/utils/publicArticleSeo'
+import { buildPublicArticleContent } from '../server/utils/publicArticleContent'
 import type { components } from '@haoblog/api-client'
 
 type Article = components['schemas']['ArticleResponse']
@@ -105,7 +106,8 @@ describe('public article SSR contract', () => {
   })
 
   it('renders title, excerpt and safe markdown into SSR HTML', async () => {
-    const html = await renderToString(createSSRApp(PublicArticleBody, { article }))
+    const content = buildPublicArticleContent(article)
+    const html = await renderToString(createSSRApp(PublicArticleBody, { content }))
     expect(html).toContain('Published title')
     expect(html).toContain('Published excerpt')
     expect(html).toContain('Published body')
@@ -114,16 +116,17 @@ describe('public article SSR contract', () => {
   })
 
   it('hydrates the same structure without Vue warnings', async () => {
-    const serverApp = createSSRApp(PublicArticleBody, { article })
+    const content = buildPublicArticleContent(article)
+    const serverApp = createSSRApp(PublicArticleBody, { content })
     const html = await renderToString(serverApp)
     document.body.innerHTML = `<div id="app">${html}</div>`
     const warnings: string[] = []
-    const clientApp = createSSRApp(PublicArticleBody, { article })
+    const clientApp = createSSRApp(PublicArticleBody, { content })
     clientApp.config.warnHandler = message => warnings.push(message)
     clientApp.mount('#app')
     expect(warnings).toEqual([])
     expect(document.querySelector('#article-title')?.textContent).toBe('Published title')
-    expect(document.querySelector('.safe-markdown h1')?.textContent).toBe('Published body')
+    expect(document.querySelector('.safe-markdown h2')?.textContent).toBe('Published body')
   })
 
   it('applies SEO fallback order and rejects unsafe image protocols', () => {

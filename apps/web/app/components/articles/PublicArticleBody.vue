@@ -1,9 +1,7 @@
 <script setup lang="ts">
-import type { components } from '@haoblog/api-client'
-import SafeMarkdown from './SafeMarkdown.vue'
+import type { PublicArticleContent } from '~/utils/publicArticleContent'
 
-type Article = components['schemas']['ArticleResponse']
-defineProps<{ article: Article }>()
+const props = defineProps<{ content: PublicArticleContent }>()
 
 const formatDate = (value: string) => new Intl.DateTimeFormat('zh-CN', {
   dateStyle: 'long',
@@ -14,9 +12,9 @@ const formatDate = (value: string) => new Intl.DateTimeFormat('zh-CN', {
 <template>
   <article class="article-reading">
     <p class="instrument-label">SIGNAL / ARTICLE</p>
-    <h1 id="article-title">{{ article.title }}</h1>
-    <p class="article-meta"><time :datetime="article.publishedAt">{{ formatDate(article.publishedAt) }}</time></p>
-    <p v-if="article.excerpt" class="article-excerpt">{{ article.excerpt }}</p>
-    <SafeMarkdown :markdown="article.markdown" />
+    <h1 id="article-title">{{ props.content.article.title }}</h1>
+    <p class="article-meta"><time :datetime="props.content.article.publishedAt">{{ formatDate(props.content.article.publishedAt) }}</time></p>
+    <p v-if="props.content.article.excerpt" class="article-excerpt">{{ props.content.article.excerpt }}</p>
+    <div class="safe-markdown" v-html="props.content.renderedHtml" />
   </article>
 </template>

@@ -1,18 +1,18 @@
 <script setup lang="ts">
-import type { components } from '@haoblog/api-client'
 import PublicArticleBody from '~/components/articles/PublicArticleBody.vue'
+import type { PublicArticleContent } from '~/utils/publicArticleContent'
 import { buildPublicArticleSeo } from '~/utils/publicArticleSeo'
 
-type Article = components['schemas']['ArticleResponse']
 const route = useRoute()
-const { data, pending, error } = await usePublicApi<Article>(`/api/v1/public/articles/${encodeURIComponent(String(route.params.slug))}`)
+const config = useRuntimeConfig()
+const { data, pending, error } = await usePublicApi<PublicArticleContent>(`/_content/articles/${encodeURIComponent(String(route.params.slug))}`, { baseURL: config.public.apiBase })
 if (error.value?.statusCode === 404 || (!pending.value && !data.value)) {
   throw createError({ statusCode: 404, statusMessage: 'Article not found', fatal: true })
 }
 const requestUrl = useRequestURL()
 useHead(() => {
   if (!data.value) return {}
-  const seo = buildPublicArticleSeo(data.value, requestUrl.origin)
+  const seo = buildPublicArticleSeo(data.value.article, requestUrl.origin)
   return {
     title: seo.title,
     meta: [
@@ -36,8 +36,13 @@ useHead(() => {
     <p v-else-if="error" class="signal-note" role="alert">文章信号暂时不可用。</p>
     <template v-else-if="data">
       <aside class="article-signal" aria-label="阅读进度">SIGNAL / READ</aside>
-      <PublicArticleBody :article="data" />
-      <aside class="article-toc" aria-label="文章航标"><span>TOC / NAV</span><p>正文结构将在后续内容阶段增强。</p></aside>
+      <PublicArticleBody :content="data" />
+      <nav v-if="data.toc.length" class="article-toc" aria-label="文章航标">
+        <span>TOC / NAV</span>
+        <ol>
+          <li v-for="item in data.toc" :key="item.id"><a :href="`#${item.id}`">{{ item.label }}</a></li>
+        </ol>
+      </nav>
     </template>
   </section>
 </template>
