@@ -37,21 +37,25 @@ function httpsCoverUrl(value: string | null) {
   <p v-if="result.items.length === 0" class="signal-note">当前没有已锁定的公开文章。</p>
   <template v-else>
     <ol class="observation-timeline" aria-label="公开文章列表">
-      <li v-for="article in result.items" :key="article.id" class="observation-entry">
+      <li v-for="(article, index) in result.items" :key="article.id" class="observation-entry">
         <time :datetime="article.publishedAt">{{ formatDate(article.publishedAt) }}</time>
         <div class="observation-entry-content">
-          <NuxtLink :to="`/articles/${article.slug}`">
-            <h2>{{ article.title }}</h2>
-          </NuxtLink>
-          <div v-if="httpsCoverUrl(article.coverImageUrl)" class="article-cover-frame">
-            <img
-              :src="httpsCoverUrl(article.coverImageUrl) || undefined"
-              :alt="`${article.title} 封面`"
-              loading="lazy"
-              decoding="async"
-            >
+          <div class="observation-entry-heading">
+            <span class="observation-index">{{ String((page - 1) * result.size + index + 1).padStart(2, '0') }}</span>
+            <NuxtLink :to="`/articles/${article.slug}`">
+              <h2>{{ article.title }}</h2>
+            </NuxtLink>
+            <div v-if="httpsCoverUrl(article.coverImageUrl)" class="article-cover-frame">
+              <img
+                :src="httpsCoverUrl(article.coverImageUrl) || undefined"
+                :alt="`${article.title} 信号缩略图`"
+                loading="lazy"
+                decoding="async"
+              >
+            </div>
           </div>
           <p>{{ article.excerpt || '暂无摘要。' }}</p>
+          <NuxtLink class="observation-open" :to="`/articles/${article.slug}`">OPEN SIGNAL →</NuxtLink>
         </div>
       </li>
     </ol>
