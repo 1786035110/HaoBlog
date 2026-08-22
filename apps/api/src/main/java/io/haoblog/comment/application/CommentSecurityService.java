@@ -19,6 +19,7 @@ import java.util.UUID;
 public class CommentSecurityService {
     private static final int KEY_BYTES = 32;
     private static final int NONCE_BYTES = 12;
+    private static final int EMAIL_KEY_VERSION = 1;
     private final byte[] emailKey;
     private final byte[] ipKey;
     private final byte[] challengeKey;
@@ -26,25 +27,20 @@ public class CommentSecurityService {
 
     public CommentSecurityService(@Value("${haoblog.comment.security-key:}") String encodedKey) {
         if (encodedKey == null || encodedKey.isBlank()) {
-            byte[] masterKey = new byte[KEY_BYTES];
-            randomize(masterKey);
-            this.emailKey = derive(masterKey, "email-v1");
-            this.ipKey = derive(masterKey, "ip-v1");
-            this.challengeKey = derive(masterKey, "challenge-v1");
-        } else {
-            byte[] masterKey;
-            try {
-                masterKey = Base64.getDecoder().decode(encodedKey);
-            } catch (IllegalArgumentException exception) {
-                throw new IllegalArgumentException("HAOBLOG_COMMENT_SECURITY_KEY must be Base64", exception);
-            }
-            if (masterKey.length != KEY_BYTES) {
-                throw new IllegalArgumentException("HAOBLOG_COMMENT_SECURITY_KEY must decode to 32 bytes");
-            }
-            this.emailKey = derive(masterKey, "email-v1");
-            this.ipKey = derive(masterKey, "ip-v1");
-            this.challengeKey = derive(masterKey, "challenge-v1");
+            throw new IllegalArgumentException("HAOBLOG_COMMENT_SECURITY_KEY must be configured");
         }
+        byte[] masterKey;
+        try {
+            masterKey = Base64.getDecoder().decode(encodedKey.trim());
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalArgumentException("HAOBLOG_COMMENT_SECURITY_KEY must be Base64", exception);
+        }
+        if (masterKey.length != KEY_BYTES) {
+            throw new IllegalArgumentException("HAOBLOG_COMMENT_SECURITY_KEY must decode to 32 bytes");
+        }
+        this.emailKey = derive(masterKey, "email-v1");
+        this.ipKey = derive(masterKey, "ip-v1");
+        this.challengeKey = derive(masterKey, "challenge-v1");
     }
 
     public EmailCiphertext encryptEmail(UUID commentId, String email) {
@@ -55,13 +51,17 @@ public class CommentSecurityService {
             Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
             cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(emailKey, "AES"), new GCMParameterSpec(128, nonce));
             cipher.updateAAD(commentId.toString().getBytes(StandardCharsets.UTF_8));
-            return new EmailCiphertext(nonce, cipher.doFinal(email.trim().getBytes(StandardCharsets.UTF_8)));
+            return new EmailCiphertext(EMAIL_KEY_VERSION, nonce,
+                    cipher.doFinal(email.trim().getBytes(StandardCharsets.UTF_8)));
         } catch (GeneralSecurityException exception) {
             throw new IllegalStateException("Unable to encrypt comment email", exception);
         }
     }
 
     public String decryptEmail(UUID commentId, EmailCiphertext encrypted) {
+        if (encrypted == null || encrypted.keyVersion() != EMAIL_KEY_VERSION) {
+            throw new IllegalArgumentException("Unsupported comment email key version");
+        }
         try {
             Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
             cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(emailKey, "AES"),
@@ -112,12 +112,11 @@ public class CommentSecurityService {
         }
     }
 
-    private static void randomize(byte[] value) {
-        new SecureRandom().nextBytes(value);
-    }
-
-    public record EmailCiphertext(byte[] nonce, byte[] ciphertext) {
+    public record EmailCiphertext(int keyVersion, byte[] nonce, byte[] ciphertext) {
         public EmailCiphertext {
+            if (nonce == null || nonce.length != NONCE_BYTES || ciphertext == null) {
+                throw new IllegalArgumentException("Invalid email ciphertext");
+            }
             nonce = nonce.clone();
             ciphertext = ciphertext.clone();
         }

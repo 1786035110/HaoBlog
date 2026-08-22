@@ -1,7 +1,7 @@
 package io.haoblog.comment.web;
 
 import io.haoblog.comment.application.CommentChallengeService;
-import io.haoblog.content.application.ArticleService;
+import io.haoblog.content.application.ArticleCommentLookup;
 import io.haoblog.shared.web.ProblemResponse;
 import io.haoblog.site.application.SiteService;
 import org.slf4j.MDC;
@@ -19,11 +19,11 @@ import java.time.Instant;
 @RestController
 @RequestMapping("/api/v1/public/articles")
 public class PublicCommentContextController {
-    private final ArticleService articles;
+    private final ArticleCommentLookup articles;
     private final SiteService site;
     private final CommentChallengeService challenges;
 
-    public PublicCommentContextController(ArticleService articles, SiteService site, CommentChallengeService challenges) {
+    public PublicCommentContextController(ArticleCommentLookup articles, SiteService site, CommentChallengeService challenges) {
         this.articles = articles;
         this.site = site;
         this.challenges = challenges;
@@ -31,7 +31,7 @@ public class PublicCommentContextController {
 
     @GetMapping("/{slug}/comments/form-context")
     public FormContext formContext(@PathVariable String slug, CsrfToken csrfToken) {
-        var article = articles.findPublicBySlug(slug).orElseThrow(() -> new ArticleNotFoundException(slug));
+        var article = articles.findPublicCommentTarget(slug).orElseThrow(() -> new ArticleNotFoundException(slug));
         var issued = challenges.issue(article.articleId());
         return new FormContext(csrfToken.getToken(), issued.token(), issued.expiresAt(),
                 site.get().commentsEnabled() && article.commentsEnabled());

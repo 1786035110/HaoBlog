@@ -25,14 +25,23 @@ class CommentSecurityServiceTest {
         var first = security.encryptEmail(COMMENT_ID, "author@example.test");
         var second = security.encryptEmail(COMMENT_ID, "author@example.test");
 
+        assertEquals(1, first.keyVersion());
         assertNotEquals(Base64.getEncoder().encodeToString(first.nonce()), Base64.getEncoder().encodeToString(second.nonce()));
+        assertNotEquals(Base64.getEncoder().encodeToString(first.ciphertext()), Base64.getEncoder().encodeToString(second.ciphertext()));
+        assertFalse(new String(first.ciphertext(), StandardCharsets.UTF_8).contains("author@example.test"));
         assertEquals("author@example.test", security.decryptEmail(COMMENT_ID, first));
         assertThrows(IllegalArgumentException.class, () -> security.decryptEmail(UUID.randomUUID(), first));
+
+        byte[] tampered = first.ciphertext();
+        tampered[tampered.length - 1] ^= 1;
+        assertThrows(IllegalArgumentException.class, () -> security.decryptEmail(
+                COMMENT_ID, new CommentSecurityService.EmailCiphertext(1, first.nonce(), tampered)));
     }
 
     @Test
     void derivesScopedDigests() {
         var today = security.dailyIpHmac("192.0.2.1", LocalDate.of(2026, 8, 22));
+        assertArrayEquals(today, security.dailyIpHmac("192.0.2.1", LocalDate.of(2026, 8, 22)));
         var tomorrow = security.dailyIpHmac("192.0.2.1", LocalDate.of(2026, 8, 23));
 
         assertFalse(java.util.Arrays.equals(today, tomorrow));
@@ -42,6 +51,7 @@ class CommentSecurityServiceTest {
 
     @Test
     void rejectsInvalidKey() {
+        assertThrows(IllegalArgumentException.class, () -> new CommentSecurityService(" "));
         assertThrows(IllegalArgumentException.class, () -> new CommentSecurityService(
                 Base64.getEncoder().encodeToString(new byte[16])));
     }

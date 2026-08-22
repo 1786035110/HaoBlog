@@ -44,6 +44,7 @@ jobs:
       - name: PostgreSQL integration tests
         env:
           HAOBLOG_PUBLIC_BASE_URL: http://localhost:3000
+          HAOBLOG_COMMENT_SECURITY_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
         run: ./mvnw failsafe:integration-test failsafe:verify
         working-directory: apps/api
 

@@ -19,7 +19,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
-public class ArticleService {
+public class ArticleService implements ArticleCommentLookup {
     private final ArticleRevisionRepository repository;
     private final MediaAssetRepository mediaRepository;
     private final Clock clock;
@@ -40,6 +40,12 @@ public class ArticleService {
         return repository.findVisibleBySlug(slug, ArticleStatus.PUBLISHED, ArticleStatus.SCHEDULED,
                         java.time.Instant.now(clock))
                 .map(this::toPublicArticle);
+    }
+
+    @Override
+    public Optional<ArticleCommentLookup.Target> findPublicCommentTarget(String slug) {
+        return findPublicBySlug(slug)
+                .map(article -> new ArticleCommentLookup.Target(article.articleId(), article.commentsEnabled()));
     }
 
     public PublishedBatch listPublishedBatch(int page, int size) {

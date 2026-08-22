@@ -16,8 +16,14 @@ class ArchitectureTest {
 
     @ArchTest
     static final ArchRule other_modules_must_not_depend_on_content_internals = noClasses()
-            .that().resideInAnyPackage("io.haoblog.identity..", "io.haoblog.comment..",
+            .that().resideInAnyPackage("io.haoblog.identity..",
                     "io.haoblog.toolbox..", "io.haoblog.ai..", "io.haoblog.media..", "io.haoblog.site..")
+            .should().dependOnClassesThat().resideInAnyPackage(
+                    "io.haoblog.content.persistence..", "io.haoblog.content.domain..");
+
+    @ArchTest
+    static final ArchRule comment_must_use_content_public_boundary = noClasses()
+            .that().resideInAnyPackage("io.haoblog.comment..")
             .should().dependOnClassesThat().resideInAnyPackage(
                     "io.haoblog.content.persistence..", "io.haoblog.content.domain..");
 }
