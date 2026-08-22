@@ -2,11 +2,15 @@
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import PublicArticleBody from '~/components/articles/PublicArticleBody.vue'
 import type { PublicArticleContent } from '~/utils/publicArticleContent'
-import { buildPublicArticleSeo } from '~/utils/publicArticleSeo'
+import { buildPublicArticleJsonLd, buildPublicArticleSeo, buildPublicPageSeo, publicPageHead, serializeJsonLd } from '~/utils/publicArticleSeo'
+import { defaultPublicSite, usePublicSite } from '~/utils/publicSite'
 
 const route = useRoute()
 const config = useRuntimeConfig()
-const { data, pending, error } = await usePublicApi<PublicArticleContent>(`/_content/articles/${encodeURIComponent(String(route.params.slug))}`, { baseURL: config.public.apiBase })
+const [{ data, pending, error }, { data: site }] = await Promise.all([
+  usePublicApi<PublicArticleContent>(`/_content/articles/${encodeURIComponent(String(route.params.slug))}`, { baseURL: config.public.apiBase }),
+  usePublicSite(),
+])
 if (error.value?.statusCode === 404 || (!pending.value && !data.value)) {
   throw createError({ statusCode: 404, statusMessage: 'Article not found', fatal: true })
 }
@@ -41,23 +45,14 @@ onMounted(() => { void nextTick(observeHeadings) })
 watch(() => data.value?.renderedHtml, () => { void nextTick(observeHeadings) })
 onBeforeUnmount(() => headingObserver?.disconnect())
 
-const requestUrl = useRequestURL()
+const resolvedSite = site.value || defaultPublicSite
 useHead(() => {
   if (!data.value) return {}
-  const seo = buildPublicArticleSeo(data.value.article, requestUrl.origin)
+  const seo = buildPublicArticleSeo(data.value.article, resolvedSite.siteUrl)
+  const pageSeo = buildPublicPageSeo(resolvedSite, `/articles/${encodeURIComponent(data.value.article.slug)}`, seo.title, seo.description, 'article')
   return {
-    title: seo.title,
-    meta: [
-      { name: 'description', content: seo.description },
-      { property: 'og:type', content: 'article' },
-      { property: 'og:title', content: seo.title },
-      { property: 'og:description', content: seo.description },
-      { property: 'og:image', content: seo.image },
-      { name: 'twitter:card', content: 'summary_large_image' },
-      { name: 'twitter:title', content: seo.title },
-      { name: 'twitter:description', content: seo.description },
-      { name: 'twitter:image', content: seo.image },
-    ],
+    ...publicPageHead({ ...pageSeo, image: seo.image }),
+    script: [{ type: 'application/ld+json', children: serializeJsonLd(buildPublicArticleJsonLd(resolvedSite, data.value.article)) }],
   }
 })
 </script>

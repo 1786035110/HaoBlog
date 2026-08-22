@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import type { components } from '@haoblog/api-client'
 import PublicArticleList from '~/components/articles/PublicArticleList.vue'
+import { buildPublicPageSeo, publicPageHead } from '~/utils/publicArticleSeo'
 import { isPublicArticlePageOutOfRange, parsePublicArticlePage } from '~/utils/publicArticlePagination'
+import { defaultPublicSite, usePublicSite } from '~/utils/publicSite'
 
 type ArticleList = components['schemas']['ArticleListResponse']
 const route = useRoute()
@@ -16,13 +18,17 @@ if (parsedPage.canonical) {
 
 const page = parsedPage.page
 const pageSize = 20
-const { data, pending, error } = await usePublicApi<ArticleList>('/api/v1/public/articles', {
-  query: { page: page - 1, size: pageSize },
-})
+const [{ data: site }, { data, pending, error }] = await Promise.all([
+  usePublicSite(),
+  usePublicApi<ArticleList>('/api/v1/public/articles', { query: { page: page - 1, size: pageSize } }),
+])
 
 if (!pending.value && !error.value && data.value && isPublicArticlePageOutOfRange(page, data.value)) {
   throw createError({ statusCode: 404, statusMessage: 'Article page not found', fatal: true })
 }
+
+const resolvedSite = site.value || defaultPublicSite
+useHead(() => publicPageHead(buildPublicPageSeo(resolvedSite, page === 1 ? '/articles' : `/articles?page=${page}`, `文章观测日志 · ${resolvedSite.title}`, '沿着时间线阅读正在演化的技术记录。')))
 </script>
 
 <template>

@@ -6,7 +6,7 @@ import PublicArticleList from '../app/components/articles/PublicArticleList.vue'
 import PublicArticleBody from '../app/components/articles/PublicArticleBody.vue'
 import PublicHomeOverview from '../app/components/home/PublicHomeOverview.vue'
 import { isPublicArticlePageOutOfRange, parsePublicArticlePage, publicArticlePageUrl } from '../app/utils/publicArticlePagination'
-import { buildPublicArticleSeo } from '../app/utils/publicArticleSeo'
+import { buildPublicArticleJsonLd, buildPublicArticleSeo, buildPublicPageSeo, publicPageHead, serializeJsonLd } from '../app/utils/publicArticleSeo'
 import { buildPublicArticleContent } from '../server/utils/publicArticleContent'
 import type { components } from '@haoblog/api-client'
 
@@ -184,6 +184,42 @@ describe('public article SSR contract', () => {
       description: 'Published excerpt',
       image: 'https://blog.example.test/og-default.svg',
     })
+    expect(buildPublicArticleSeo({ ...article, coverImageUrl: 'http://cdn.example.test/cover.png' }, 'https://blog.example.test')).toMatchObject({ image: 'https://blog.example.test/og-default.svg' })
+  })
+
+  it('builds configured absolute page metadata and a safe parseable BlogPosting JSON-LD', () => {
+    const site = { title: 'HaoBlog', siteUrl: 'https://configured.example.test', authorName: 'Hao' }
+    const pageHead = publicPageHead(buildPublicPageSeo(site, '/articles?page=2', '文章观测日志', '摘要'))
+    expect(pageHead.link).toEqual([{ rel: 'canonical', href: 'https://configured.example.test/articles?page=2' }])
+    expect(pageHead.meta).toEqual(expect.arrayContaining([
+      { name: 'description', content: '摘要' },
+      { property: 'og:url', content: 'https://configured.example.test/articles?page=2' },
+      { name: 'twitter:card', content: 'summary_large_image' },
+    ]))
+
+    const jsonLd = serializeJsonLd(buildPublicArticleJsonLd(site, {
+      ...article,
+      slug: 'unsafe-title',
+      title: '</script><script>alert(1)</script>',
+      seoTitle: null,
+      seoDescription: null,
+      modifiedAt: '2026-02-01T00:00:00Z',
+    }))
+    expect(jsonLd).not.toContain('</script>')
+    expect(jsonLd).toContain('\\u003C')
+    const parsed = JSON.parse(jsonLd)
+    expect(parsed).toMatchObject({
+      '@type': 'BlogPosting',
+      headline: '</script><script>alert(1)</script>',
+      url: 'https://configured.example.test/articles/unsafe-title',
+      mainEntityOfPage: { '@id': 'https://configured.example.test/articles/unsafe-title' },
+      author: { name: 'Hao' },
+      publisher: { name: 'HaoBlog', url: 'https://configured.example.test' },
+      datePublished: '2026-01-01T00:00:00Z',
+      dateModified: '2026-02-01T00:00:00Z',
+      inLanguage: 'zh-CN',
+    })
+    expect(parsed).not.toHaveProperty('markdown')
   })
 })
 

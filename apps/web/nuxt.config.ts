@@ -11,11 +11,13 @@ export default defineNuxtConfig({
     },
   },
   routeRules: {
-    '/studio': { ssr: false },
-    '/studio/**': { ssr: false },
+    '/studio': { ssr: false, headers: { 'x-robots-tag': 'noindex, nofollow' } },
+    '/studio/**': { ssr: false, headers: { 'x-robots-tag': 'noindex, nofollow' } },
     '/articles': { cache: { maxAge: 60, swr: false } },
     '/articles/**': { cache: { maxAge: 60, swr: false } },
     '/article-previews/**': { cache: false, headers: { 'cache-control': 'no-store', 'referrer-policy': 'no-referrer', 'x-robots-tag': 'noindex, nofollow' } },
+    '/garden': { headers: { 'x-robots-tag': 'noindex, nofollow' } },
+    '/tools': { headers: { 'x-robots-tag': 'noindex, nofollow' } },
   },
   nitro: {
     devProxy: {

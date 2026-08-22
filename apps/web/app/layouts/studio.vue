@@ -24,6 +24,7 @@
 <script setup lang="ts">
 const route = useRoute()
 const { session, pending, initialized, restore, logout } = useAdminSession()
+useHead({ meta: [{ name: 'robots', content: 'noindex,nofollow' }] })
 
 onMounted(async () => {
   const active = await restore()
