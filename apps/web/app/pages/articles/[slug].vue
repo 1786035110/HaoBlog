@@ -1,16 +1,22 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import PublicArticleBody from '~/components/articles/PublicArticleBody.vue'
+import CommentSignalSection from '~/components/articles/CommentSignalSection.vue'
 import type { PublicArticleContent } from '~/utils/publicArticleContent'
+import type { components } from '@haoblog/api-client'
 import { buildPublicArticleJsonLd, buildPublicArticleSeo, buildPublicPageSeo, publicPageHead, serializeJsonLd } from '~/utils/publicArticleSeo'
 import { defaultPublicSite, usePublicSite } from '~/utils/publicSite'
 import { useMotionPreference } from '~/composables/useMotionPreference'
 
 const route = useRoute()
 const config = useRuntimeConfig()
-const [{ data, pending, error }, { data: site }] = await Promise.all([
+const [{ data, pending, error }, { data: site }, { data: comments }] = await Promise.all([
   usePublicApi<PublicArticleContent>(`/_content/articles/${encodeURIComponent(String(route.params.slug))}`, { baseURL: config.public.apiBase }),
   usePublicSite(),
+  usePublicApi<components['schemas']['CommentPageResponse']>(`/api/v1/public/articles/${encodeURIComponent(String(route.params.slug))}/comments`, {
+    query: { size: 20 },
+    default: () => ({ items: [], page: 0, size: 20, total: 0 }),
+  }),
 ])
 if (error.value?.statusCode === 404 || (!pending.value && !data.value)) {
   throw createError({ statusCode: 404, statusMessage: 'Article not found', fatal: true })
@@ -73,7 +79,15 @@ useHead(() => {
         </span>
         <span class="article-signal-value">{{ Math.round(articleProgress * 100) }}%</span>
       </aside>
-      <PublicArticleBody ref="articleBody" :content="data" />
+      <div class="article-reading-column">
+        <PublicArticleBody ref="articleBody" :content="data" />
+        <CommentSignalSection
+          :slug="data.article.slug"
+          :comments="comments || { items: [], page: 0, size: 20, total: 0 }"
+          :site-comments-enabled="resolvedSite.commentsEnabled"
+          :article-comments-enabled="data.article.commentsEnabled"
+        />
+      </div>
       <nav v-if="data.toc.length" class="article-toc" aria-label="文章航标">
         <details open>
           <summary>TOC / NAV <span aria-hidden="true">{{ data.toc.length }}</span></summary>
