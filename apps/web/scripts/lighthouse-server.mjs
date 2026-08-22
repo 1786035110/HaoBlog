@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process'
 import http from 'node:http'
 
 const port = Number(process.env.PORT || 3000)
-const articlePath = process.env.LHCI_ARTICLE_PATH || '/articles/s3-07-advanced-markdown'
+const articlePath = process.env.LHCI_ARTICLE_PATH || '/articles/s3-08-advanced-markdown'
 const server = spawn(process.execPath, ['.output/server/index.mjs'], {
   cwd: process.cwd(),
   env: process.env,
