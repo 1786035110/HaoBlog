@@ -21,4 +21,5 @@ public class SiteSetting {
     public String getDescription() { return description; }
     public boolean isCommentsEnabled() { return commentsEnabled; }
     public long getVersion() { return version; }
+    public void setCommentsEnabled(boolean commentsEnabled) { this.commentsEnabled = commentsEnabled; }
 }

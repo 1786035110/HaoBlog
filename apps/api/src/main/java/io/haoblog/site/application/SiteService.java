@@ -29,6 +29,29 @@ public class SiteService {
         return new SiteResult(setting.getTitle(), setting.getDescription(), publicBaseUrl, authorName, setting.isCommentsEnabled());
     }
 
+    public AdminSiteResult getAdmin() {
+        var setting = repository.findBySiteKey("default").orElseThrow();
+        return new AdminSiteResult(setting.getTitle(), setting.getDescription(), publicBaseUrl, authorName,
+                setting.isCommentsEnabled(), setting.getVersion());
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public AdminSiteResult updateCommentsEnabled(long expectedVersion, boolean commentsEnabled) {
+        var setting = repository.findBySiteKey("default").orElseThrow();
+        if (setting.getVersion() != expectedVersion) {
+            throw new io.haoblog.shared.web.ProblemException("SITE_VERSION_CONFLICT", "Site setting version conflict",
+                    "Reload the latest site settings before saving", setting.getVersion());
+        }
+        setting.setCommentsEnabled(commentsEnabled);
+        var saved = repository.saveAndFlush(setting);
+        return new AdminSiteResult(saved.getTitle(), saved.getDescription(), publicBaseUrl, authorName,
+                saved.isCommentsEnabled(), saved.getVersion());
+    }
+
+    public long currentVersion() {
+        return repository.findBySiteKey("default").orElseThrow().getVersion();
+    }
+
     static String normalizePublicBaseUrl(String raw) {
         if (raw == null || raw.isBlank()) {
             throw new IllegalArgumentException("HAOBLOG_PUBLIC_BASE_URL must be an absolute HTTP(S) origin");
@@ -52,4 +75,7 @@ public class SiteService {
             this(title, description, siteUrl, authorName, true);
         }
     }
+
+    public record AdminSiteResult(String title, String description, String siteUrl, String authorName,
+                                  boolean commentsEnabled, long version) {}
 }

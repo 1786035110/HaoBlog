@@ -23,7 +23,8 @@ public final class AdminArticleDtos {
             Instant scheduledAt,
             UUID categoryId,
             UUID coverMediaId,
-            List<UUID> tagIds) {}
+            List<UUID> tagIds,
+            Boolean commentsEnabled) {}
 
     public record UpdateRequest(
             @NotNull Long version,
@@ -36,7 +37,8 @@ public final class AdminArticleDtos {
             Instant scheduledAt,
             UUID categoryId,
             UUID coverMediaId,
-            List<UUID> tagIds) {}
+            List<UUID> tagIds,
+            Boolean commentsEnabled) {}
 
     public record ListResponse(List<Summary> items, int page, int size, long total) {}
 

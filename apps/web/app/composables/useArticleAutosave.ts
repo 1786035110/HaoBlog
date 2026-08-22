@@ -27,6 +27,7 @@ type Options = {
 const fieldLabels: Record<keyof ArticleFormModel, string> = {
   title: '标题', slug: 'Slug', excerpt: '摘要', seoTitle: 'SEO 标题', seoDescription: 'SEO 描述',
   categoryId: '分类', tagIds: '标签', coverMediaId: '封面', scheduledAt: '定时发布时间', markdown: 'Markdown', version: '版本',
+  commentsEnabled: '评论开关',
 }
 
 function lineCount(value: string) { return value ? value.split(/\r?\n/).length : 0 }

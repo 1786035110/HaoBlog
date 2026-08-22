@@ -15,6 +15,7 @@ export type ArticleFormModel = {
   coverMediaId: string | null
   scheduledAt: string
   markdown: string
+  commentsEnabled: boolean
   version: number | null
 }
 
@@ -48,6 +49,7 @@ export function articleToForm(article?: Article | null): ArticleFormModel {
     coverMediaId: article?.coverMediaId || null,
     scheduledAt: localDateTime(article?.scheduledAt),
     markdown: article?.markdown || '',
+    commentsEnabled: article?.commentsEnabled ?? true,
     version: article?.version ?? null,
   }
 }
@@ -68,6 +70,7 @@ function commonPayload(form: ArticleFormModel) {
     categoryId: form.categoryId || null,
     coverMediaId: form.coverMediaId,
     tagIds: [...form.tagIds],
+    commentsEnabled: form.commentsEnabled,
   }
 }
 

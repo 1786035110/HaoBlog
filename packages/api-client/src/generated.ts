@@ -180,6 +180,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listAdminComments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/comments/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get: operations["getAdminComment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/comments/{id}/moderation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["moderateAdminComment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/site": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getAdminSite"];
+        put: operations["updateAdminSite"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/media/uploads/{uploadId}/complete": {
         parameters: {
             query?: never;
@@ -573,6 +641,69 @@ export interface components {
             createdAt: string;
             deleteToken?: string | null;
         };
+        /** @enum {string} */
+        CommentStatus: "PENDING" | "APPROVED" | "SPAM" | "REJECTED" | "USER_DELETED";
+        CommentModerationRequest: {
+            /** Format: int64 */
+            version: number;
+            /** @enum {string} */
+            status: "APPROVED" | "SPAM" | "REJECTED";
+            reason?: string | null;
+        };
+        AdminCommentSummary: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            articleId: string;
+            /** Format: uuid */
+            parentId?: string | null;
+            nickname: string;
+            content: string;
+            emailMasked?: string | null;
+            status: components["schemas"]["CommentStatus"];
+            /** Format: uuid */
+            moderatorId?: string | null;
+            moderationReason?: string | null;
+            /** Format: date-time */
+            moderatedAt?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: int64 */
+            version: number;
+        };
+        AdminCommentListResponse: {
+            items: components["schemas"]["AdminCommentSummary"][];
+            page: number;
+            size: number;
+            /** Format: int64 */
+            total: number;
+        };
+        AdminCommentDetail: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            articleId: string;
+            /** Format: uuid */
+            parentId?: string | null;
+            nickname: string;
+            content: string;
+            /** Format: email */
+            email: string | null;
+            status: components["schemas"]["CommentStatus"];
+            /** Format: uuid */
+            moderatorId?: string | null;
+            moderationReason?: string | null;
+            /** Format: date-time */
+            moderatedAt?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: int64 */
+            version: number;
+        };
         ProblemResponse: {
             code: string;
             title: string;
@@ -712,6 +843,8 @@ export interface components {
             /** Format: uuid */
             coverMediaId?: string | null;
             tagIds?: string[];
+            /** @description Defaults to true when omitted */
+            commentsEnabled?: boolean;
         };
         AdminArticleUpdateRequest: {
             /** Format: int64 */
@@ -729,6 +862,8 @@ export interface components {
             /** Format: uuid */
             coverMediaId?: string | null;
             tagIds?: string[];
+            /** @description Defaults to true when omitted */
+            commentsEnabled?: boolean;
         };
         AdminArticleSummary: {
             /** Format: uuid */
@@ -777,6 +912,21 @@ export interface components {
             /** Format: int64 */
             version: number;
             commentsEnabled: boolean;
+        };
+        AdminSiteUpdateRequest: {
+            /** Format: int64 */
+            version: number;
+            commentsEnabled: boolean;
+        };
+        AdminSiteResponse: {
+            title: string;
+            description: string;
+            /** Format: uri */
+            siteUrl: string;
+            authorName: string;
+            commentsEnabled: boolean;
+            /** Format: int64 */
+            version: number;
         };
         MediaUploadRequest: {
             /** @enum {string} */
@@ -1428,6 +1578,146 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["CsrfInvalid"];
             503: components["responses"]["MediaStorageUnavailable"];
+        };
+    };
+    listAdminComments: {
+        parameters: {
+            query?: {
+                page?: number;
+                size?: number;
+                status?: components["schemas"]["CommentStatus"];
+                articleId?: string;
+                keyword?: string;
+                direction?: "asc" | "desc";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Administrator comment moderation log; email is masked and security material is omitted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCommentListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getAdminComment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Comment detail with decrypted optional email, content, and moderation audit */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCommentDetail"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["ResourceNotFound"];
+        };
+    };
+    moderateAdminComment: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-TOKEN": components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommentModerationRequest"];
+            };
+        };
+        responses: {
+            /** @description Moderated comment */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCommentDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["CsrfInvalid"];
+            404: components["responses"]["ResourceNotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getAdminSite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Administrator site settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSiteResponse"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    updateAdminSite: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-TOKEN": components["parameters"]["CsrfHeader"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminSiteUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Site settings updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSiteResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["CsrfInvalid"];
+            409: components["responses"]["Conflict"];
         };
     };
     completeAdminMediaUpload: {

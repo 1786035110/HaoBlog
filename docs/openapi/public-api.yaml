@@ -280,6 +280,71 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/CsrfInvalid' }
         '503': { $ref: '#/components/responses/MediaStorageUnavailable' }
+  /api/v1/admin/comments:
+    get:
+      operationId: listAdminComments
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/CommentStatus' } }
+        - { name: articleId, in: query, schema: { type: string, format: uuid } }
+        - { name: keyword, in: query, schema: { type: string, maxLength: 240 } }
+        - { name: direction, in: query, schema: { type: string, enum: [asc, desc], default: desc } }
+      responses:
+        '200':
+          description: Administrator comment moderation log; email is masked and security material is omitted
+          content: { application/json: { schema: { $ref: '#/components/schemas/AdminCommentListResponse' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/admin/comments/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: getAdminComment
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          description: Comment detail with decrypted optional email, content, and moderation audit
+          content: { application/json: { schema: { $ref: '#/components/schemas/AdminCommentDetail' } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+  /api/v1/admin/comments/{id}/moderation:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      operationId: moderateAdminComment
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CommentModerationRequest' } } } }
+      responses:
+        '200': { description: Moderated comment, content: { application/json: { schema: { $ref: '#/components/schemas/AdminCommentDetail' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/site:
+    get:
+      operationId: getAdminSite
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Administrator site settings, content: { application/json: { schema: { $ref: '#/components/schemas/AdminSiteResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    put:
+      operationId: updateAdminSite
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AdminSiteUpdateRequest' } } } }
+      responses:
+        '200': { description: Site settings updated, content: { application/json: { schema: { $ref: '#/components/schemas/AdminSiteResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '409': { $ref: '#/components/responses/Conflict' }
   /api/v1/admin/media/uploads/{uploadId}/complete:
     post:
       operationId: completeAdminMediaUpload
@@ -867,6 +932,58 @@ components:
         status: { type: string, enum: [PENDING] }
         createdAt: { type: string, format: date-time }
         deleteToken: { type: [string, 'null'], minLength: 43, maxLength: 43 }
+    CommentStatus:
+      type: string
+      enum: [PENDING, APPROVED, SPAM, REJECTED, USER_DELETED]
+    CommentModerationRequest:
+      type: object
+      required: [version, status]
+      properties:
+        version: { type: integer, format: int64, minimum: 0 }
+        status: { type: string, enum: [APPROVED, SPAM, REJECTED] }
+        reason: { type: [string, 'null'], maxLength: 600 }
+    AdminCommentSummary:
+      type: object
+      required: [id, articleId, nickname, content, status, createdAt, updatedAt, version]
+      properties:
+        id: { type: string, format: uuid }
+        articleId: { type: string, format: uuid }
+        parentId: { type: [string, 'null'], format: uuid }
+        nickname: { type: string }
+        content: { type: string }
+        emailMasked: { type: [string, 'null'] }
+        status: { $ref: '#/components/schemas/CommentStatus' }
+        moderatorId: { type: [string, 'null'], format: uuid }
+        moderationReason: { type: [string, 'null'] }
+        moderatedAt: { type: [string, 'null'], format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        version: { type: integer, format: int64, minimum: 0 }
+    AdminCommentListResponse:
+      type: object
+      required: [items, page, size, total]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/AdminCommentSummary' } }
+        page: { type: integer }
+        size: { type: integer }
+        total: { type: integer, format: int64 }
+    AdminCommentDetail:
+      type: object
+      required: [id, articleId, nickname, content, email, status, createdAt, updatedAt, version]
+      properties:
+        id: { type: string, format: uuid }
+        articleId: { type: string, format: uuid }
+        parentId: { type: [string, 'null'], format: uuid }
+        nickname: { type: string }
+        content: { type: string }
+        email: { type: [string, 'null'], format: email }
+        status: { $ref: '#/components/schemas/CommentStatus' }
+        moderatorId: { type: [string, 'null'], format: uuid }
+        moderationReason: { type: [string, 'null'] }
+        moderatedAt: { type: [string, 'null'], format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        version: { type: integer, format: int64, minimum: 0 }
     ProblemResponse:
       type: object
       required: [code, title, detail, traceId]
@@ -1009,6 +1126,7 @@ components:
         categoryId: { type: [string, 'null'], format: uuid }
         coverMediaId: { type: [string, 'null'], format: uuid }
         tagIds: { type: array, items: { type: string, format: uuid } }
+        commentsEnabled: { type: boolean, description: Defaults to true when omitted }
     AdminArticleUpdateRequest:
       type: object
       required: [version, title, markdown]
@@ -1024,6 +1142,7 @@ components:
         categoryId: { type: [string, 'null'], format: uuid }
         coverMediaId: { type: [string, 'null'], format: uuid }
         tagIds: { type: array, items: { type: string, format: uuid } }
+        commentsEnabled: { type: boolean, description: Defaults to true when omitted }
     AdminArticleSummary:
       type: object
       required: [id, title, status, categoryId, updatedAt, version, commentsEnabled]
@@ -1065,6 +1184,22 @@ components:
         updatedAt: { type: string, format: date-time }
         version: { type: integer, format: int64, minimum: 0 }
         commentsEnabled: { type: boolean }
+    AdminSiteUpdateRequest:
+      type: object
+      required: [version, commentsEnabled]
+      properties:
+        version: { type: integer, format: int64, minimum: 0 }
+        commentsEnabled: { type: boolean }
+    AdminSiteResponse:
+      type: object
+      required: [title, description, siteUrl, authorName, commentsEnabled, version]
+      properties:
+        title: { type: string }
+        description: { type: string }
+        siteUrl: { type: string, format: uri }
+        authorName: { type: string }
+        commentsEnabled: { type: boolean }
+        version: { type: integer, format: int64, minimum: 0 }
     MediaUploadRequest:
       type: object
       required: [mimeType, sizeBytes, width, height, sha256]

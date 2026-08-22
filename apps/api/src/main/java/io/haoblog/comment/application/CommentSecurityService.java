@@ -73,6 +73,11 @@ public class CommentSecurityService {
         }
     }
 
+    public String decryptEmail(UUID commentId, byte[] ciphertext, byte[] nonce, Integer keyVersion) {
+        if (ciphertext == null || nonce == null || keyVersion == null) return null;
+        return decryptEmail(commentId, new EmailCiphertext(keyVersion, nonce, ciphertext));
+    }
+
     public byte[] dailyIpHmac(String ip, LocalDate date) {
         return hmac(ipKey, "ip-v1:" + date + ":" + ip);
     }
