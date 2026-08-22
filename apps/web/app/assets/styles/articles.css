@@ -122,4 +122,4 @@ html[data-theme='blueprint'] .safe-markdown .shiki span { color: var(--shiki-lig
 .safe-markdown .footnotes { color: var(--color-text-muted); font-size: .92em; }
 .safe-markdown .footnote-ref a, .safe-markdown .footnote-backref { color: var(--color-accent); text-decoration: none; }
 .safe-markdown .footnote-ref a:focus-visible, .safe-markdown .footnote-backref:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
-.safe-markdown .footnote-backref { margin-left: .35rem; white-space: nowrap; }
+.safe-markdown .footnote-backref { margin-left: .35rem; text-decoration: underline; text-underline-offset: .18em; white-space: nowrap; }

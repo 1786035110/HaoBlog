@@ -179,7 +179,7 @@ function renderCodeFence(token: Token) {
   const displayLanguage = metadata.language || metadata.rawLanguage || 'plaintext'
   const filename = metadata.filename ? `<span class="code-block-filename">${escapeHtml(metadata.filename)}</span>` : ''
   const filenameAttribute = metadata.filename ? ` data-filename="${escapeHtml(metadata.filename)}"` : ''
-  return `<div class="code-block" data-code-block="true" data-language="${escapeHtml(displayLanguage)}"${filenameAttribute}><div class="code-block-header"><span class="code-block-language">${escapeHtml(displayLanguage)}</span>${filename}<button type="button" class="code-copy-button" data-code-copy="true" aria-label="复制${escapeHtml(metadata.filename ? `文件 ${metadata.filename}` : `${displayLanguage} 代码`)}">复制代码</button></div>${codeHtml}</div>`
+  return `<div class="code-block" data-code-block="true" data-language="${escapeHtml(displayLanguage)}"${filenameAttribute}><div class="code-block-header"><span class="code-block-language">${escapeHtml(displayLanguage)}</span>${filename}<button type="button" class="code-copy-button" data-code-copy="true" aria-label="复制代码：${escapeHtml(metadata.filename || displayLanguage)}">复制代码</button></div>${codeHtml}</div>`
 }
 
 function isAllowedLink(value: string | undefined) {

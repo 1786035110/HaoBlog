@@ -123,7 +123,7 @@ describe('public article SSR contract', () => {
     expect(html).toContain('data-filename="answer.ts"')
     expect(html).toContain('data-line="2"')
     expect(html).toContain('class="code-copy-button"')
-    expect(html).toContain('aria-label="复制文件 answer.ts"')
+    expect(html).toContain('aria-label="复制代码：answer.ts"')
     expect(html).toContain('const')
     expect(html).toContain('next')
   })

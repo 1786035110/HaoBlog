@@ -6,7 +6,7 @@
     <ReadingProgress />
     <nav class="instrument-dock" aria-label="站点仪表板">
       <details class="dock-index">
-        <summary class="dock-control dock-index-trigger" aria-label="打开站点索引">
+        <summary class="dock-control dock-index-trigger" aria-label="INDEX：打开站点索引">
           <span>INDEX</span><span class="dock-glyph" aria-hidden="true">+</span>
         </summary>
         <div class="route-menu" aria-label="真实路由菜单">

@@ -68,7 +68,7 @@ useHead(() => {
     <template v-else-if="data">
       <aside class="article-signal" aria-label="文章阅读进度">
         <span class="article-signal-label">SIGNAL / READ</span>
-        <span class="article-signal-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="Math.round(articleProgress * 100)" :aria-valuetext="`已阅读 ${Math.round(articleProgress * 100)}%`">
+        <span class="article-signal-track" role="progressbar" aria-label="文章阅读进度" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="Math.round(articleProgress * 100)" :aria-valuetext="`已阅读 ${Math.round(articleProgress * 100)}%`">
           <span class="article-signal-fill" :style="{ '--signal-progress': `${Math.round(articleProgress * 100)}%` }" />
         </span>
         <span class="article-signal-value">{{ Math.round(articleProgress * 100) }}%</span>

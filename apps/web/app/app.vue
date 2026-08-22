@@ -12,7 +12,7 @@ import { useDataSaver } from '~/composables/useDataSaver'
 const { data: site } = await usePublicSite()
 const { enabled: dataSaver } = useDataSaver()
 useHead(() => ({
-  htmlAttrs: { 'data-save-data': dataSaver.value ? 'on' : 'off' },
+  htmlAttrs: { lang: 'zh-CN', 'data-save-data': dataSaver.value ? 'on' : 'off' },
   link: [{
     rel: 'alternate',
     type: 'application/rss+xml',

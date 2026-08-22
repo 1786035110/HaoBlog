@@ -63,9 +63,9 @@ function httpsCoverUrl(value: string | null) {
     </ol>
 
     <nav v-if="hasPrevious || hasNext" class="article-pagination" aria-label="文章列表分页">
-      <NuxtLink v-if="hasPrevious" :to="publicArticlePageUrl(page - 1)">上一页</NuxtLink>
+      <a v-if="hasPrevious" :href="publicArticlePageUrl(page - 1)">上一页</a>
       <span aria-current="page">第 {{ page }} 页</span>
-      <NuxtLink v-if="hasNext" :to="publicArticlePageUrl(page + 1)">下一页</NuxtLink>
+      <a v-if="hasNext" :href="publicArticlePageUrl(page + 1)">下一页</a>
     </nav>
   </template>
 </template>
