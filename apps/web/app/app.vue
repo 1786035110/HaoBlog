@@ -7,9 +7,12 @@
 <script setup lang="ts">
 import { publicAbsoluteUrl } from '~/utils/publicArticleSeo'
 import { usePublicSite } from '~/utils/publicSite'
+import { useDataSaver } from '~/composables/useDataSaver'
 
 const { data: site } = await usePublicSite()
+const { enabled: dataSaver } = useDataSaver()
 useHead(() => ({
+  htmlAttrs: { 'data-save-data': dataSaver.value ? 'on' : 'off' },
   link: [{
     rel: 'alternate',
     type: 'application/rss+xml',

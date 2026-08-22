@@ -104,12 +104,21 @@ describe('MermaidEnhancer', () => {
 
   it('marks reduced-motion figures and keeps source after invalid or oversized charts', async () => {
     setBrowserPreferences({ reducedMotion: true })
+    const reduced = mountEnhancer()
+    await flushPromises()
+    expect(FakeIntersectionObserver.instances).toHaveLength(0)
+    expect(reduced.figure.classList.contains('mermaid-reduced-motion')).toBe(true)
+    expect(reduced.figure.querySelector('[data-mermaid-render]')?.hidden).toBe(false)
+    expect(mermaid.render).not.toHaveBeenCalled()
+    reduced.wrapper.unmount()
+
+    setBrowserPreferences({ reducedMotion: false })
     mermaid.render.mockRejectedValueOnce(new Error('invalid chart'))
     const invalid = mountEnhancer()
     await flushPromises()
     FakeIntersectionObserver.instances[0]!.callback([{ isIntersecting: true, target: invalid.figure }])
     await flushPromises()
-    expect(invalid.figure.classList.contains('mermaid-reduced-motion')).toBe(true)
+    expect(invalid.figure.classList.contains('mermaid-reduced-motion')).toBe(false)
     expect(invalid.figure.dataset.mermaidState).toBe('error')
     expect(invalid.figure.querySelector('[data-mermaid-source]')?.textContent).toContain('A-->B')
     expect(invalid.figure.querySelector('[data-mermaid-status]')?.textContent).toContain('保留源码')

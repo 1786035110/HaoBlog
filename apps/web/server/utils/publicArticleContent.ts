@@ -30,6 +30,7 @@ import type { PublicArticleContent } from '../../app/utils/publicArticleContent'
 
 type Article = components['schemas']['ArticleResponse']
 type TocItem = PublicArticleContent['toc'][number]
+type PublicArticleRenderOptions = { saveData?: boolean }
 
 const LINK_CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/
 const MAX_METADATA_LINE = 100_000
@@ -313,7 +314,7 @@ function createMarkdownRenderer(toc: TocItem[]) {
   return markdown
 }
 
-export function renderPublicArticleMarkdown(markdownSource: string) {
+export function renderPublicArticleMarkdown(markdownSource: string, options: PublicArticleRenderOptions = {}) {
   const toc: TocItem[] = []
   const hasMermaid = /^(?: {0,3})```[ \t]*mermaid(?:[ \t]|$)/im.test(markdownSource)
   const markdown = createMarkdownRenderer(toc)
@@ -335,7 +336,7 @@ export function renderPublicArticleMarkdown(markdownSource: string) {
     ],
     allowedAttributes: {
       h2: ['id'], h3: ['id'], h4: ['id'], h5: ['id'], h6: ['id'],
-      p: ['class', 'title'],
+      p: ['class', 'title', 'role'],
       a: ['href', 'title', 'class', 'id'],
       img: ['src', 'alt', 'title', 'loading', 'decoding'],
       pre: ['class', 'tabindex', 'data-mermaid-source'],
@@ -360,7 +361,7 @@ export function renderPublicArticleMarkdown(markdownSource: string) {
       path: ['d'],
     },
     allowedClasses: {
-      p: [/^katex-block$/, /^markdown-callout-title$/],
+      p: [/^katex-block$/, /^markdown-callout-title$/, /^markdown-image-placeholder$/],
       code: [/^language-[\w-]+$/],
       pre: [/^shiki$/, /^shiki-themes$/, /^light-plus$/, /^dark-plus$/, /^code-highlight-fallback$/, /^markdown-render-error$/, /^mermaid-source$/],
       div: [/^code-block$/, /^code-block-header$/, /^markdown-callout$/, /^markdown-callout--(?:note|tip|warning|danger)$/, /^markdown-table-scroll$/, /^katex-block$/, /^katex-error$/, /^mermaid-output$/],
@@ -392,11 +393,21 @@ export function renderPublicArticleMarkdown(markdownSource: string) {
         : { tagName: 'span', attribs: {} },
     },
   })
-  return { renderedHtml, toc, hasMermaid }
+  if (!options.saveData) return { renderedHtml, toc, hasMermaid }
+  const imagePlaceholder = (imageHtml: string) => {
+    const alt = imageHtml.match(/\balt="([^"]*)"/i)?.[1] || '未命名图像'
+    return `<p class="markdown-image-placeholder" role="note">图像已按 Save-Data 降级：${escapeHtml(alt)}</p>`
+  }
+  const renderedHtmlWithoutStandaloneImages = renderedHtml.replace(/<p>\s*(<img\b[^>]*>)\s*<\/p>/gi, (_match, imageHtml: string) => imagePlaceholder(imageHtml))
+  return {
+    renderedHtml: renderedHtmlWithoutStandaloneImages.replace(/<img\b[^>]*>/gi, imagePlaceholder),
+    toc,
+    hasMermaid,
+  }
 }
 
-export function buildPublicArticleContent(article: Article): PublicArticleContent {
-  const { renderedHtml, toc, hasMermaid } = renderPublicArticleMarkdown(article.markdown)
+export function buildPublicArticleContent(article: Article, options: PublicArticleRenderOptions = {}): PublicArticleContent {
+  const { renderedHtml, toc, hasMermaid } = renderPublicArticleMarkdown(article.markdown, options)
   return {
     article,
     renderedHtml,
@@ -416,6 +427,7 @@ export async function fetchPublicArticleContent(
   apiBaseUrl: string,
   ifNoneMatch: string | undefined,
   fetcher: typeof fetch = fetch,
+  saveData = false,
 ): Promise<PublicArticleContentFetchResult> {
   const target = new URL(`/api/v1/public/articles/${encodeURIComponent(slug)}`, apiBaseUrl)
   const headers = new Headers()
@@ -428,5 +440,5 @@ export async function fetchPublicArticleContent(
   }
   if (response.status === 304 || response.status === 404) return { status: response.status, headers: forwardedHeaders }
   if (!response.ok) return { status: 502, headers: forwardedHeaders }
-  return { status: 200, headers: forwardedHeaders, body: buildPublicArticleContent(await response.json() as Article) }
+  return { status: 200, headers: forwardedHeaders, body: buildPublicArticleContent(await response.json() as Article, { saveData }) }
 }

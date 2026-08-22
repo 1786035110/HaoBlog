@@ -51,7 +51,7 @@
 .article-reading h1 { max-width: none; font-size: clamp(2.5rem, 7vw, 6rem); line-height: .98; }
 .article-excerpt { color: var(--color-text-muted); font-size: var(--text-lg); }
 .article-reading-status { min-height: 1.5em; margin: 1rem 0 0; color: var(--color-accent); font: var(--text-xs)/1.5 var(--font-mono); }
-.safe-markdown { max-width: 45rem; color: var(--color-text-main); font-size: 1.08rem; line-height: 1.9; }
+.safe-markdown { max-width: 45rem; min-width: 0; color: var(--color-text-main); font-size: 1.08rem; line-height: 1.9; overflow-wrap: anywhere; }
 .safe-markdown h2, .safe-markdown h3, .safe-markdown h4, .safe-markdown h5, .safe-markdown h6 { max-width: none; margin: 2.5rem 0 1rem; font-family: var(--font-display); line-height: 1.1; scroll-margin-top: 5rem; }
 .safe-markdown h2 { font-size: 2rem; }.safe-markdown h3 { font-size: 1.6rem; }.safe-markdown h4, .safe-markdown h5, .safe-markdown h6 { font-size: 1.3rem; }
 .safe-markdown p { margin: 1rem 0; }.safe-markdown ul { padding-left: 1.5rem; }.safe-markdown blockquote { margin: 1.5rem 0; padding-left: 1rem; border-left: 2px solid var(--color-accent); color: var(--color-text-muted); }
@@ -64,6 +64,7 @@
 .code-copy-button:hover, .code-copy-button:focus-visible { border-color: var(--color-accent); color: var(--color-accent); }
 .code-copy-button:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 .safe-markdown .shiki, .safe-markdown .mermaid-source { max-width: 100%; overflow: auto; margin: 0; padding: 1rem 0; border: 0; border-radius: 0; color: var(--color-text-main); background: var(--color-code-bg); font: .9rem/1.6 var(--font-mono); white-space: pre; overscroll-behavior-inline: contain; }
+.safe-markdown pre:focus { outline: 2px solid var(--color-accent); outline-offset: -2px; }
 .safe-markdown .shiki .line { display: block; min-width: max-content; min-height: 1.6em; padding-inline: 1rem; }
 .safe-markdown .shiki .line::before { display: inline-block; width: 3rem; margin-right: 1rem; color: var(--color-text-muted); content: attr(data-line); text-align: right; user-select: none; }
 .safe-markdown .shiki .line.is-focused { background: color-mix(in srgb, var(--color-accent) 12%, transparent); }
@@ -73,6 +74,7 @@ html[data-theme='blueprint'] .safe-markdown .shiki span { color: var(--shiki-lig
 .safe-markdown .code-highlight-fallback .line span { color: inherit !important; }
 .safe-markdown .code-highlight-fallback .line.is-focused { background: color-mix(in srgb, var(--color-accent) 12%, transparent); }
 .safe-markdown img { display: block; max-width: 100%; height: auto; margin: 1.5rem 0; border: 1px solid var(--color-border); }
+.safe-markdown .markdown-image-placeholder { margin: 1.5rem 0; padding: .75rem 1rem; border: 1px dashed var(--color-border); color: var(--color-text-muted); font: var(--text-xs)/1.6 var(--font-mono); }
 .article-signal { position: sticky; top: 5rem; display: flex; min-width: 0; flex-direction: column; align-items: flex-start; gap: .75rem; padding-top: 4rem; color: var(--color-text-muted); font: var(--text-xs)/1.5 var(--font-mono); letter-spacing: .08em; }
 .article-signal-track { position: relative; display: block; width: 2px; height: clamp(12rem, 48vh, 30rem); background: var(--color-border); }
 .article-signal-fill { display: block; width: 100%; height: var(--signal-progress); background: var(--color-accent); }
@@ -93,7 +95,7 @@ html[data-theme='blueprint'] .safe-markdown .shiki span { color: var(--shiki-lig
 .safe-markdown .katex-block { display: block; max-width: 100%; margin: 1.75rem 0; overflow-x: auto; padding: .25rem 0; text-align: center; }
 .safe-markdown .katex-error { color: var(--color-warn); font-family: var(--font-mono); font-size: .9em; }
 .safe-markdown .mermaid-figure { margin: 1.75rem 0; border: 1px solid var(--color-border); background: var(--color-code-bg); }
-.safe-markdown .mermaid-caption { display: flex; align-items: center; gap: .75rem; padding: .65rem 1rem; border-bottom: 1px solid var(--color-border); color: var(--color-text-muted); font: var(--text-xs)/1.4 var(--font-mono); letter-spacing: .08em; }
+.safe-markdown .mermaid-caption { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; padding: .65rem 1rem; border-bottom: 1px solid var(--color-border); color: var(--color-text-muted); font: var(--text-xs)/1.4 var(--font-mono); letter-spacing: .08em; }
 .safe-markdown .mermaid-render-button { margin-left: auto; padding: .3rem .55rem; border: 1px solid var(--color-border); color: var(--color-accent); background: transparent; font: inherit; letter-spacing: normal; cursor: pointer; }
 .safe-markdown .mermaid-render-button:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 .safe-markdown .mermaid-source { margin: 0; border: 0; border-radius: 0; }
@@ -109,7 +111,7 @@ html[data-theme='blueprint'] .safe-markdown .shiki span { color: var(--shiki-lig
 .safe-markdown .markdown-callout-title { margin: 0 -1rem 1rem; padding: .65rem 1rem; border-bottom: 1px solid var(--color-border); color: var(--color-text-main); font: var(--text-xs)/1.4 var(--font-mono); letter-spacing: .08em; }
 .safe-markdown .markdown-callout--warning .markdown-callout-title, .safe-markdown .markdown-callout--danger .markdown-callout-title { color: var(--color-warn); }
 .safe-markdown .markdown-table-scroll { max-width: 100%; margin: 1.5rem 0; overflow-x: auto; border: 1px solid var(--color-border); }
-.safe-markdown .markdown-table-scroll:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.safe-markdown .markdown-table-scroll:focus { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 .safe-markdown table { width: 100%; min-width: 32rem; border-collapse: collapse; font-size: .95em; }
 .safe-markdown th, .safe-markdown td { padding: .65rem .8rem; border: 1px solid var(--color-border); text-align: left; vertical-align: top; }
 .safe-markdown th { color: var(--color-accent); font: var(--text-xs)/1.4 var(--font-mono); letter-spacing: .06em; }

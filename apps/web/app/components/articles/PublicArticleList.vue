@@ -2,6 +2,7 @@
 import type { components } from '@haoblog/api-client'
 import { computed } from 'vue'
 import { publicArticlePageUrl } from '../../utils/publicArticlePagination'
+import { useDataSaver } from '../../composables/useDataSaver'
 
 type ArticleList = components['schemas']['ArticleListResponse']
 
@@ -9,6 +10,7 @@ const props = defineProps<{
   result: ArticleList
   page: number
 }>()
+const { enabled: dataSaver } = useDataSaver()
 
 const hasPrevious = computed(() => props.page > 1)
 const hasNext = computed(() => props.page * props.result.size < props.result.total)
@@ -45,7 +47,7 @@ function httpsCoverUrl(value: string | null) {
             <NuxtLink :to="`/articles/${article.slug}`">
               <h2>{{ article.title }}</h2>
             </NuxtLink>
-            <div v-if="httpsCoverUrl(article.coverImageUrl)" class="article-cover-frame">
+            <div v-if="httpsCoverUrl(article.coverImageUrl) && !dataSaver" class="article-cover-frame">
               <img
                 :src="httpsCoverUrl(article.coverImageUrl) || undefined"
                 :alt="`${article.title} 信号缩略图`"

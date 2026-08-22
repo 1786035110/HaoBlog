@@ -193,4 +193,11 @@ $$`)
     const missing = await fetchPublicArticleContent('missing', 'http://api:8080', undefined, vi.fn(async () => new Response(null, { status: 404 })))
     expect(missing.status).toBe(404)
   })
+
+  it('renders a readable image placeholder under Save-Data without an image request', () => {
+    const result = renderPublicArticleMarkdown('![观测封面](https://cdn.example.com/cover.png)', { saveData: true })
+    expect(result.renderedHtml).toContain('markdown-image-placeholder')
+    expect(result.renderedHtml).toContain('图像已按 Save-Data 降级：观测封面')
+    expect(result.renderedHtml).not.toContain('<img')
+  })
 })

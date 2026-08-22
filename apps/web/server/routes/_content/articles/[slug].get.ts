@@ -8,6 +8,8 @@ export default defineEventHandler(async (event) => {
     slug,
     useRuntimeConfig(event).apiBaseUrl,
     getRequestHeader(event, 'if-none-match'),
+    fetch,
+    getRequestHeader(event, 'save-data')?.toLowerCase() === 'on',
   )
   for (const name of ['etag', 'cache-control']) {
     const value = result.headers.get(name)

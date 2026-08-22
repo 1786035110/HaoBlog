@@ -10,7 +10,7 @@
           <span>INDEX</span><span class="dock-glyph" aria-hidden="true">+</span>
         </summary>
         <div class="route-menu" aria-label="真实路由菜单">
-          <NuxtLink v-for="item in routeItems" :key="item.to" :to="item.to" :aria-current="route.path === item.to ? 'page' : undefined">{{ item.label }}</NuxtLink>
+          <NuxtLink v-for="item in routeItems" :key="item.to" :to="item.to" :prefetch="false" :aria-current="route.path === item.to ? 'page' : undefined">{{ item.label }}</NuxtLink>
         </div>
       </details>
       <div class="dock-status">

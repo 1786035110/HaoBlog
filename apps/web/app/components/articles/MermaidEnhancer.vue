@@ -82,7 +82,10 @@ async function renderFigure(figure: HTMLElement) {
 }
 
 function observeFigures() {
-  if (destroyed || saveData.value) return
+  if (destroyed || saveData.value || reduced.value) {
+    figures.forEach(figure => setManualButton(figure, true))
+    return
+  }
   if (!('IntersectionObserver' in window)) {
     figures.forEach(figure => setManualButton(figure, true))
     return
@@ -92,6 +95,10 @@ function observeFigures() {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
         observer?.unobserve(entry.target)
+        if (document.activeElement === entry.target || (entry.target as HTMLElement).querySelector('[data-mermaid-source]') === document.activeElement) {
+          setManualButton(entry.target as HTMLElement, true)
+          return
+        }
         void renderFigure(entry.target as HTMLElement)
       }
     })
@@ -131,7 +138,11 @@ watch(saveData, enabled => {
   }
 })
 
-watch(reduced, updateReducedMotion)
+watch(reduced, enabled => {
+  updateReducedMotion()
+  if (enabled) observer?.disconnect()
+  observeFigures()
+})
 
 onBeforeUnmount(() => {
   destroyed = true

@@ -1,9 +1,11 @@
 import { readdir, readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { gzipSync } from 'node:zlib'
 
 const clientDir = fileURLToPath(new URL('../.output/public/_nuxt', import.meta.url))
-const forbidden = /(?:shiki|@shikijs|oniguruma|vscode-textmate|(?:^|[^a-z])katex(?:[^a-z]|$))/i
+const MAX_INITIAL_GZIP_BYTES = 180 * 1024
+const forbidden = /(?:shiki|@shikijs|oniguruma|vscode-textmate|katex(?:\.render|\.js|\/dist)|mermaid(?:\.core|\/dist)|@mermaid-js|(?:THREE\.|three\/build)|monaco|codemirror|prosemirror)/i
 
 async function collectFiles(directory) {
   const files = []
@@ -38,6 +40,11 @@ try {
   const matches = [...initial].filter(file => forbidden.test(sources.get(file) || ''))
   if (matches.length) throw new Error(`文章客户端初始资源包含服务端 Shiki/KaTeX 依赖：${matches.join(', ')}`)
 
+  const initialGzipBytes = [...initial].reduce((total, file) => total + gzipSync(sources.get(file) || '').byteLength, 0)
+  if (initialGzipBytes > MAX_INITIAL_GZIP_BYTES) {
+    throw new Error(`文章客户端初始 JS 超出 180KB gzip 预算：${initialGzipBytes} bytes`)
+  }
+
   const articleSource = sources.get(articleEntry) || ''
   const mermaidImport = articleSource.match(/(?:startOnLoad|maxTextSize|haoblog-mermaid-)[\s\S]{0,800}?import\(`\.\/([^`]+\.js)`\)/)
   if (!mermaidImport) throw new Error('未发现 Mermaid 动态 import。')
@@ -45,7 +52,7 @@ try {
   if (!mermaidChunk || initial.has(mermaidChunk)) throw new Error('Mermaid 运行时进入了文章客户端初始静态依赖。')
   if (!/mermaid|securityLevel/i.test(sources.get(mermaidChunk) || '')) throw new Error('Mermaid 动态 chunk 内容异常。')
 
-  console.log(`文章客户端包检查通过：静态闭包 ${initial.size} 个 chunk 未包含 Shiki/KaTeX；Mermaid 位于异步 chunk ${mermaidImport[1]}。`)
+  console.log(`文章客户端预算通过：静态闭包 ${initial.size} 个 chunk，${initialGzipBytes} bytes gzip；Mermaid 位于异步 chunk ${mermaidImport[1]}。`)
 } catch (error) {
   if (error?.code === 'ENOENT') throw new Error('未找到构建产物，请先运行 pnpm build。')
   throw error

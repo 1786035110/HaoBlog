@@ -4,6 +4,7 @@ import PublicArticleBody from '~/components/articles/PublicArticleBody.vue'
 import type { PublicArticleContent } from '~/utils/publicArticleContent'
 import { buildPublicArticleJsonLd, buildPublicArticleSeo, buildPublicPageSeo, publicPageHead, serializeJsonLd } from '~/utils/publicArticleSeo'
 import { defaultPublicSite, usePublicSite } from '~/utils/publicSite'
+import { useMotionPreference } from '~/composables/useMotionPreference'
 
 const route = useRoute()
 const config = useRuntimeConfig()
@@ -17,6 +18,7 @@ if (error.value?.statusCode === 404 || (!pending.value && !data.value)) {
 const articleBody = ref<{ rootElement: HTMLElement | null } | null>(null)
 const activeTocId = ref<string | null>(null)
 const { articleProgress } = useScrollProgress()
+const { reduced } = useMotionPreference()
 let headingObserver: IntersectionObserver | null = null
 
 watch(() => data.value?.toc, toc => {
@@ -26,6 +28,7 @@ watch(() => data.value?.toc, toc => {
 function observeHeadings() {
   headingObserver?.disconnect()
   headingObserver = null
+  if (reduced.value) return
   const root = articleBody.value?.rootElement
   if (!root || !data.value?.toc.length || typeof IntersectionObserver === 'undefined') return
   const visible = new Map<Element, number>()
@@ -43,6 +46,7 @@ function observeHeadings() {
 
 onMounted(() => { void nextTick(observeHeadings) })
 watch(() => data.value?.renderedHtml, () => { void nextTick(observeHeadings) })
+watch(reduced, () => { void nextTick(observeHeadings) })
 onBeforeUnmount(() => headingObserver?.disconnect())
 
 const resolvedSite = site.value || defaultPublicSite
