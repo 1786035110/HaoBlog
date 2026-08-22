@@ -73,21 +73,23 @@ public class PublicArticleController {
         }
     }
 
-    public record ArticleSummary(UUID id, String slug, String title, String excerpt, Instant publishedAt, String coverImageUrl) {
+    public record ArticleSummary(UUID id, String slug, String title, String excerpt, Instant publishedAt, String coverImageUrl,
+                                 boolean commentsEnabled) {
         static ArticleSummary from(ArticleService.PublicArticle article, String coverImageUrl) {
             ArticleRevision revision = article.revision();
             return new ArticleSummary(revision.getArticleId(), revision.getSlug(), revision.getTitle(), revision.getExcerpt(),
-                    article.publishedAt(), coverImageUrl);
+                    article.publishedAt(), coverImageUrl, article.commentsEnabled());
         }
     }
     public record ArticleListResponse(List<ArticleSummary> items, int page, int size, long total) {}
     public record ArticleResponse(UUID id, String slug, String title, String excerpt, Instant publishedAt, Instant modifiedAt,
-                                  String markdown, String seoTitle, String seoDescription, String coverImageUrl) {
+                                  String markdown, String seoTitle, String seoDescription, String coverImageUrl,
+                                  boolean commentsEnabled) {
         static ArticleResponse from(ArticleService.PublicArticle article, String coverImageUrl) {
             ArticleRevision revision = article.revision();
             return new ArticleResponse(revision.getArticleId(), revision.getSlug(), revision.getTitle(), revision.getExcerpt(),
                     article.publishedAt(), revision.getCreatedAt(), revision.getMarkdownSource(), revision.getSeoTitle(),
-                    revision.getSeoDescription(), coverImageUrl);
+                    revision.getSeoDescription(), coverImageUrl, article.commentsEnabled());
         }
     }
 }

@@ -137,6 +137,22 @@ paths:
           $ref: '#/components/responses/ArticleNotFound'
         '500':
           $ref: '#/components/responses/InternalError'
+  /api/v1/public/articles/{slug}/comments/form-context:
+    get:
+      operationId: getPublicCommentFormContext
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 160 }
+      responses:
+        '200':
+          description: CSRF token and one-time comment form challenge
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CommentFormContext' }
+        '404':
+          $ref: '#/components/responses/ArticleNotFound'
   /api/v1/public/article-previews/{token}:
     get:
       operationId: getPublicArticlePreview
@@ -686,15 +702,16 @@ components:
   schemas:
     SiteResponse:
       type: object
-      required: [title, description, siteUrl, authorName]
+      required: [title, description, siteUrl, authorName, commentsEnabled]
       properties:
         title: { type: string }
         description: { type: string }
         siteUrl: { type: string, format: uri }
         authorName: { type: string }
+        commentsEnabled: { type: boolean }
     ArticleSummary:
       type: object
-      required: [id, slug, title, excerpt, publishedAt, coverImageUrl]
+      required: [id, slug, title, excerpt, publishedAt, coverImageUrl, commentsEnabled]
       properties:
         id: { type: string, format: uuid }
         slug: { type: string }
@@ -702,6 +719,7 @@ components:
         excerpt: { type: [string, 'null'] }
         publishedAt: { type: string, format: date-time }
         coverImageUrl: { type: [string, 'null'], format: uri }
+        commentsEnabled: { type: boolean }
     ArticleListResponse:
       type: object
       required: [items, page, size, total]
@@ -712,7 +730,7 @@ components:
         total: { type: integer, format: int64 }
     ArticleResponse:
       type: object
-      required: [id, slug, title, excerpt, publishedAt, modifiedAt, markdown, seoTitle, seoDescription, coverImageUrl]
+      required: [id, slug, title, excerpt, publishedAt, modifiedAt, markdown, seoTitle, seoDescription, coverImageUrl, commentsEnabled]
       properties:
         id: { type: string, format: uuid }
         slug: { type: string }
@@ -724,6 +742,15 @@ components:
         seoTitle: { type: [string, 'null'] }
         seoDescription: { type: [string, 'null'] }
         coverImageUrl: { type: [string, 'null'], format: uri }
+        commentsEnabled: { type: boolean }
+    CommentFormContext:
+      type: object
+      required: [csrfToken, challenge, expiresAt, commentsEnabled]
+      properties:
+        csrfToken: { type: string, minLength: 1 }
+        challenge: { type: string, minLength: 43, maxLength: 43 }
+        expiresAt: { type: string, format: date-time }
+        commentsEnabled: { type: boolean }
     ProblemResponse:
       type: object
       required: [code, title, detail, traceId]
@@ -883,7 +910,7 @@ components:
         tagIds: { type: array, items: { type: string, format: uuid } }
     AdminArticleSummary:
       type: object
-      required: [id, title, status, categoryId, updatedAt, version]
+      required: [id, title, status, categoryId, updatedAt, version, commentsEnabled]
       properties:
         id: { type: string, format: uuid }
         slug: { type: [string, 'null'] }
@@ -892,6 +919,7 @@ components:
         categoryId: { type: [string, 'null'], format: uuid }
         updatedAt: { type: string, format: date-time }
         version: { type: integer, format: int64, minimum: 0 }
+        commentsEnabled: { type: boolean }
     AdminArticleListResponse:
       type: object
       required: [items, page, size, total]
@@ -902,7 +930,7 @@ components:
         total: { type: integer, format: int64 }
     AdminArticleResponse:
       type: object
-      required: [id, title, markdown, status, createdAt, updatedAt, version, tagIds]
+      required: [id, title, markdown, status, createdAt, updatedAt, version, tagIds, commentsEnabled]
       properties:
         id: { type: string, format: uuid }
         slug: { type: [string, 'null'] }
@@ -920,6 +948,7 @@ components:
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
         version: { type: integer, format: int64, minimum: 0 }
+        commentsEnabled: { type: boolean }
     MediaUploadRequest:
       type: object
       required: [mimeType, sizeBytes, width, height, sha256]

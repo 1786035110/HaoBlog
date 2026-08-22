@@ -84,6 +84,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/public/articles/{slug}/comments/form-context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getPublicCommentFormContext"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/public/article-previews/{token}": {
         parameters: {
             query?: never;
@@ -444,6 +460,7 @@ export interface components {
             /** Format: uri */
             siteUrl: string;
             authorName: string;
+            commentsEnabled: boolean;
         };
         ArticleSummary: {
             /** Format: uuid */
@@ -455,6 +472,7 @@ export interface components {
             publishedAt: string;
             /** Format: uri */
             coverImageUrl: string | null;
+            commentsEnabled: boolean;
         };
         ArticleListResponse: {
             items: components["schemas"]["ArticleSummary"][];
@@ -478,6 +496,14 @@ export interface components {
             seoDescription: string | null;
             /** Format: uri */
             coverImageUrl: string | null;
+            commentsEnabled: boolean;
+        };
+        CommentFormContext: {
+            csrfToken: string;
+            challenge: string;
+            /** Format: date-time */
+            expiresAt: string;
+            commentsEnabled: boolean;
         };
         ProblemResponse: {
             code: string;
@@ -648,6 +674,7 @@ export interface components {
             updatedAt: string;
             /** Format: int64 */
             version: number;
+            commentsEnabled: boolean;
         };
         AdminArticleListResponse: {
             items: components["schemas"]["AdminArticleSummary"][];
@@ -681,6 +708,7 @@ export interface components {
             updatedAt: string;
             /** Format: int64 */
             version: number;
+            commentsEnabled: boolean;
         };
         MediaUploadRequest: {
             /** @enum {string} */
@@ -1076,6 +1104,29 @@ export interface operations {
             };
             404: components["responses"]["ArticleNotFound"];
             500: components["responses"]["InternalError"];
+        };
+    };
+    getPublicCommentFormContext: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description CSRF token and one-time comment form challenge */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommentFormContext"];
+                };
+            };
+            404: components["responses"]["ArticleNotFound"];
         };
     };
     getPublicArticlePreview: {

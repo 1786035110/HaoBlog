@@ -26,7 +26,7 @@ public class SiteService {
 
     public SiteResult get() {
         var setting = repository.findBySiteKey("default").orElseThrow();
-        return new SiteResult(setting.getTitle(), setting.getDescription(), publicBaseUrl, authorName);
+        return new SiteResult(setting.getTitle(), setting.getDescription(), publicBaseUrl, authorName, setting.isCommentsEnabled());
     }
 
     static String normalizePublicBaseUrl(String raw) {
@@ -47,5 +47,9 @@ public class SiteService {
         return raw.trim().replaceFirst("/+$", "");
     }
 
-    public record SiteResult(String title, String description, String siteUrl, String authorName) {}
+    public record SiteResult(String title, String description, String siteUrl, String authorName, boolean commentsEnabled) {
+        public SiteResult(String title, String description, String siteUrl, String authorName) {
+            this(title, description, siteUrl, authorName, true);
+        }
+    }
 }

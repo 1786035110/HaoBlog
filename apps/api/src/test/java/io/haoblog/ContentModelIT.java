@@ -51,9 +51,9 @@ class ContentModelIT {
 
     @Test
     void migratesAllVersionsAndCreatesContentTables() {
-        assertEquals(9, jdbc.queryForObject("SELECT count(*) FROM flyway_schema_history", Integer.class));
+        assertEquals(10, jdbc.queryForObject("SELECT count(*) FROM flyway_schema_history", Integer.class));
         for (String table : List.of("article", "category", "tag", "article_tag", "article_revision",
-                "article_preview_token", "media_asset", "media_upload", "outbox_event")) {
+                "article_preview_token", "media_asset", "media_upload", "outbox_event", "comment")) {
             assertEquals(1, jdbc.queryForObject(
                     "SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name=?",
                     Integer.class, table));
@@ -62,6 +62,10 @@ class ContentModelIT {
                 "SELECT is_nullable FROM information_schema.columns WHERE table_name='article' AND column_name='slug'", String.class));
         assertEquals("bigint", jdbc.queryForObject(
                 "SELECT data_type FROM information_schema.columns WHERE table_name='article' AND column_name='version'", String.class));
+        assertEquals("boolean", jdbc.queryForObject(
+                "SELECT data_type FROM information_schema.columns WHERE table_name='article' AND column_name='comments_enabled'", String.class));
+        assertEquals("boolean", jdbc.queryForObject(
+                "SELECT data_type FROM information_schema.columns WHERE table_name='site_setting' AND column_name='comments_enabled'", String.class));
     }
 
     @Test

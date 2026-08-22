@@ -30,7 +30,7 @@ public interface ArticleRevisionRepository extends JpaRepository<ArticleRevision
     Optional<ArticleRevision> findByIdAndArticleId(UUID id, UUID articleId);
 
     @Query("""
-            select r as revision, a.publishedAt as publishedAt
+            select r as revision, a.publishedAt as publishedAt, a.commentsEnabled as commentsEnabled
             from ArticleRevision r, Article a
             where r.id = a.publishedRevisionId
               and a.status in (:published, :scheduled)
@@ -45,7 +45,7 @@ public interface ArticleRevisionRepository extends JpaRepository<ArticleRevision
                                               Pageable pageable);
 
     @Query("""
-            select r as revision, a.publishedAt as publishedAt
+            select r as revision, a.publishedAt as publishedAt, a.commentsEnabled as commentsEnabled
             from ArticleRevision r, Article a
             where r.id = a.publishedRevisionId
               and a.status = :published
@@ -59,7 +59,7 @@ public interface ArticleRevisionRepository extends JpaRepository<ArticleRevision
                                                 Pageable pageable);
 
     @Query("""
-            select r as revision, a.publishedAt as publishedAt
+            select r as revision, a.publishedAt as publishedAt, a.commentsEnabled as commentsEnabled
             from ArticleRevision r, Article a
             where r.id = a.publishedRevisionId
               and r.slug = :slug
@@ -92,6 +92,7 @@ public interface ArticleRevisionRepository extends JpaRepository<ArticleRevision
     interface PublicArticleProjection {
         ArticleRevision getRevision();
         java.time.Instant getPublishedAt();
+        boolean getCommentsEnabled();
     }
 
     interface SummaryProjection {

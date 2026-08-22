@@ -55,7 +55,7 @@ public class ArticleService {
                 .collect(Collectors.toUnmodifiableMap(MediaAsset::getId, MediaAsset::getPublicUrl));
     }
     private PublicArticle toPublicArticle(ArticleRevisionRepository.PublicArticleProjection projection) {
-        return new PublicArticle(projection.getRevision(), projection.getPublishedAt());
+        return new PublicArticle(projection.getRevision(), projection.getPublishedAt(), projection.getCommentsEnabled());
     }
 
     private PublicFeedArticle toPublicFeedArticle(ArticleRevisionRepository.PublicArticleProjection projection) {
@@ -64,7 +64,15 @@ public class ArticleService {
                 revision.getExcerpt(), projection.getPublishedAt());
     }
 
-    public record PublicArticle(ArticleRevision revision, java.time.Instant publishedAt) {}
+    public record PublicArticle(ArticleRevision revision, java.time.Instant publishedAt, boolean commentsEnabled) {
+        public PublicArticle(ArticleRevision revision, java.time.Instant publishedAt) {
+            this(revision, publishedAt, true);
+        }
+
+        public UUID articleId() {
+            return revision.getArticleId();
+        }
+    }
     public record PageResult(Page<PublicArticle> page) {}
     public record PublishedBatch(List<PublicFeedArticle> items, boolean hasNext) {}
     public record PublicFeedArticle(UUID id, String slug, String title, String excerpt, java.time.Instant publishedAt) {}

@@ -74,3 +74,5 @@ haoblog:
       public-base-url: ${HAOBLOG_OSS_PUBLIC_BASE_URL:}
       max-size-bytes: ${HAOBLOG_OSS_MAX_SIZE_BYTES:5242880}
       max-dimension: ${HAOBLOG_OSS_MAX_DIMENSION:2560}
+  comment:
+    security-key: ${HAOBLOG_COMMENT_SECURITY_KEY:}

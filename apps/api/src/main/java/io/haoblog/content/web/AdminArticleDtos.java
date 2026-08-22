@@ -42,11 +42,11 @@ public final class AdminArticleDtos {
 
     public record Summary(UUID id, String slug, String title, ArticleStatus status,
                           UUID categoryId,
-                          Instant updatedAt, long version) {
+                          Instant updatedAt, long version, boolean commentsEnabled) {
         static Summary from(Article article) {
             return new Summary(article.getId(), article.getSlug(), article.getTitle(), article.getStatus(),
                     article.getCategoryId(),
-                    article.getUpdatedAt(), article.getVersion());
+                    article.getUpdatedAt(), article.getVersion(), article.isCommentsEnabled());
         }
     }
 
@@ -54,13 +54,13 @@ public final class AdminArticleDtos {
                            ArticleStatus status, Instant publishedAt, Instant scheduledAt,
                            String seoTitle, String seoDescription, UUID categoryId,
                            UUID coverMediaId, List<UUID> tagIds, Instant createdAt,
-                           Instant updatedAt, long version) {
+                           Instant updatedAt, long version, boolean commentsEnabled) {
         static Response from(Article article) {
             return new Response(article.getId(), article.getSlug(), article.getTitle(), article.getExcerpt(),
                     article.getMarkdownSource(), article.getStatus(), article.getPublishedAt(), article.getScheduledAt(),
                     article.getSeoTitle(), article.getSeoDescription(), article.getCategoryId(), article.getCoverMediaId(),
                     article.getTags().stream().map(tag -> tag.getId()).toList(), article.getCreatedAt(),
-                    article.getUpdatedAt(), article.getVersion());
+                    article.getUpdatedAt(), article.getVersion(), article.isCommentsEnabled());
         }
     }
 }

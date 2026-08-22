@@ -7,6 +7,7 @@ export const defaultPublicSite: PublicSite = {
   description: '极夜观测站',
   siteUrl: 'http://localhost:3000',
   authorName: 'Hao',
+  commentsEnabled: true,
 }
 
 export function usePublicSite() {
