@@ -1,0 +1,31 @@
+{$HAOBLOG_DOMAIN} {
+
+encode gzip
+
+handle /actuator {
+    respond 404
+}
+
+handle /actuator/* {
+    respond 404
+}
+
+handle /rss.xml {
+    reverse_proxy api:8080
+}
+
+handle /sitemap.xml {
+    reverse_proxy api:8080
+}
+
+handle /api {
+    reverse_proxy api:8080
+}
+
+handle /api/* {
+    reverse_proxy api:8080
+}
+
+handle {
+    reverse_proxy web:3000
+}

@@ -12,8 +12,21 @@ spring:
     open-in-view: false
     hibernate:
       ddl-auto: validate
+  task:
+    scheduling:
+      pool:
+        size: 1
   flyway:
     enabled: true
+    placeholders:
+      admin_username: ${HAOBLOG_ADMIN_USERNAME}
+      admin_password_hash: ${HAOBLOG_ADMIN_PASSWORD_HASH}
+  session:
+    store-type: jdbc
+    timeout: 8h
+    jdbc:
+      initialize-schema: never
+      table-name: SPRING_SESSION
   config:
     import: optional:classpath:application-local.yml
   mvc:
@@ -28,9 +41,36 @@ management:
       show-details: never
 server:
   port: ${API_PORT:8080}
+  tomcat:
+    threads:
+      max: ${SERVER_TOMCAT_THREADS_MAX:20}
+  servlet:
+    session:
+      timeout: 8h
+      cookie:
+        name: HAOBLOG_SESSION
+        http-only: true
+        same-site: lax
+        secure: ${HAOBLOG_SESSION_COOKIE_SECURE:false}
   error:
     whitelabel:
       enabled: false
 haoblog:
+  site:
+    public-base-url: ${HAOBLOG_PUBLIC_BASE_URL:http://localhost:3000}
+    author-name: ${HAOBLOG_AUTHOR_NAME:Hao}
+  security:
+    session-cookie-secure: ${HAOBLOG_SESSION_COOKIE_SECURE:false}
   seed:
     enabled: ${HAOBLOG_SEED_ENABLED:false}
+  media:
+    oss:
+      enabled: ${HAOBLOG_OSS_ENABLED:false}
+      bucket: ${HAOBLOG_OSS_BUCKET:}
+      region: ${HAOBLOG_OSS_REGION:}
+      endpoint: ${HAOBLOG_OSS_ENDPOINT:}
+      access-key-id: ${HAOBLOG_OSS_ACCESS_KEY_ID:}
+      access-key-secret: ${HAOBLOG_OSS_ACCESS_KEY_SECRET:}
+      public-base-url: ${HAOBLOG_OSS_PUBLIC_BASE_URL:}
+      max-size-bytes: ${HAOBLOG_OSS_MAX_SIZE_BYTES:5242880}
+      max-dimension: ${HAOBLOG_OSS_MAX_DIMENSION:2560}

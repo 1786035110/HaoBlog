@@ -9,4 +9,5 @@
 
 <script setup lang="ts">
 defineProps<{ error: { statusCode?: number; statusMessage?: string } }>()
+useHead({ meta: [{ name: 'robots', content: 'noindex,nofollow' }] })
 </script>

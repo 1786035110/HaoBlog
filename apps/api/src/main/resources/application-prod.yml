@@ -1,0 +1,12 @@
+server:
+  forward-headers-strategy: framework
+  servlet:
+    session:
+      cookie:
+        secure: true
+
+haoblog:
+  site:
+    public-base-url: ${HAOBLOG_PUBLIC_BASE_URL}
+  security:
+    session-cookie-secure: true

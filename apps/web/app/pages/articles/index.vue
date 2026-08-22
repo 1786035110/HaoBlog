@@ -1,10 +1,34 @@
 <script setup lang="ts">
 import type { components } from '@haoblog/api-client'
+import PublicArticleList from '~/components/articles/PublicArticleList.vue'
+import { buildPublicPageSeo, publicPageHead } from '~/utils/publicArticleSeo'
+import { isPublicArticlePageOutOfRange, parsePublicArticlePage } from '~/utils/publicArticlePagination'
+import { defaultPublicSite, usePublicSite } from '~/utils/publicSite'
 
 type ArticleList = components['schemas']['ArticleListResponse']
-const { data, pending, error } = await usePublicApi<ArticleList>('/api/v1/public/articles')
-const items = computed(() => data.value?.items ?? [])
-const formatDate = (value: string) => new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(value))
+const route = useRoute()
+const parsedPage = parsePublicArticlePage(route.query.page)
+
+if (!parsedPage) {
+  throw createError({ statusCode: 404, statusMessage: 'Article page not found', fatal: true })
+}
+if (parsedPage.canonical) {
+  await navigateTo('/articles', { redirectCode: 301 })
+}
+
+const page = parsedPage.page
+const pageSize = 20
+const [{ data: site }, { data, pending, error }] = await Promise.all([
+  usePublicSite(),
+  usePublicApi<ArticleList>('/api/v1/public/articles', { query: { page: page - 1, size: pageSize } }),
+])
+
+if (!pending.value && !error.value && data.value && isPublicArticlePageOutOfRange(page, data.value)) {
+  throw createError({ statusCode: 404, statusMessage: 'Article page not found', fatal: true })
+}
+
+const resolvedSite = site.value || defaultPublicSite
+useHead(() => publicPageHead(buildPublicPageSeo(resolvedSite, page === 1 ? '/articles' : `/articles?page=${page}`, `文章观测日志 · ${resolvedSite.title}`, '沿着时间线阅读正在演化的技术记录。')))
 </script>
 
 <template>
@@ -12,17 +36,9 @@ const formatDate = (value: string) => new Intl.DateTimeFormat('zh-CN', { year: '
     <p class="instrument-label">OBSERVATION LOG / ARTICLES</p>
     <h1 id="articles-title">文章观测日志</h1>
     <p class="signal-copy">沿着时间线阅读正在演化的技术记录。</p>
+    <p class="index-note"><span class="status-light" aria-hidden="true" /> 按发布时间排列 / PUBLIC SIGNALS ONLY</p>
     <p v-if="pending" class="signal-note" role="status">正在接收文章信号…</p>
     <p v-else-if="error" class="signal-note" role="alert">文章信号暂时不可用，请稍后重试。</p>
-    <p v-else-if="items.length === 0" class="signal-note">当前没有已锁定的公开文章。</p>
-    <ol v-else class="observation-timeline">
-      <li v-for="article in items" :key="article.id" class="observation-entry">
-        <time :datetime="article.publishedAt">{{ formatDate(article.publishedAt) }}</time>
-        <div>
-          <NuxtLink :to="`/articles/${article.slug}`"><h2>{{ article.title }}</h2></NuxtLink>
-          <p>{{ article.excerpt || '暂无摘要。' }}</p>
-        </div>
-      </li>
-    </ol>
+    <PublicArticleList v-else-if="data" :result="data" :page="page" />
   </section>
 </template>

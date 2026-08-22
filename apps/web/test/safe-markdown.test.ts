@@ -17,6 +17,13 @@ describe('SafeMarkdown', () => {
     expect(wrapper.text()).toContain('javascript:alert(1)')
   })
 
+  it('renders HTTPS images with lazy loading and keeps non-HTTPS images inert', () => {
+    const wrapper = mount(SafeMarkdown, { props: { markdown: '![observatory](https://cdn.example.test/photo.webp)\n\n![bad](data:image/png;base64,boom)' } })
+    expect(wrapper.findAll('img')).toHaveLength(1)
+    expect(wrapper.find('img').attributes()).toMatchObject({ src: 'https://cdn.example.test/photo.webp', alt: 'observatory', loading: 'lazy' })
+    expect(wrapper.text()).toContain('data:image/png;base64,boom')
+  })
+
   it('renders an unclosed code fence and unique heading ids', () => {
     const wrapper = mount(SafeMarkdown, { props: { markdown: '## Repeat\n\n## Repeat\n\n```ts\nconst answer = 42' } })
     expect(wrapper.findAll('h2').map(node => node.attributes('id'))).toEqual(['repeat', 'repeat-2'])

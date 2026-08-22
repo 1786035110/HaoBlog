@@ -11,9 +11,17 @@ export default defineNuxtConfig({
     },
   },
   routeRules: {
-    '/studio/**': { ssr: false },
+    '/studio': { ssr: false, headers: { 'x-robots-tag': 'noindex, nofollow' } },
+    '/studio/**': { ssr: false, headers: { 'x-robots-tag': 'noindex, nofollow' } },
+    // 阅读页按请求头输出 Save-Data 降级结果，不能使用忽略请求头的整页缓存。
+    '/articles': { cache: false },
+    '/articles/**': { cache: false },
+    '/article-previews/**': { cache: false, headers: { 'cache-control': 'no-store', 'referrer-policy': 'no-referrer', 'x-robots-tag': 'noindex, nofollow' } },
+    '/garden': { headers: { 'x-robots-tag': 'noindex, nofollow' } },
+    '/tools': { headers: { 'x-robots-tag': 'noindex, nofollow' } },
   },
   nitro: {
+    compressPublicAssets: true,
     devProxy: {
       '/api/': {
         target: `${process.env.NUXT_API_BASE_URL || 'http://localhost:8080'}/api/`,

@@ -1,7 +1,19 @@
+import { onBeforeUnmount, onMounted, readonly, ref } from 'vue'
+
 export function useDataSaver() {
-  const enabled = ref(false)
+  const requestEvent = import.meta.server && typeof useRequestEvent === 'function' ? useRequestEvent() : undefined
+  const initialSaveData = import.meta.server
+    && requestEvent
+    && typeof requestEvent.node.req.headers['save-data'] === 'string'
+    && requestEvent.node.req.headers['save-data'].toLowerCase() === 'on'
+  const enabled = typeof useState === 'function'
+    ? useState('haoblog-save-data', () => initialSaveData)
+    : ref(false)
+  const serverEnabled = enabled.value
   let connection: (EventTarget & { saveData?: boolean }) | undefined
-  const update = () => { enabled.value = connection?.saveData === true }
+  const update = () => {
+    if (typeof connection?.saveData === 'boolean') enabled.value = serverEnabled || connection.saveData
+  }
   onMounted(() => {
     connection = (navigator as Navigator & { connection?: EventTarget & { saveData?: boolean } }).connection
     update()

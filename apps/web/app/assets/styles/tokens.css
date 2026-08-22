@@ -2,12 +2,17 @@
   color-scheme: dark;
   --color-bg-base: #06110f;
   --color-bg-sub: #0b1b17;
+  --color-surface-quiet: #0a1713;
   --color-border: #1e3a33;
+  --color-border-soft: rgba(168, 255, 96, .14);
+  --color-track: rgba(168, 255, 96, .08);
+  --color-grid: rgba(168, 255, 96, .035);
   --color-accent: #a8ff60;
   --color-warn: #ff9d3d;
   --color-text-muted: #8db7ac;
   --color-text-main: #e8f1ee;
   --color-code-bg: #0a1a16;
+  --color-accent-ink: #06110f;
   --font-body: "PingFang SC", "HarmonyOS Sans", "Source Han Sans", system-ui, sans-serif;
   --font-display: "Dagros", "Horizon Type", "Inter Tight", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
@@ -35,10 +40,15 @@ html[data-theme='blueprint'] {
   color-scheme: light;
   --color-bg-base: #ede7da;
   --color-bg-sub: #fff;
+  --color-surface-quiet: #e5ded0;
   --color-border: #1f2a3a;
+  --color-border-soft: rgba(46, 92, 110, .24);
+  --color-track: rgba(46, 92, 110, .16);
+  --color-grid: rgba(31, 42, 58, .08);
   --color-accent: #2e5c6e;
   --color-warn: #b7372f;
   --color-text-muted: #5b6b7a;
   --color-text-main: #16202e;
   --color-code-bg: #fff;
+  --color-accent-ink: #fff;
 }

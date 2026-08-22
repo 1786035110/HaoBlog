@@ -5,22 +5,42 @@
   "scripts": {
     "dev": "nuxt dev",
     "build": "nuxt build",
+    "check:article-bundle": "node scripts/check-article-client-bundle.mjs",
+    "check:article-budget": "node scripts/check-article-client-bundle.mjs",
+    "lighthouse": "lhci autorun --config=lighthouserc.cjs",
     "typecheck": "nuxt prepare && vue-tsc -b --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@haoblog/api-client": "workspace:*",
+    "@mdit/plugin-container": "2.0.0",
+    "@mdit/plugin-footnote": "1.1.0",
+    "@mdit/plugin-katex": "1.1.0",
+    "@mdit/plugin-tasklist": "1.1.0",
     "@pinia/nuxt": "0.11.2",
+    "@shikijs/langs": "4.4.3",
+    "@shikijs/themes": "4.4.3",
     "@unocss/nuxt": "66.4.2",
+    "diff": "8.0.4",
+    "katex": "0.18.4",
+    "markdown-it": "15.0.0",
+    "mermaid": "11.17.0",
     "nuxt": "4.5.1",
     "pinia": "3.0.3",
+    "sanitize-html": "2.17.7",
+    "shiki": "4.4.3",
     "vue": "3.5.18"
   },
   "devDependencies": {
+    "@lhci/cli": "0.15.1",
+    "@playwright/test": "1.62.1",
+    "@types/sanitize-html": "2.16.0",
     "@vitejs/plugin-vue": "6.0.8",
     "@vue/test-utils": "2.4.6",
     "happy-dom": "18.0.1",
     "oxc-parser": "0.142.0",
+    "tslib": "2.8.1",
     "typescript": "5.9.2",
     "vitest": "3.2.4",
     "vue-tsc": "3.0.6"

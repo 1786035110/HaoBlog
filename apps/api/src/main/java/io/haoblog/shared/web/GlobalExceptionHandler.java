@@ -1,10 +1,10 @@
 package io.haoblog.shared.web;
 
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -16,34 +16,49 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import java.util.Set;
+
 @RestControllerAdvice
 public class GlobalExceptionHandler {
     private static final Logger LOG = LoggerFactory.getLogger(GlobalExceptionHandler.class);
-    private static final MediaType PROBLEM = MediaType.valueOf("application/problem+json");
+    private final ProblemResponseWriter problemResponseWriter;
+
+    public GlobalExceptionHandler(ProblemResponseWriter problemResponseWriter) {
+        this.problemResponseWriter = problemResponseWriter;
+    }
 
     @ExceptionHandler({MethodArgumentNotValidException.class, HandlerMethodValidationException.class,
             MethodArgumentTypeMismatchException.class, MissingServletRequestParameterException.class,
             HttpMessageNotReadableException.class, IllegalArgumentException.class})
     ResponseEntity<ProblemResponse> badRequest(Exception exception) {
-        return response(HttpStatus.BAD_REQUEST, "BAD_REQUEST", "Invalid request", "Request parameters are invalid");
+        return problemResponseWriter.response(HttpStatus.BAD_REQUEST, "BAD_REQUEST", "Invalid request", "Request parameters are invalid");
+    }
+
+    @ExceptionHandler(ProblemException.class)
+    ResponseEntity<ProblemResponse> content(ProblemException exception) {
+        HttpStatus status = "MEDIA_STORAGE_UNAVAILABLE".equals(exception.getCode()) ? HttpStatus.SERVICE_UNAVAILABLE :
+                exception.getCode().endsWith("_NOT_FOUND") ? HttpStatus.NOT_FOUND :
+                (Set.of("ARTICLE_PREVIEW_GONE", "MEDIA_UPLOAD_EXPIRED").contains(exception.getCode()) ? HttpStatus.GONE :
+                        (exception.getCode().contains("CONFLICT") || exception.getCode().endsWith("_IN_USE")
+                                ? HttpStatus.CONFLICT : HttpStatus.BAD_REQUEST));
+        return problemResponseWriter.response(status, exception.getCode(), exception.getTitle(), exception.getMessage(),
+                exception.getCurrentVersion());
+    }
+
+
+    @ExceptionHandler(OptimisticLockingFailureException.class)
+    ResponseEntity<ProblemResponse> optimisticLock(OptimisticLockingFailureException exception) {
+        return problemResponseWriter.response(HttpStatus.CONFLICT, "ARTICLE_VERSION_CONFLICT", "Article version conflict", "Reload the latest article before saving");
     }
 
     @ExceptionHandler({NoResourceFoundException.class, NoHandlerFoundException.class})
     ResponseEntity<ProblemResponse> notFound(NoResourceFoundException exception) {
-        return response(HttpStatus.NOT_FOUND, "NOT_FOUND", "Resource not found", null);
+        return problemResponseWriter.response(HttpStatus.NOT_FOUND, "NOT_FOUND", "Resource not found", null);
     }
 
     @ExceptionHandler(Exception.class)
     ResponseEntity<ProblemResponse> unexpected(Exception exception) {
         LOG.error("Unhandled request failure traceId={}", MDC.get("traceId"), exception);
-        return response(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "An unexpected error occurred", null);
-    }
-
-    private ResponseEntity<ProblemResponse> response(HttpStatus status, String code, String title, String detail) {
-        String traceId = MDC.get("traceId");
-        String safeDetail = status == HttpStatus.INTERNAL_SERVER_ERROR ? "An unexpected error occurred" :
-                (detail == null || detail.isBlank() ? title : detail);
-        return ResponseEntity.status(status).contentType(PROBLEM)
-                .body(new ProblemResponse(code, title, safeDetail, traceId));
+        return problemResponseWriter.response(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "An unexpected error occurred", null);
     }
 }

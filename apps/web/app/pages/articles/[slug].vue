@@ -1,14 +1,64 @@
 <script setup lang="ts">
-import type { components } from '@haoblog/api-client'
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import PublicArticleBody from '~/components/articles/PublicArticleBody.vue'
+import type { PublicArticleContent } from '~/utils/publicArticleContent'
+import { buildPublicArticleJsonLd, buildPublicArticleSeo, buildPublicPageSeo, publicPageHead, serializeJsonLd } from '~/utils/publicArticleSeo'
+import { defaultPublicSite, usePublicSite } from '~/utils/publicSite'
+import { useMotionPreference } from '~/composables/useMotionPreference'
 
-type Article = components['schemas']['ArticleResponse']
 const route = useRoute()
-const { data, pending, error } = await usePublicApi<Article>(`/api/v1/public/articles/${encodeURIComponent(String(route.params.slug))}`)
+const config = useRuntimeConfig()
+const [{ data, pending, error }, { data: site }] = await Promise.all([
+  usePublicApi<PublicArticleContent>(`/_content/articles/${encodeURIComponent(String(route.params.slug))}`, { baseURL: config.public.apiBase }),
+  usePublicSite(),
+])
 if (error.value?.statusCode === 404 || (!pending.value && !data.value)) {
   throw createError({ statusCode: 404, statusMessage: 'Article not found', fatal: true })
 }
-const formatDate = (value: string) => new Intl.DateTimeFormat('zh-CN', { dateStyle: 'long' }).format(new Date(value))
-useHead(() => data.value ? { title: data.value.title, meta: [{ name: 'description', content: data.value.excerpt || data.value.title }] } : {})
+const articleBody = ref<{ rootElement: HTMLElement | null } | null>(null)
+const activeTocId = ref<string | null>(null)
+const { articleProgress } = useScrollProgress()
+const { reduced } = useMotionPreference()
+let headingObserver: IntersectionObserver | null = null
+
+watch(() => data.value?.toc, toc => {
+  activeTocId.value = toc?.[0]?.id ?? null
+}, { immediate: true })
+
+function observeHeadings() {
+  headingObserver?.disconnect()
+  headingObserver = null
+  if (reduced.value) return
+  const root = articleBody.value?.rootElement
+  if (!root || !data.value?.toc.length || typeof IntersectionObserver === 'undefined') return
+  const visible = new Map<Element, number>()
+  headingObserver = new IntersectionObserver(entries => {
+    for (const entry of entries) {
+      if (entry.isIntersecting) visible.set(entry.target, entry.boundingClientRect.top)
+      else visible.delete(entry.target)
+    }
+    const current = [...visible.entries()].sort((left, right) => left[1] - right[1])[0]?.[0]
+    const id = current instanceof HTMLElement ? current.id : undefined
+    if (id) activeTocId.value = id
+  }, { rootMargin: '-12% 0px -70% 0px', threshold: [0, 1] })
+  root.querySelectorAll('h2, h3').forEach(heading => headingObserver?.observe(heading))
+}
+
+onMounted(() => { void nextTick(observeHeadings) })
+watch(() => data.value?.renderedHtml, () => { void nextTick(observeHeadings) })
+watch(reduced, () => { void nextTick(observeHeadings) })
+onBeforeUnmount(() => headingObserver?.disconnect())
+
+const resolvedSite = site.value || defaultPublicSite
+useHead(() => {
+  if (!data.value) return {}
+  const seo = buildPublicArticleSeo(data.value.article, resolvedSite.siteUrl)
+  const pageSeo = buildPublicPageSeo(resolvedSite, `/articles/${encodeURIComponent(data.value.article.slug)}`, seo.title, seo.description, 'article')
+  return {
+    ...publicPageHead({ ...pageSeo, image: seo.image }),
+    script: [{ type: 'application/ld+json', children: serializeJsonLd(buildPublicArticleJsonLd(resolvedSite, data.value.article)) }],
+  }
+})
 </script>
 
 <template>
@@ -16,15 +66,24 @@ useHead(() => data.value ? { title: data.value.title, meta: [{ name: 'descriptio
     <p v-if="pending" class="signal-note" role="status">正在锁定文章信号…</p>
     <p v-else-if="error" class="signal-note" role="alert">文章信号暂时不可用。</p>
     <template v-else-if="data">
-      <aside class="article-signal" aria-label="阅读进度">SIGNAL / READ</aside>
-      <article class="article-reading">
-        <p class="instrument-label">SIGNAL / ARTICLE</p>
-        <h1 id="article-title">{{ data.title }}</h1>
-        <p class="article-meta"><time :datetime="data.publishedAt">{{ formatDate(data.publishedAt) }}</time></p>
-        <p v-if="data.excerpt" class="article-excerpt">{{ data.excerpt }}</p>
-        <SafeMarkdown :markdown="data.markdown" />
-      </article>
-      <aside class="article-toc" aria-label="文章航标"><span>TOC / NAV</span><p>正文结构将在后续内容阶段增强。</p></aside>
+      <aside class="article-signal" aria-label="文章阅读进度">
+        <span class="article-signal-label">SIGNAL / READ</span>
+        <span class="article-signal-track" role="progressbar" aria-label="文章阅读进度" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="Math.round(articleProgress * 100)" :aria-valuetext="`已阅读 ${Math.round(articleProgress * 100)}%`">
+          <span class="article-signal-fill" :style="{ '--signal-progress': `${Math.round(articleProgress * 100)}%` }" />
+        </span>
+        <span class="article-signal-value">{{ Math.round(articleProgress * 100) }}%</span>
+      </aside>
+      <PublicArticleBody ref="articleBody" :content="data" />
+      <nav v-if="data.toc.length" class="article-toc" aria-label="文章航标">
+        <details open>
+          <summary>TOC / NAV <span aria-hidden="true">{{ data.toc.length }}</span></summary>
+          <ol>
+            <li v-for="item in data.toc" :key="item.id" :data-level="item.level">
+              <a :class="{ 'is-current': activeTocId === item.id }" :href="`#${item.id}`" :aria-current="activeTocId === item.id ? 'location' : undefined">{{ item.label }}</a>
+            </li>
+          </ol>
+        </details>
+      </nav>
     </template>
   </section>
 </template>

@@ -1,33 +1,71 @@
 package io.haoblog.content.application;
 
+import io.haoblog.content.domain.ArticleRevision;
 import io.haoblog.content.domain.ArticleStatus;
-import io.haoblog.content.domain.Article;
-import io.haoblog.content.persistence.ArticleRepository;
+import io.haoblog.content.persistence.ArticleRevisionRepository;
+import io.haoblog.media.domain.MediaAsset;
+import io.haoblog.media.domain.MediaAssetStatus;
+import io.haoblog.media.persistence.MediaAssetRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.time.Clock;
-import java.time.Instant;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class ArticleService {
-    private final ArticleRepository repository;
+    private final ArticleRevisionRepository repository;
+    private final MediaAssetRepository mediaRepository;
     private final Clock clock;
-    public ArticleService(ArticleRepository repository, Clock clock) { this.repository = repository; this.clock = clock; }
+    public ArticleService(ArticleRevisionRepository repository, MediaAssetRepository mediaRepository, Clock clock) {
+        this.repository = repository;
+        this.mediaRepository = mediaRepository;
+        this.clock = clock;
+    }
     public PageResult list(int page, int size) {
         if (page < 0 || size < 1 || size > 50) throw new IllegalArgumentException("page/size out of range");
-        var pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "publishedAt").and(Sort.by(Sort.Direction.DESC, "id")));
-        Page<io.haoblog.content.domain.Article> result = repository.findByStatusAndPublishedAtIsNotNullAndPublishedAtLessThanEqual(
-                ArticleStatus.PUBLISHED, Instant.now(clock), pageable);
-        return new PageResult(result);
+        var pageable = PageRequest.of(page, size);
+        Page<ArticleRevisionRepository.PublicArticleProjection> result = repository.findVisible(
+                ArticleStatus.PUBLISHED, ArticleStatus.SCHEDULED, java.time.Instant.now(clock), pageable);
+        return new PageResult(result.map(this::toPublicArticle));
     }
-    public Optional<Article> findPublicBySlug(String slug) {
+    public Optional<PublicArticle> findPublicBySlug(String slug) {
         if (slug == null || slug.isBlank()) return Optional.empty();
-        return repository.findBySlugAndStatusAndPublishedAtIsNotNullAndPublishedAtLessThanEqual(
-                slug, ArticleStatus.PUBLISHED, Instant.now(clock));
+        return repository.findVisibleBySlug(slug, ArticleStatus.PUBLISHED, ArticleStatus.SCHEDULED,
+                        java.time.Instant.now(clock))
+                .map(this::toPublicArticle);
     }
-    public record PageResult(Page<io.haoblog.content.domain.Article> page) {}
+
+    public PublishedBatch listPublishedBatch(int page, int size) {
+        if (page < 0 || size < 1 || size > 500) throw new IllegalArgumentException("page/size out of range");
+        var result = repository.findPublished(ArticleStatus.PUBLISHED, java.time.Instant.now(clock), PageRequest.of(page, size));
+        return new PublishedBatch(result.getContent().stream().map(this::toPublicFeedArticle).toList(), result.hasNext());
+    }
+    public Map<UUID, String> publicCoverUrls(Collection<UUID> mediaIds) {
+        if (mediaIds == null || mediaIds.isEmpty()) return Map.of();
+        return mediaRepository.findAllByIdInAndStatus(mediaIds, MediaAssetStatus.AVAILABLE).stream()
+                .filter(asset -> asset.getMimeType() != null && asset.getMimeType().toLowerCase().startsWith("image/"))
+                .filter(asset -> asset.getPublicUrl() != null && !asset.getPublicUrl().isBlank())
+                .collect(Collectors.toUnmodifiableMap(MediaAsset::getId, MediaAsset::getPublicUrl));
+    }
+    private PublicArticle toPublicArticle(ArticleRevisionRepository.PublicArticleProjection projection) {
+        return new PublicArticle(projection.getRevision(), projection.getPublishedAt());
+    }
+
+    private PublicFeedArticle toPublicFeedArticle(ArticleRevisionRepository.PublicArticleProjection projection) {
+        var revision = projection.getRevision();
+        return new PublicFeedArticle(revision.getArticleId(), revision.getSlug(), revision.getTitle(),
+                revision.getExcerpt(), projection.getPublishedAt());
+    }
+
+    public record PublicArticle(ArticleRevision revision, java.time.Instant publishedAt) {}
+    public record PageResult(Page<PublicArticle> page) {}
+    public record PublishedBatch(List<PublicFeedArticle> items, boolean hasNext) {}
+    public record PublicFeedArticle(UUID id, String slug, String title, String excerpt, java.time.Instant publishedAt) {}
 }

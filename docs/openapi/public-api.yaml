@@ -1,20 +1,82 @@
 openapi: 3.1.0
 info:
-  title: HaoBlog Public API
+  title: HaoBlog API
   version: 0.1.0
 servers:
   - url: /
 paths:
+  /rss.xml:
+    get:
+      operationId: getRssFeed
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: RSS 2.0 feed of the latest public articles
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+            Cache-Control:
+              description: Short shared-cache policy
+              schema: { type: string }
+          content:
+            application/rss+xml:
+              schema: { type: string }
+        '304':
+          description: RSS feed has not changed
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+            Cache-Control:
+              description: Short shared-cache policy
+              schema: { type: string }
+  /sitemap.xml:
+    get:
+      operationId: getSitemap
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: Sitemap of public site pages and articles
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+            Cache-Control:
+              description: Short shared-cache policy
+              schema: { type: string }
+          content:
+            application/xml:
+              schema: { type: string }
+        '304':
+          description: Sitemap has not changed
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+            Cache-Control:
+              description: Short shared-cache policy
+              schema: { type: string }
   /api/v1/public/site:
     get:
       operationId: getPublicSite
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
       responses:
         '200':
           description: Site settings
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            Cache-Control: { schema: { type: string } }
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/SiteResponse'
+        '304':
+          description: Site representation has not changed
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            Cache-Control: { schema: { type: string } }
         '500':
           $ref: '#/components/responses/InternalError'
   /api/v1/public/articles:
@@ -27,13 +89,22 @@ paths:
         - name: size
           in: query
           schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+        - $ref: '#/components/parameters/IfNoneMatch'
       responses:
         '200':
           description: Published articles
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            Cache-Control: { schema: { type: string } }
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ArticleListResponse'
+        '304':
+          description: Public article list representation has not changed
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            Cache-Control: { schema: { type: string } }
         '400':
           $ref: '#/components/responses/BadRequest'
         '500':
@@ -46,22 +117,497 @@ paths:
           in: path
           required: true
           schema: { type: string, minLength: 1, maxLength: 160 }
+        - $ref: '#/components/parameters/IfNoneMatch'
       responses:
         '200':
           description: Published article detail
           headers:
             ETag: { $ref: '#/components/headers/ETag' }
+            Cache-Control: { schema: { type: string } }
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ArticleResponse'
         '304':
           description: Public article representation has not changed
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            Cache-Control: { schema: { type: string } }
         '404':
           $ref: '#/components/responses/ArticleNotFound'
         '500':
           $ref: '#/components/responses/InternalError'
+  /api/v1/public/article-previews/{token}:
+    get:
+      operationId: getPublicArticlePreview
+      parameters:
+        - { name: token, in: path, required: true, schema: { type: string, minLength: 43, maxLength: 43 } }
+      responses:
+        '200':
+          description: Uncached article working-copy preview
+          headers:
+            Cache-Control: { schema: { type: string } }
+            Referrer-Policy: { schema: { type: string } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/ArticlePreviewResponse' } } }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+        '410': { $ref: '#/components/responses/ArticlePreviewGone' }
+  /api/v1/admin/articles:
+    get:
+      operationId: listAdminArticles
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/ArticleStatus' } }
+        - { name: keyword, in: query, schema: { type: string, maxLength: 240 } }
+        - { name: direction, in: query, schema: { type: string, enum: [asc, desc], default: desc } }
+      responses:
+        '200':
+          description: Administrator article list
+          content:
+            application/json: { schema: { $ref: '#/components/schemas/AdminArticleListResponse' } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      operationId: createAdminArticle
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/CsrfHeader' }
+      requestBody:
+        content:
+          application/json: { schema: { $ref: '#/components/schemas/AdminArticleCreateRequest' } }
+      responses:
+        '201':
+          description: Draft created
+          headers: { Location: { schema: { type: string, format: uri } } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/AdminArticleResponse' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/media/uploads:
+    post:
+      operationId: createAdminMediaUpload
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/MediaUploadRequest' } } }
+      responses:
+        '201':
+          description: Short-lived OSS POST policy
+          content: { application/json: { schema: { $ref: '#/components/schemas/MediaUploadResponse' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '503': { $ref: '#/components/responses/MediaStorageUnavailable' }
+  /api/v1/admin/media/uploads/{uploadId}/complete:
+    post:
+      operationId: completeAdminMediaUpload
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/CsrfHeader' }
+        - { name: uploadId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Confirmed media asset
+          content: { application/json: { schema: { $ref: '#/components/schemas/MediaAssetResponse' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+        '410': { $ref: '#/components/responses/MediaUploadExpired' }
+        '503': { $ref: '#/components/responses/MediaStorageUnavailable' }
+  /api/v1/admin/media/{mediaId}:
+    delete:
+      operationId: recycleAdminMedia
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/CsrfHeader' }
+        - { name: mediaId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '204': { description: Media asset marked as deleted }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/articles/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getAdminArticle
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Administrator article, content: { application/json: { schema: { $ref: '#/components/schemas/AdminArticleResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+    put:
+      operationId: updateAdminArticle
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/AdminArticleUpdateRequest' } } }
+      responses:
+        '200': { description: Article updated, content: { application/json: { schema: { $ref: '#/components/schemas/AdminArticleResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+        '409': { $ref: '#/components/responses/ArticleVersionConflict' }
+    delete:
+      operationId: deleteAdminArticle
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      responses:
+        '204': { description: Draft physically deleted }
+        '200': { description: Article archived, content: { application/json: { schema: { $ref: '#/components/schemas/AdminArticleResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+  /api/v1/admin/articles/{id}/versions:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: listAdminArticleVersions
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+      responses:
+        '200':
+          description: Administrator article version summaries without Markdown
+          content: { application/json: { schema: { $ref: '#/components/schemas/AdminArticleVersionListResponse' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+  /api/v1/admin/articles/{id}/versions/{revisionId}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: revisionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getAdminArticleVersion
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          description: Administrator article version detail
+          content: { application/json: { schema: { $ref: '#/components/schemas/AdminArticleVersionResponse' } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+  /api/v1/admin/articles/{id}/versions/{revisionId}/restore:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: revisionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: restoreAdminArticleVersion
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ArticleVersionRequest' } } } }
+      responses:
+        '200':
+          description: Restored editable working copy; public revision is unchanged
+          content: { application/json: { schema: { $ref: '#/components/schemas/AdminArticleResponse' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/articles/{id}/publish:
+    post:
+      operationId: publishAdminArticle
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { $ref: '#/components/parameters/CsrfHeader' }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ArticleVersionRequest' } } } }
+      responses:
+        '200': { description: Published article, content: { application/json: { schema: { $ref: '#/components/schemas/ArticleActionResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/articles/{id}/schedule:
+    post:
+      operationId: scheduleAdminArticle
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { $ref: '#/components/parameters/CsrfHeader' }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ScheduleArticleRequest' } } } }
+      responses:
+        '200': { description: Scheduled article, content: { application/json: { schema: { $ref: '#/components/schemas/ArticleActionResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/articles/{id}/archive:
+    post:
+      operationId: archiveAdminArticle
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { $ref: '#/components/parameters/CsrfHeader' }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ArticleVersionRequest' } } } }
+      responses:
+        '200': { description: Archived article, content: { application/json: { schema: { $ref: '#/components/schemas/ArticleActionResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/articles/{id}/draft:
+    post:
+      operationId: returnAdminArticleToDraft
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { $ref: '#/components/parameters/CsrfHeader' }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ArticleVersionRequest' } } } }
+      responses:
+        '200': { description: Editable draft, content: { application/json: { schema: { $ref: '#/components/schemas/ArticleActionResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/articles/{id}/preview-tokens:
+    post:
+      operationId: createAdminArticlePreviewToken
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { $ref: '#/components/parameters/CsrfHeader' }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ArticleVersionRequest' } } } }
+      responses:
+        '201': { description: One-time preview token, content: { application/json: { schema: { $ref: '#/components/schemas/PreviewTokenResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/articles/{id}/preview-tokens/{tokenId}:
+    delete:
+      operationId: revokeAdminArticlePreviewToken
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/CsrfHeader' }
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: tokenId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '204': { description: Preview token revoked }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+  /api/v1/admin/categories:
+    get:
+      operationId: listAdminCategories
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Categories, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/CategoryResponse' } } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      operationId: createAdminCategory
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CategoryRequest' } } } }
+      responses:
+        '201': { description: Category created, content: { application/json: { schema: { $ref: '#/components/schemas/CategoryResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/categories/{id}:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+    get:
+      operationId: getAdminCategory
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Category, content: { application/json: { schema: { $ref: '#/components/schemas/CategoryResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+    put:
+      operationId: updateAdminCategory
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CategoryRequest' } } } }
+      responses:
+        '200': { description: Category updated, content: { application/json: { schema: { $ref: '#/components/schemas/CategoryResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      operationId: deleteAdminCategory
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      responses:
+        '204': { description: Category deleted }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/tags:
+    get:
+      operationId: listAdminTags
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Tags, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/TagResponse' } } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      operationId: createAdminTag
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/TagRequest' } } } }
+      responses:
+        '201': { description: Tag created, content: { application/json: { schema: { $ref: '#/components/schemas/TagResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/tags/{id}:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+    get:
+      operationId: getAdminTag
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Tag, content: { application/json: { schema: { $ref: '#/components/schemas/TagResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+    put:
+      operationId: updateAdminTag
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/TagRequest' } } } }
+      responses:
+        '200': { description: Tag updated, content: { application/json: { schema: { $ref: '#/components/schemas/TagResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      operationId: deleteAdminTag
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      responses:
+        '204': { description: Tag deleted }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/session:
+    post:
+      operationId: loginAdmin
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminLoginRequest'
+      responses:
+        '200':
+          description: Administrator session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminSessionResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/AuthenticationFailed'
+        '403':
+          $ref: '#/components/responses/CsrfInvalid'
+        '429':
+          $ref: '#/components/responses/LoginRateLimited'
+    get:
+      operationId: getAdminSession
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Current administrator session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminSessionResponse'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    delete:
+      operationId: logoutAdmin
+      security:
+        - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '204':
+          description: Administrator session deleted
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/CsrfInvalid'
+  /api/v1/admin/csrf:
+    get:
+      operationId: getAdminCsrfToken
+      security: []
+      responses:
+        '200':
+          description: CSRF token for administrator write requests
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CsrfTokenResponse'
 components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: HAOBLOG_SESSION
+  parameters:
+    CsrfHeader:
+      name: X-CSRF-TOKEN
+      in: header
+      required: true
+      schema: { type: string }
+    IfNoneMatch:
+      name: If-None-Match
+      in: header
+      required: false
+      schema: { type: string }
   responses:
     BadRequest:
       description: Invalid request
@@ -78,22 +624,84 @@ components:
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/ProblemResponse' }
+    ResourceNotFound:
+      description: Resource not found
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemResponse' }
+    ArticlePreviewGone:
+      description: Preview token no longer matches the article version
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemResponse' }
+    Conflict:
+      description: Request conflicts with current resource state
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemResponse' }
+    ArticleVersionConflict:
+      description: Article working copy version is stale
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ArticleVersionConflictProblem' }
+    Unauthenticated:
+      description: Authentication required
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemResponse' }
+    Forbidden:
+      description: Access denied
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemResponse' }
+    CsrfInvalid:
+      description: Invalid CSRF token
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemResponse' }
+    AuthenticationFailed:
+      description: Invalid administrator credentials
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemResponse' }
+    LoginRateLimited:
+      description: Login attempts from this source are temporarily rate limited
+      headers:
+        Retry-After:
+          description: Seconds until another login attempt may be tried
+          schema: { type: integer, minimum: 1, maximum: 900 }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemResponse' }
+    MediaUploadExpired:
+      description: Upload intent expired
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemResponse' }
+    MediaStorageUnavailable:
+      description: Object storage metadata service unavailable
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemResponse' }
   schemas:
     SiteResponse:
       type: object
-      required: [title, description]
+      required: [title, description, siteUrl, authorName]
       properties:
         title: { type: string }
         description: { type: string }
+        siteUrl: { type: string, format: uri }
+        authorName: { type: string }
     ArticleSummary:
       type: object
-      required: [id, slug, title, publishedAt]
+      required: [id, slug, title, excerpt, publishedAt, coverImageUrl]
       properties:
         id: { type: string, format: uuid }
         slug: { type: string }
         title: { type: string }
         excerpt: { type: [string, 'null'] }
         publishedAt: { type: string, format: date-time }
+        coverImageUrl: { type: [string, 'null'], format: uri }
     ArticleListResponse:
       type: object
       required: [items, page, size, total]
@@ -104,14 +712,18 @@ components:
         total: { type: integer, format: int64 }
     ArticleResponse:
       type: object
-      required: [id, slug, title, publishedAt, markdown]
+      required: [id, slug, title, excerpt, publishedAt, modifiedAt, markdown, seoTitle, seoDescription, coverImageUrl]
       properties:
         id: { type: string, format: uuid }
         slug: { type: string }
         title: { type: string }
         excerpt: { type: [string, 'null'] }
         publishedAt: { type: string, format: date-time }
+        modifiedAt: { type: string, format: date-time }
         markdown: { type: string }
+        seoTitle: { type: [string, 'null'] }
+        seoDescription: { type: [string, 'null'] }
+        coverImageUrl: { type: [string, 'null'], format: uri }
     ProblemResponse:
       type: object
       required: [code, title, detail, traceId]
@@ -120,6 +732,261 @@ components:
         title: { type: string }
         detail: { type: string }
         traceId: { type: string }
+        currentVersion: { type: integer, format: int64, minimum: 0 }
+    ArticleVersionConflictProblem:
+      allOf:
+        - $ref: '#/components/schemas/ProblemResponse'
+        - type: object
+          required: [currentVersion]
+          properties:
+            currentVersion: { type: integer, format: int64, minimum: 0 }
+    AdminLoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username: { type: string, minLength: 1, maxLength: 64 }
+        password: { type: string, minLength: 1, maxLength: 200, format: password }
+    AdminSessionResponse:
+      type: object
+      required: [username, role, authenticated]
+      properties:
+        username: { type: string }
+        role: { type: string, enum: [ADMIN] }
+        authenticated: { type: boolean }
+    CsrfTokenResponse:
+      type: object
+      required: [token]
+      properties:
+        token: { type: string }
+    ArticleStatus:
+      type: string
+      enum: [DRAFT, SCHEDULED, PUBLISHED, ARCHIVED]
+    ArticleVersionRequest:
+      type: object
+      required: [version]
+      properties:
+        version: { type: integer, format: int64, minimum: 0 }
+    ScheduleArticleRequest:
+      type: object
+      required: [version, scheduledAt]
+      properties:
+        version: { type: integer, format: int64, minimum: 0 }
+        scheduledAt: { type: string, format: date-time }
+    ArticleActionResponse:
+      type: object
+      required: [id, title, status, version]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: [string, 'null'] }
+        title: { type: string }
+        status: { $ref: '#/components/schemas/ArticleStatus' }
+        publishedAt: { type: [string, 'null'], format: date-time }
+        scheduledAt: { type: [string, 'null'], format: date-time }
+        version: { type: integer, format: int64, minimum: 0 }
+    PreviewTokenResponse:
+      type: object
+      required: [id, token, articleVersion, expiresAt]
+      properties:
+        id: { type: string, format: uuid }
+        token: { type: string, minLength: 43, maxLength: 43 }
+        articleVersion: { type: integer, format: int64, minimum: 0 }
+        expiresAt: { type: string, format: date-time }
+    ArticlePreviewResponse:
+      type: object
+      required: [id, title, markdown, version, tagIds]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: [string, 'null'] }
+        title: { type: string }
+        excerpt: { type: [string, 'null'] }
+        markdown: { type: string }
+        seoTitle: { type: [string, 'null'] }
+        seoDescription: { type: [string, 'null'] }
+        categoryId: { type: [string, 'null'], format: uuid }
+        coverMediaId: { type: [string, 'null'], format: uuid }
+        tagIds: { type: array, items: { type: string, format: uuid } }
+        version: { type: integer, format: int64, minimum: 0 }
+    ArticleTaxonomySnapshot:
+      type: object
+      required: [id, name, slug]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+    AdminArticleVersionSummary:
+      type: object
+      required: [id, sourceArticleVersion, createdAt, currentPublished]
+      properties:
+        id: { type: string, format: uuid }
+        sourceArticleVersion: { type: integer, format: int64, minimum: 0 }
+        createdAt: { type: string, format: date-time }
+        changeReason: { type: [string, 'null'] }
+        createdBy: { type: [string, 'null'], format: uuid }
+        currentPublished: { type: boolean }
+    AdminArticleVersionListResponse:
+      type: object
+      required: [items, page, size, total]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/AdminArticleVersionSummary' } }
+        page: { type: integer }
+        size: { type: integer }
+        total: { type: integer, format: int64 }
+    AdminArticleVersionResponse:
+      type: object
+      required: [id, articleId, sourceArticleVersion, title, slug, markdown, tagSnapshot, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        articleId: { type: string, format: uuid }
+        sourceArticleVersion: { type: integer, format: int64, minimum: 0 }
+        title: { type: string }
+        slug: { type: string }
+        excerpt: { type: [string, 'null'] }
+        markdown: { type: string }
+        seoTitle: { type: [string, 'null'] }
+        seoDescription: { type: [string, 'null'] }
+        coverMediaId: { type: [string, 'null'], format: uuid }
+        categorySnapshot:
+          oneOf:
+            - { $ref: '#/components/schemas/ArticleTaxonomySnapshot' }
+            - { type: 'null' }
+        tagSnapshot: { type: array, items: { $ref: '#/components/schemas/ArticleTaxonomySnapshot' } }
+        changeReason: { type: [string, 'null'] }
+        createdBy: { type: [string, 'null'], format: uuid }
+        createdAt: { type: string, format: date-time }
+    AdminArticleCreateRequest:
+      type: object
+      properties:
+        slug: { type: [string, 'null'], maxLength: 160 }
+        title: { type: [string, 'null'], maxLength: 240 }
+        excerpt: { type: [string, 'null'], maxLength: 600 }
+        markdown: { type: string, maxLength: 1048576 }
+        seoTitle: { type: [string, 'null'], maxLength: 240 }
+        seoDescription: { type: [string, 'null'], maxLength: 600 }
+        scheduledAt: { type: [string, 'null'], format: date-time }
+        categoryId: { type: [string, 'null'], format: uuid }
+        coverMediaId: { type: [string, 'null'], format: uuid }
+        tagIds: { type: array, items: { type: string, format: uuid } }
+    AdminArticleUpdateRequest:
+      type: object
+      required: [version, title, markdown]
+      properties:
+        version: { type: integer, format: int64, minimum: 0 }
+        slug: { type: [string, 'null'], maxLength: 160 }
+        title: { type: string, minLength: 1, maxLength: 240 }
+        excerpt: { type: [string, 'null'], maxLength: 600 }
+        markdown: { type: string, maxLength: 1048576 }
+        seoTitle: { type: [string, 'null'], maxLength: 240 }
+        seoDescription: { type: [string, 'null'], maxLength: 600 }
+        scheduledAt: { type: [string, 'null'], format: date-time }
+        categoryId: { type: [string, 'null'], format: uuid }
+        coverMediaId: { type: [string, 'null'], format: uuid }
+        tagIds: { type: array, items: { type: string, format: uuid } }
+    AdminArticleSummary:
+      type: object
+      required: [id, title, status, categoryId, updatedAt, version]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: [string, 'null'] }
+        title: { type: string }
+        status: { $ref: '#/components/schemas/ArticleStatus' }
+        categoryId: { type: [string, 'null'], format: uuid }
+        updatedAt: { type: string, format: date-time }
+        version: { type: integer, format: int64, minimum: 0 }
+    AdminArticleListResponse:
+      type: object
+      required: [items, page, size, total]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/AdminArticleSummary' } }
+        page: { type: integer }
+        size: { type: integer }
+        total: { type: integer, format: int64 }
+    AdminArticleResponse:
+      type: object
+      required: [id, title, markdown, status, createdAt, updatedAt, version, tagIds]
+      properties:
+        id: { type: string, format: uuid }
+        slug: { type: [string, 'null'] }
+        title: { type: string }
+        excerpt: { type: [string, 'null'] }
+        markdown: { type: string }
+        status: { $ref: '#/components/schemas/ArticleStatus' }
+        publishedAt: { type: [string, 'null'], format: date-time }
+        scheduledAt: { type: [string, 'null'], format: date-time }
+        seoTitle: { type: [string, 'null'] }
+        seoDescription: { type: [string, 'null'] }
+        categoryId: { type: [string, 'null'], format: uuid }
+        coverMediaId: { type: [string, 'null'], format: uuid }
+        tagIds: { type: array, items: { type: string, format: uuid } }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        version: { type: integer, format: int64, minimum: 0 }
+    MediaUploadRequest:
+      type: object
+      required: [mimeType, sizeBytes, width, height, sha256]
+      properties:
+        mimeType: { type: string, enum: [image/jpeg, image/png, image/webp] }
+        sizeBytes: { type: integer, format: int64, minimum: 1, maximum: 5242880 }
+        width: { type: integer, minimum: 1, maximum: 2560 }
+        height: { type: integer, minimum: 1, maximum: 2560 }
+        sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+    MediaUploadResponse:
+      type: object
+      required: [uploadId, objectKey, uploadUrl, fields, expiresAt]
+      properties:
+        uploadId: { type: string, format: uuid }
+        objectKey: { type: string }
+        uploadUrl: { type: string, format: uri }
+        fields: { type: object, additionalProperties: { type: string } }
+        expiresAt: { type: string, format: date-time }
+    MediaAssetResponse:
+      type: object
+      required: [id, objectKey, publicUrl, mimeType, sizeBytes, width, height, sha256, status, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        objectKey: { type: string }
+        publicUrl: { type: string, format: uri }
+        mimeType: { type: string, enum: [image/jpeg, image/png, image/webp] }
+        sizeBytes: { type: integer, format: int64, minimum: 1 }
+        width: { type: integer, minimum: 1 }
+        height: { type: integer, minimum: 1 }
+        sha256: { type: string, pattern: '^[0-9a-f]{64}$' }
+        status: { type: string, enum: [AVAILABLE, DELETED] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CategoryRequest:
+      type: object
+      required: [name, slug]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        slug: { type: string, minLength: 1, maxLength: 160 }
+        description: { type: [string, 'null'], maxLength: 600 }
+        sortOrder: { type: integer }
+    CategoryResponse:
+      type: object
+      required: [id, name, slug, sortOrder, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+        description: { type: [string, 'null'] }
+        sortOrder: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    TagRequest:
+      type: object
+      required: [name, slug]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        slug: { type: string, minLength: 1, maxLength: 160 }
+    TagResponse:
+      type: object
+      required: [id, name, slug, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
   headers:
     ETag:
       description: Entity tag for the public representation

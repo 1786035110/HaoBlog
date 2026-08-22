@@ -1,7 +1,7 @@
 package io.haoblog.content.web;
 
 import io.haoblog.content.application.ArticleService;
-import io.haoblog.content.domain.Article;
+import io.haoblog.content.domain.ArticleRevision;
 import io.haoblog.shared.web.ProblemResponse;
 import org.slf4j.MDC;
 import org.springframework.http.HttpHeaders;
@@ -10,12 +10,13 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/public/articles")
@@ -30,17 +31,22 @@ public class PublicArticleController {
                                                         @RequestParam(defaultValue = "20") int size,
                                                         @RequestHeader(value = HttpHeaders.IF_NONE_MATCH, required = false) String ifNoneMatch) {
         var result = service.list(page, size).page();
-        var response = new ArticleListResponse(result.getContent().stream().map(ArticleSummary::from).toList(),
+        Map<UUID, String> coverUrls = service.publicCoverUrls(result.getContent().stream()
+                .map(article -> article.revision().getCoverMediaId()).filter(java.util.Objects::nonNull).collect(Collectors.toSet()));
+        var response = new ArticleListResponse(result.getContent().stream().map(article -> ArticleSummary.from(article,
+                        article.revision().getCoverMediaId() == null ? null : coverUrls.get(article.revision().getCoverMediaId()))).toList(),
                 result.getNumber(), result.getSize(), result.getTotalElements());
-        return withCache(response, representationHash(response), ifNoneMatch);
+        String etag = representationHash("list", result.getContent().stream().map(article -> article.revision().getId()).toList(), response);
+        return withCache(response, etag, ifNoneMatch);
     }
 
     @GetMapping("/{slug}")
     public ResponseEntity<ArticleResponse> article(@PathVariable String slug,
                                                    @RequestHeader(value = HttpHeaders.IF_NONE_MATCH, required = false) String ifNoneMatch) {
-        Article article = service.findPublicBySlug(slug).orElseThrow(() -> new ArticleNotFoundException(slug));
-        var response = ArticleResponse.from(article);
-        return withCache(response, representationHash(response), ifNoneMatch);
+        ArticleService.PublicArticle article = service.findPublicBySlug(slug).orElseThrow(() -> new ArticleNotFoundException(slug));
+        String coverImageUrl = article.revision().getCoverMediaId() == null ? null : service.publicCoverUrls(java.util.Set.of(article.revision().getCoverMediaId())).get(article.revision().getCoverMediaId());
+        var response = ArticleResponse.from(article, coverImageUrl);
+        return withCache(response, representationHash("detail", article.revision().getId(), response), ifNoneMatch);
     }
 
     @ExceptionHandler(ArticleNotFoundException.class)
@@ -52,25 +58,36 @@ public class PublicArticleController {
     private <T> ResponseEntity<T> withCache(T body, String etag, String ifNoneMatch) {
         var headers = new HttpHeaders();
         headers.setETag(etag);
-        headers.setCacheControl("public, max-age=0, s-maxage=60, stale-while-revalidate=300");
+        headers.setCacheControl("public, max-age=0, s-maxage=60, must-revalidate");
         if (etag.equals(ifNoneMatch)) return ResponseEntity.status(HttpStatus.NOT_MODIFIED).headers(headers).build();
         return ResponseEntity.ok().headers(headers).body(body);
     }
 
-    private static String representationHash(Object body) {
+    private static String representationHash(Object... values) {
         try {
             var digest = MessageDigest.getInstance("SHA-256");
-            return '"' + HexFormat.of().formatHex(digest.digest(body.toString().getBytes(StandardCharsets.UTF_8))) + '"';
+            String stableInput = java.util.Arrays.deepToString(values);
+            return '"' + HexFormat.of().formatHex(digest.digest(stableInput.getBytes(java.nio.charset.StandardCharsets.UTF_8))) + '"';
         } catch (Exception exception) {
             throw new IllegalStateException("Unable to create article representation ETag", exception);
         }
     }
 
-    public record ArticleSummary(UUID id, String slug, String title, String excerpt, Instant publishedAt) {
-        static ArticleSummary from(Article article) { return new ArticleSummary(article.getId(), article.getSlug(), article.getTitle(), article.getExcerpt(), article.getPublishedAt()); }
+    public record ArticleSummary(UUID id, String slug, String title, String excerpt, Instant publishedAt, String coverImageUrl) {
+        static ArticleSummary from(ArticleService.PublicArticle article, String coverImageUrl) {
+            ArticleRevision revision = article.revision();
+            return new ArticleSummary(revision.getArticleId(), revision.getSlug(), revision.getTitle(), revision.getExcerpt(),
+                    article.publishedAt(), coverImageUrl);
+        }
     }
     public record ArticleListResponse(List<ArticleSummary> items, int page, int size, long total) {}
-    public record ArticleResponse(UUID id, String slug, String title, String excerpt, Instant publishedAt, String markdown) {
-        static ArticleResponse from(Article article) { return new ArticleResponse(article.getId(), article.getSlug(), article.getTitle(), article.getExcerpt(), article.getPublishedAt(), article.getMarkdownSource()); }
+    public record ArticleResponse(UUID id, String slug, String title, String excerpt, Instant publishedAt, Instant modifiedAt,
+                                  String markdown, String seoTitle, String seoDescription, String coverImageUrl) {
+        static ArticleResponse from(ArticleService.PublicArticle article, String coverImageUrl) {
+            ArticleRevision revision = article.revision();
+            return new ArticleResponse(revision.getArticleId(), revision.getSlug(), revision.getTitle(), revision.getExcerpt(),
+                    article.publishedAt(), revision.getCreatedAt(), revision.getMarkdownSource(), revision.getSeoTitle(),
+                    revision.getSeoDescription(), coverImageUrl);
+        }
     }
 }

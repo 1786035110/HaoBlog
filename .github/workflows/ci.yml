@@ -6,7 +6,7 @@ on:
   pull_request:
 
 jobs:
-  api:
+  stage-3-acceptance:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -15,38 +15,95 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
-      - run: ./mvnw test
-        working-directory: apps/api
-      - run: ./mvnw verify
-        working-directory: apps/api
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
       - run: corepack enable
       - run: corepack pnpm install --frozen-lockfile
-      - run: corepack pnpm --filter @haoblog/api-client generate
-      - run: git diff --exit-code -- packages/api-client/src/generated.ts
 
-  web:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
-      - run: corepack enable
-      - run: corepack pnpm install --frozen-lockfile
-      - run: corepack pnpm --dir apps/web typecheck
-      - run: corepack pnpm --dir apps/web test
-      - run: corepack pnpm --dir apps/web build
+      - name: API verify
+        run: ./mvnw -DskipITs verify
+        working-directory: apps/api
+      - name: Web typecheck
+        run: corepack pnpm --dir apps/web typecheck
+      - name: Web tests
+        run: corepack pnpm --dir apps/web test
+      - name: Web build
+        run: corepack pnpm --dir apps/web build
+      - name: OpenAPI generated client consistency
+        run: |
+          corepack pnpm --filter @haoblog/api-client generate
+          corepack pnpm --filter @haoblog/api-client check
+          git diff --exit-code -- packages/api-client/src/generated.ts
 
-  compose:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: cp .env.example .env
-      - run: docker compose --env-file .env -f infra/compose/compose.dev.yml config
+      - name: Compose configuration and resource boundaries
+        run: |
+          docker compose --env-file infra/compose/.env.ci.example -f infra/compose/compose.dev.yml config --quiet
+          docker compose --env-file infra/compose/.env.ci.example -f infra/compose/compose.prod.yml config --quiet
+          corepack pnpm compose:verify
+      - name: PostgreSQL integration tests
+        env:
+          HAOBLOG_PUBLIC_BASE_URL: http://localhost:3000
+        run: ./mvnw failsafe:integration-test failsafe:verify
+        working-directory: apps/api
+
+      - name: Install Chromium
+        run: corepack pnpm --dir apps/web exec playwright install --with-deps chromium
+      - name: Build acceptance images
+        run: |
+          docker build -f apps/api/Dockerfile -t haoblog-api:ci .
+          docker build -f apps/web/Dockerfile -t haoblog-web:ci .
+      - name: Start production Compose
+        env:
+          HAOBLOG_PUBLIC_BASE_URL: http://localhost
+        run: docker compose --env-file infra/compose/.env.ci.example -f infra/compose/compose.prod.yml up -d --wait --wait-timeout 180
+      - name: Verify healthy production topology
+        run: |
+          compose=(docker compose --env-file infra/compose/.env.ci.example -f infra/compose/compose.prod.yml)
+          "${compose[@]}" ps
+          for service in caddy web api postgres-pgvector; do
+            container=$("${compose[@]}" ps -q "$service")
+            test -n "$container"
+            test "$(docker inspect -f '{{.State.Health.Status}}' "$container")" = healthy
+          done
+          test "$(docker inspect -f '{{.HostConfig.Memory}}' $("${compose[@]}" ps -q caddy))" = 67108864
+          test "$(docker inspect -f '{{.HostConfig.Memory}}' $("${compose[@]}" ps -q web))" = 335544320
+          test "$(docker inspect -f '{{.HostConfig.Memory}}' $("${compose[@]}" ps -q api))" = 671088640
+          test "$(docker inspect -f '{{.HostConfig.Memory}}' $("${compose[@]}" ps -q postgres-pgvector))" = 503316480
+          test "$(docker inspect -f '{{.HostConfig.NanoCpus}}' $("${compose[@]}" ps -q caddy))" = 200000000
+          test "$(docker inspect -f '{{.HostConfig.NanoCpus}}' $("${compose[@]}" ps -q web))" = 600000000
+          test "$(docker inspect -f '{{.HostConfig.NanoCpus}}' $("${compose[@]}" ps -q api))" = 1250000000
+          test "$(docker inspect -f '{{.HostConfig.NanoCpus}}' $("${compose[@]}" ps -q postgres-pgvector))" = 800000000
+          test "$(docker inspect -f '{{.HostConfig.PidsLimit}}' $("${compose[@]}" ps -q caddy))" = 64
+          test "$(docker inspect -f '{{.HostConfig.PidsLimit}}' $("${compose[@]}" ps -q web))" = 128
+          test "$(docker inspect -f '{{.HostConfig.PidsLimit}}' $("${compose[@]}" ps -q api))" = 256
+          test "$(docker inspect -f '{{.HostConfig.PidsLimit}}' $("${compose[@]}" ps -q postgres-pgvector))" = 128
+          test -n "$(docker port $("${compose[@]}" ps -q caddy) 80/tcp)"
+          test -n "$(docker port $("${compose[@]}" ps -q caddy) 443/tcp)"
+          test -z "$(docker port $("${compose[@]}" ps -q web))"
+          test -z "$(docker port $("${compose[@]}" ps -q api))"
+          test -z "$(docker port $("${compose[@]}" ps -q postgres-pgvector))"
+      - name: Smoke test
+        env:
+          HAOBLOG_BASE_URL: http://localhost
+        run: corepack pnpm smoke
+      - name: Playwright Chromium E2E
+        env:
+          CI: true
+          HAOBLOG_BASE_URL: http://localhost
+        run: corepack pnpm --dir apps/web e2e
+      - name: Article client bundle budget
+        run: corepack pnpm web:budget
+      - name: Lighthouse public article budgets
+        env:
+          LHCI_EXISTING_SERVER: true
+          LHCI_BASE_URL: http://localhost
+        run: corepack pnpm web:lighthouse
+      - name: Reject whitespace errors
+        run: git diff --check
+      - name: Dump service logs on failure
+        if: failure()
+        run: docker compose --env-file infra/compose/.env.ci.example -f infra/compose/compose.prod.yml ps && docker compose --env-file infra/compose/.env.ci.example -f infra/compose/compose.prod.yml logs --no-color
+      - name: Tear down production Compose
+        if: always()
+        run: docker compose --env-file infra/compose/.env.ci.example -f infra/compose/compose.prod.yml down -v --remove-orphans

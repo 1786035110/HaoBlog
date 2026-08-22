@@ -1,8 +1,9 @@
 package io.haoblog.content.application;
 
-import io.haoblog.content.persistence.ArticleRepository;
-import io.haoblog.content.domain.Article;
+import io.haoblog.content.persistence.ArticleRevisionRepository;
+import io.haoblog.content.domain.ArticleRevision;
 import io.haoblog.content.domain.ArticleStatus;
+import io.haoblog.media.persistence.MediaAssetRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageImpl;
@@ -24,53 +25,59 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class ArticleServiceTest {
-    private ArticleRepository repository;
+    private ArticleRevisionRepository repository;
+    private MediaAssetRepository mediaRepository;
     private ArticleService service;
 
     @BeforeEach
     void setUp() {
-        repository = mock(ArticleRepository.class);
-        service = new ArticleService(repository, Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC));
+        repository = mock(ArticleRevisionRepository.class);
+        mediaRepository = mock(MediaAssetRepository.class);
+        service = new ArticleService(repository, mediaRepository, Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC));
     }
 
     @Test
     void rejectsNegativePageWithoutCallingRepository() {
         assertThrows(IllegalArgumentException.class, () -> service.list(-1, 20));
-        verifyNoInteractions(repository);
+        verifyNoInteractions(repository, mediaRepository);
     }
 
     @Test
     void rejectsZeroSizeWithoutCallingRepository() {
         assertThrows(IllegalArgumentException.class, () -> service.list(0, 0));
-        verifyNoInteractions(repository);
+        verifyNoInteractions(repository, mediaRepository);
     }
 
     @Test
     void rejectsOversizedPageWithoutCallingRepository() {
         assertThrows(IllegalArgumentException.class, () -> service.list(0, 51));
-        verifyNoInteractions(repository);
+        verifyNoInteractions(repository, mediaRepository);
     }
 
     @Test
     void acceptsValidPageAndSizeAndQueriesRepository() {
-        when(repository.findByStatusAndPublishedAtIsNotNullAndPublishedAtLessThanEqual(
-                eq(io.haoblog.content.domain.ArticleStatus.PUBLISHED), any(Instant.class), any()))
+        when(repository.findVisible(eq(ArticleStatus.PUBLISHED), eq(ArticleStatus.SCHEDULED), any(Instant.class), any()))
                 .thenReturn(new PageImpl<>(List.of()));
 
         assertDoesNotThrow(() -> service.list(2, 50));
-        verify(repository).findByStatusAndPublishedAtIsNotNullAndPublishedAtLessThanEqual(
-                eq(io.haoblog.content.domain.ArticleStatus.PUBLISHED), any(Instant.class), any());
+        verify(repository).findVisible(eq(ArticleStatus.PUBLISHED), eq(ArticleStatus.SCHEDULED), any(Instant.class), any());
     }
 
     @Test
     void publicDetailUsesPublishedAndDueFilter() {
         Instant publishedAt = Instant.parse("2025-12-31T00:00:00Z");
-        Article article = new Article("visible", "Visible", "Excerpt", "# Body", ArticleStatus.PUBLISHED, publishedAt, publishedAt);
-        when(repository.findBySlugAndStatusAndPublishedAtIsNotNullAndPublishedAtLessThanEqual(
-                eq("visible"), eq(ArticleStatus.PUBLISHED), any(Instant.class))).thenReturn(Optional.of(article));
+        Instant modifiedAt = Instant.parse("2026-01-01T00:00:00Z");
+        ArticleRevision article = new ArticleRevision(null, 0, "Visible", "visible", "Excerpt", "# Body",
+                null, null, null, null, List.of(), null, null, modifiedAt);
+        var projection = mock(ArticleRevisionRepository.PublicArticleProjection.class);
+        when(projection.getRevision()).thenReturn(article);
+        when(projection.getPublishedAt()).thenReturn(publishedAt);
+        when(repository.findVisibleBySlug(eq("visible"), eq(ArticleStatus.PUBLISHED), eq(ArticleStatus.SCHEDULED), any(Instant.class)))
+                .thenReturn(Optional.of(projection));
 
-        assertEquals(article, service.findPublicBySlug("visible").orElseThrow());
-        verify(repository).findBySlugAndStatusAndPublishedAtIsNotNullAndPublishedAtLessThanEqual(
-                eq("visible"), eq(ArticleStatus.PUBLISHED), any(Instant.class));
+        var result = service.findPublicBySlug("visible").orElseThrow();
+        assertEquals(article, result.revision());
+        assertEquals(publishedAt, result.publishedAt());
+        verify(repository).findVisibleBySlug(eq("visible"), eq(ArticleStatus.PUBLISHED), eq(ArticleStatus.SCHEDULED), any(Instant.class));
     }
 }
