@@ -109,6 +109,42 @@ class PublicApiIT {
                 .andExpect(jsonPath("$.title").value("HaoBlog"));
     }
 
+    @Test void feedsContainOnlyPublishedArticlesAndSupportConditionalCaching() throws Exception {
+        seedPublished("newer-feed", "Newer feed", "Newest", "# newer", Instant.now().minus(30, ChronoUnit.SECONDS), Instant.now());
+        UUID archivedId = seedPublished("archived-feed", "Archived feed", "No", "# archived", Instant.now().minus(1, ChronoUnit.DAYS), Instant.now());
+        jdbc.update("UPDATE article SET status='ARCHIVED' WHERE id=?", archivedId);
+        articles.saveAndFlush(new Article("scheduled-feed", "Scheduled feed", "No", "# scheduled", ArticleStatus.SCHEDULED,
+                Instant.now().minus(1, ChronoUnit.MINUTES), Instant.now()));
+
+        var rss = mvc.perform(get("/rss.xml"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType("application/rss+xml;charset=UTF-8"))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Visible")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Newer feed")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("Future"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("Archived feed"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("Scheduled feed"))))
+                .andExpect(header().exists("ETag"))
+                .andReturn();
+        assertEquals(2, count(rss.getResponse().getContentAsString(), "<item>"));
+        assertTrue(rss.getResponse().getContentAsString().indexOf("Newer feed")
+                < rss.getResponse().getContentAsString().indexOf("Visible"));
+        mvc.perform(get("/rss.xml").header("If-None-Match", rss.getResponse().getHeader("ETag")))
+                .andExpect(status().isNotModified()).andExpect(content().string(""));
+
+        var sitemap = mvc.perform(get("/sitemap.xml"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType("application/xml;charset=UTF-8"))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("http://localhost:3000")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("archived-feed"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("scheduled-feed"))))
+                .andExpect(header().exists("ETag"))
+                .andReturn();
+        assertEquals(5, count(sitemap.getResponse().getContentAsString(), "<url>"));
+        mvc.perform(get("/sitemap.xml").header("If-None-Match", sitemap.getResponse().getHeader("ETag")))
+                .andExpect(status().isNotModified()).andExpect(content().string(""));
+    }
+
     @Test void migrationHasExpectedTypesConstraintsAndPublicIndex() {
         assertEquals("timestamp with time zone", jdbc.queryForObject(
                 "SELECT data_type FROM information_schema.columns WHERE table_name='article' AND column_name='published_at'", String.class));
@@ -140,5 +176,9 @@ class PublicApiIT {
                 revisionId, article.getId(), article.getVersion(), title, slug, excerpt, markdown, java.sql.Timestamp.from(publishedAt));
         jdbc.update("UPDATE article SET published_revision_id=? WHERE id=?", revisionId, article.getId());
         return article.getId();
+    }
+
+    private static int count(String value, String needle) {
+        return value.split(java.util.regex.Pattern.quote(needle), -1).length - 1;
     }
 }

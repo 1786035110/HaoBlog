@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Clock;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -40,6 +41,12 @@ public class ArticleService {
                         java.time.Instant.now(clock))
                 .map(this::toPublicArticle);
     }
+
+    public PublishedBatch listPublishedBatch(int page, int size) {
+        if (page < 0 || size < 1 || size > 500) throw new IllegalArgumentException("page/size out of range");
+        var result = repository.findPublished(ArticleStatus.PUBLISHED, java.time.Instant.now(clock), PageRequest.of(page, size));
+        return new PublishedBatch(result.getContent().stream().map(this::toPublicFeedArticle).toList(), result.hasNext());
+    }
     public Map<UUID, String> publicCoverUrls(Collection<UUID> mediaIds) {
         if (mediaIds == null || mediaIds.isEmpty()) return Map.of();
         return mediaRepository.findAllByIdInAndStatus(mediaIds, MediaAssetStatus.AVAILABLE).stream()
@@ -51,6 +58,14 @@ public class ArticleService {
         return new PublicArticle(projection.getRevision(), projection.getPublishedAt());
     }
 
+    private PublicFeedArticle toPublicFeedArticle(ArticleRevisionRepository.PublicArticleProjection projection) {
+        var revision = projection.getRevision();
+        return new PublicFeedArticle(revision.getArticleId(), revision.getSlug(), revision.getTitle(),
+                revision.getExcerpt(), projection.getPublishedAt());
+    }
+
     public record PublicArticle(ArticleRevision revision, java.time.Instant publishedAt) {}
     public record PageResult(Page<PublicArticle> page) {}
+    public record PublishedBatch(List<PublicFeedArticle> items, boolean hasNext) {}
+    public record PublicFeedArticle(UUID id, String slug, String title, String excerpt, java.time.Instant publishedAt) {}
 }

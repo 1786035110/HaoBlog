@@ -4,6 +4,38 @@
  */
 
 export interface paths {
+    "/rss.xml": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getRssFeed"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/sitemap.xml": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getSitemap"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/public/site": {
         parameters: {
             query?: never;
@@ -867,6 +899,76 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    getRssFeed: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-None-Match"?: components["parameters"]["IfNoneMatch"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description RSS 2.0 feed of the latest public articles */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    /** @description Short shared-cache policy */
+                    "Cache-Control"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/rss+xml": string;
+                };
+            };
+            /** @description RSS feed has not changed */
+            304: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    /** @description Short shared-cache policy */
+                    "Cache-Control"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getSitemap: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-None-Match"?: components["parameters"]["IfNoneMatch"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sitemap of public site pages and articles */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    /** @description Short shared-cache policy */
+                    "Cache-Control"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/xml": string;
+                };
+            };
+            /** @description Sitemap has not changed */
+            304: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    /** @description Short shared-cache policy */
+                    "Cache-Control"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     getPublicSite: {
         parameters: {
             query?: never;

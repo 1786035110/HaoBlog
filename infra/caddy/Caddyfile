@@ -1,4 +1,4 @@
-{$HAOBLOG_DOMAIN}
+{$HAOBLOG_DOMAIN} {
 
 encode gzip
 
@@ -8,6 +8,14 @@ handle /actuator {
 
 handle /actuator/* {
     respond 404
+}
+
+handle /rss.xml {
+    reverse_proxy api:8080
+}
+
+handle /sitemap.xml {
+    reverse_proxy api:8080
 }
 
 handle /api {

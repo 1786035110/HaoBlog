@@ -70,7 +70,7 @@ public class SecurityConfig {
                         .authenticationEntryPoint(authenticationEntryPoint)
                         .accessDeniedHandler(accessDeniedHandler))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/actuator/health", "/api/v1/public/**").permitAll()
+                        .requestMatchers("/actuator/health", "/api/v1/public/**", "/rss.xml", "/sitemap.xml").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/admin/session").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/admin/csrf").permitAll()
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")

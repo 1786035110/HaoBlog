@@ -5,6 +5,58 @@ info:
 servers:
   - url: /
 paths:
+  /rss.xml:
+    get:
+      operationId: getRssFeed
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: RSS 2.0 feed of the latest public articles
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+            Cache-Control:
+              description: Short shared-cache policy
+              schema: { type: string }
+          content:
+            application/rss+xml:
+              schema: { type: string }
+        '304':
+          description: RSS feed has not changed
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+            Cache-Control:
+              description: Short shared-cache policy
+              schema: { type: string }
+  /sitemap.xml:
+    get:
+      operationId: getSitemap
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: Sitemap of public site pages and articles
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+            Cache-Control:
+              description: Short shared-cache policy
+              schema: { type: string }
+          content:
+            application/xml:
+              schema: { type: string }
+        '304':
+          description: Sitemap has not changed
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+            Cache-Control:
+              description: Short shared-cache policy
+              schema: { type: string }
   /api/v1/public/site:
     get:
       operationId: getPublicSite

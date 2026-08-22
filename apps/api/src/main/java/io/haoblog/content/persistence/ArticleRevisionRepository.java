@@ -48,6 +48,20 @@ public interface ArticleRevisionRepository extends JpaRepository<ArticleRevision
             select r as revision, a.publishedAt as publishedAt
             from ArticleRevision r, Article a
             where r.id = a.publishedRevisionId
+              and a.status = :published
+              and a.publishedRevisionId is not null
+              and a.publishedAt is not null
+              and a.publishedAt <= :now
+            order by a.publishedAt desc, a.id desc
+            """)
+    Page<PublicArticleProjection> findPublished(@Param("published") ArticleStatus published,
+                                                @Param("now") java.time.Instant now,
+                                                Pageable pageable);
+
+    @Query("""
+            select r as revision, a.publishedAt as publishedAt
+            from ArticleRevision r, Article a
+            where r.id = a.publishedRevisionId
               and r.slug = :slug
               and a.status in (:published, :scheduled)
               and a.publishedRevisionId is not null

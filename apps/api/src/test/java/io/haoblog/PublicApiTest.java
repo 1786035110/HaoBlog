@@ -2,6 +2,7 @@ package io.haoblog;
 
 import io.haoblog.content.web.PublicArticleController;
 import io.haoblog.site.web.PublicSiteController;
+import io.haoblog.site.web.PublicFeedController;
 import org.junit.jupiter.api.Test;
 import io.haoblog.content.domain.Article;
 import io.haoblog.content.domain.ArticleRevision;
@@ -26,13 +27,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import com.jayway.jsonpath.JsonPath;
 
-@WebMvcTest({PublicSiteController.class, PublicArticleController.class})
+@WebMvcTest({PublicSiteController.class, PublicArticleController.class, PublicFeedController.class})
 @Import({io.haoblog.shared.web.TraceIdFilter.class, io.haoblog.shared.web.GlobalExceptionHandler.class,
         io.haoblog.shared.web.ProblemResponseWriter.class})
 class PublicApiTest {
     @Autowired MockMvc mvc;
     @MockitoBean io.haoblog.site.application.SiteService siteService;
     @MockitoBean io.haoblog.content.application.ArticleService articleService;
+    @MockitoBean io.haoblog.site.application.PublicFeedService publicFeedService;
 
     @BeforeEach
     void rejectInvalidServiceArguments() {
@@ -85,6 +87,22 @@ class PublicApiTest {
         mvc.perform(get("/api/v1/public/site").header("If-None-Match", first.getResponse().getHeader("ETag")))
                 .andExpect(status().isNotModified())
                 .andExpect(content().string(""));
+    }
+
+    @Test void feedsExposeContentTypeCacheHeadersAnd304() throws Exception {
+        when(publicFeedService.rss()).thenReturn(new io.haoblog.site.application.PublicFeedService.FeedDocument(
+                "<?xml version=\"1.0\"?><rss/>", "\"rss-etag\""));
+        when(publicFeedService.sitemap()).thenReturn(new io.haoblog.site.application.PublicFeedService.FeedDocument(
+                "<?xml version=\"1.0\"?><urlset/>", "\"sitemap-etag\""));
+
+        for (String path : new String[]{"/rss.xml", "/sitemap.xml"}) {
+            var first = mvc.perform(get(path)).andExpect(status().isOk())
+                    .andExpect(header().string("ETag", path.startsWith("/rss") ? "\"rss-etag\"" : "\"sitemap-etag\""))
+                    .andExpect(header().string("Cache-Control", "public, max-age=0, s-maxage=60, must-revalidate"))
+                    .andReturn();
+            mvc.perform(get(path).header("If-None-Match", first.getResponse().getHeader("ETag")))
+                    .andExpect(status().isNotModified()).andExpect(content().string(""));
+        }
     }
 
     @Test void unknownStaticResourcePathReturnsSafeProblem() throws Exception {
