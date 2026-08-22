@@ -44,6 +44,7 @@ class AdminSessionIT {
         registry.add("spring.datasource.password", postgres::getPassword);
         registry.add("spring.flyway.placeholders.admin_username", () -> "admin");
         registry.add("spring.flyway.placeholders.admin_password_hash", () -> PASSWORD_HASH);
+        registry.add("haoblog.site.public-base-url", () -> "https://blog.example.test");
     }
 
     @Autowired MockMvc mvc;

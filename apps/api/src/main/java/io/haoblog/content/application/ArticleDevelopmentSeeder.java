@@ -46,12 +46,12 @@ public class ArticleDevelopmentSeeder {
             Instant now = Instant.now(clock);
             insertIfAbsent("night-signal-baseline", "夜间信号基线", "第一个公开观测样本。", "# 夜间信号基线\n\n这是 HaoBlog 的开发观测样本。", now);
             insertIfAbsent("safe-markdown-baseline", "安全 Markdown 基线", "只保留可读、克制的基础正文。", "# 安全 Markdown 基线\n\n正文先以 SSR HTML 可读。\n\n- 原始 HTML 不执行\n- 危险链接不放行", now);
-            insertIfAbsent("s3-07-advanced-markdown", "S3-07 高级 Markdown 观测样本", "覆盖公式、代码、图表、表格、任务、脚注和提示块的公开阅读样本。", advancedMarkdown(), now);
+            insertIfAbsent("s3-08-advanced-markdown", "S3-08 高级 Markdown 固定验收文章", "覆盖安全高级 Markdown、SSR、TOC、图片和降级路径的阶段三固定验收文章。", advancedMarkdown(), now);
         }
 
         private String advancedMarkdown() {
             return """
-                    # S3-07 高级 Markdown 观测样本
+                    # S3-08 高级 Markdown 固定验收文章
 
                     这篇文章用于公开阅读的移动端、无障碍和性能验收。正文、公式和代码在 SSR HTML 中直接可读。
 
@@ -65,6 +65,18 @@ public class ArticleDevelopmentSeeder {
 
                     ::: note 读者提示
                     颜色不是状态的唯一表达；每个状态同时保留文字说明。
+                    :::
+
+                    ::: tip 阅读提示
+                    代码、表格与图表都保留无 JavaScript 可读路径。
+                    :::
+
+                    ::: warning 验收边界
+                    宽内容只在自己的滚动区域内横向移动，不推动页面整体宽度。
+                    :::
+
+                    ::: danger 安全边界
+                    原始 HTML、危险 URL 和非 HTTPS 图片不能进入可执行 DOM。
                     :::
 
                     ## 重复标题
@@ -85,10 +97,43 @@ public class ArticleDevelopmentSeeder {
 
                     ## 代码样本
 
+                    ```java [SignalScore.java] {2-3}
+                    public final class SignalScore {
+                      static double ratio(int read, int total) {
+                        return total > 0 ? Math.min(1D, (double) read / total) : 0D;
+                      }
+                    }
+                    ```
+
                     ```typescript [signal.ts] {2}
                     export function signalScore(read: number, total: number) {
                       return total > 0 ? Math.min(1, read / total) : 0
                     }
+                    ```
+
+                    ```vue [SignalReadout.vue] {2,6}
+                    <script setup lang="ts">
+                    defineProps<{ value: number }>()
+                    </script>
+
+                    <template>
+                      <output>{{ value }}%</output>
+                    </template>
+                    ```
+
+                    ```sql [public-articles.sql] {1}
+                    SELECT slug, title
+                    FROM article
+                    WHERE status = 'PUBLISHED';
+                    ```
+
+                    ```powershell [verify.ps1] {1}
+                    Get-ChildItem -LiteralPath .
+                    ```
+
+                    ```dockerfile [Dockerfile] {1}
+                    FROM eclipse-temurin:21-jre-jammy
+                    USER 10001
                     ```
 
                     ## Mermaid 样本
@@ -108,15 +153,15 @@ public class ArticleDevelopmentSeeder {
                     | Mermaid | 视口或主动请求 | 延迟 |
                     | 图片 | Save-Data 下省略 | 可降级 |
 
-                    ::: warning 验收边界
-                    表格只在自己的滚动区域内横向移动，不推动页面整体宽度。
-                    :::
-
                     ## 脚注与安全边界
 
                     公开 Markdown 会经过协议与 HTML 清洗[^safety]，恶意标签不会成为可执行 DOM。
 
-                    [危险链接](javascript:alert('blocked'))
+                    <script>alert('raw-html-blocked')</script>
+
+                    [恶意脚本 URL](javascript:alert('blocked'))
+                    [非加密 URL](http://example.test/insecure)
+                    ![非加密图片](http://cdn.example.test/insecure.png)
 
                     [^safety]: 这是公开阅读渲染器的安全边界说明。
                     """;
