@@ -7,5 +7,8 @@ import java.util.UUID;
 public interface ArticleCommentLookup {
     Optional<Target> findPublicCommentTarget(String slug);
 
+    Optional<NotificationArticle> findCommentNotificationArticle(UUID articleId);
+
     record Target(UUID articleId, boolean commentsEnabled) {}
+    record NotificationArticle(String title) {}
 }

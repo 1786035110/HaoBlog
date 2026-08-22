@@ -66,7 +66,7 @@ class AdminCommentIT {
     void seed() {
         jdbc.execute("TRUNCATE comment, article_revision, article CASCADE");
         jdbc.update("UPDATE site_setting SET comments_enabled=true, version=0 WHERE site_key='default'");
-        Instant now = Instant.parse("2030-01-01T00:00:00Z");
+        Instant now = Instant.parse("2020-01-01T00:00:00Z");
         Article article = articles.saveAndFlush(new Article("moderation-signal", "Moderation signal", "Excerpt", "# body",
                 ArticleStatus.PUBLISHED, now.minus(1, ChronoUnit.DAYS), now));
         articleId = article.getId();

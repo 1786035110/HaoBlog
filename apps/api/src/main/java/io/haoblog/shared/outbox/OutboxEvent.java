@@ -53,4 +53,42 @@ public class OutboxEvent {
     public UUID getAggregateId() { return aggregateId; }
     public String getEventType() { return eventType; }
     public Map<String, Object> getPayload() { return payload; }
+    public OutboxStatus getStatus() { return status; }
+    public int getAttemptCount() { return attemptCount; }
+    public Instant getAvailableAt() { return availableAt; }
+    public Instant getProcessedAt() { return processedAt; }
+    public Instant getCreatedAt() { return createdAt; }
+
+    public void claim(Instant now, Instant leaseUntil) {
+        if (status != OutboxStatus.PENDING && status != OutboxStatus.PROCESSING) {
+            throw new IllegalStateException("Only pending outbox events can be claimed");
+        }
+        if (now == null || leaseUntil == null || leaseUntil.isBefore(now)) {
+            throw new IllegalArgumentException("Outbox claim times are invalid");
+        }
+        status = OutboxStatus.PROCESSING;
+        attemptCount++;
+        availableAt = leaseUntil;
+    }
+
+    public void markProcessed(Instant now) {
+        if (status != OutboxStatus.PROCESSING) {
+            throw new IllegalStateException("Only processing outbox events can be processed");
+        }
+        status = OutboxStatus.PROCESSED;
+        processedAt = now;
+    }
+
+    public void retryOrFail(Instant now, Instant nextRetry, int maxAttempts) {
+        if (status != OutboxStatus.PROCESSING) {
+            throw new IllegalStateException("Only processing outbox events can be retried");
+        }
+        if (attemptCount >= maxAttempts) {
+            status = OutboxStatus.FAILED;
+            availableAt = now;
+            return;
+        }
+        status = OutboxStatus.PENDING;
+        availableAt = nextRetry;
+    }
 }

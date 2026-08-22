@@ -48,6 +48,12 @@ public class ArticleService implements ArticleCommentLookup {
                 .map(article -> new ArticleCommentLookup.Target(article.articleId(), article.commentsEnabled()));
     }
 
+    @Override
+    public Optional<ArticleCommentLookup.NotificationArticle> findCommentNotificationArticle(UUID articleId) {
+        return repository.findNotificationArticle(articleId)
+                .map(article -> new ArticleCommentLookup.NotificationArticle(article.getTitle()));
+    }
+
     public PublishedBatch listPublishedBatch(int page, int size) {
         if (page < 0 || size < 1 || size > 500) throw new IllegalArgumentException("page/size out of range");
         var result = repository.findPublished(ArticleStatus.PUBLISHED, java.time.Instant.now(clock), PageRequest.of(page, size));

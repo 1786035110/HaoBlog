@@ -8,6 +8,17 @@ spring:
     hikari:
       maximum-pool-size: ${DB_POOL_MAXIMUM_SIZE:6}
       minimum-idle: ${DB_POOL_MINIMUM_IDLE:1}
+  mail:
+    host: ${HAOBLOG_COMMENT_NOTIFICATION_SMTP_HOST:}
+    port: ${HAOBLOG_COMMENT_NOTIFICATION_SMTP_PORT:25}
+    username: ${HAOBLOG_COMMENT_NOTIFICATION_SMTP_USERNAME:}
+    password: ${HAOBLOG_COMMENT_NOTIFICATION_SMTP_PASSWORD:}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: ${HAOBLOG_COMMENT_NOTIFICATION_SMTP_TLS:false}
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 3000
+      mail.smtp.writetimeout: 5000
   jpa:
     open-in-view: false
     hibernate:
@@ -76,3 +87,7 @@ haoblog:
       max-dimension: ${HAOBLOG_OSS_MAX_DIMENSION:2560}
   comment:
     security-key: ${HAOBLOG_COMMENT_SECURITY_KEY:}
+    notification:
+      enabled: ${HAOBLOG_COMMENT_NOTIFICATION_ENABLED:false}
+      recipient: ${HAOBLOG_COMMENT_NOTIFICATION_RECIPIENT:}
+      from: ${HAOBLOG_COMMENT_NOTIFICATION_FROM:}

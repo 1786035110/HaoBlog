@@ -30,6 +30,14 @@ public interface ArticleRevisionRepository extends JpaRepository<ArticleRevision
     Optional<ArticleRevision> findByIdAndArticleId(UUID id, UUID articleId);
 
     @Query("""
+            select r.title as title
+            from ArticleRevision r, Article a
+            where r.id = a.publishedRevisionId
+              and a.id = :articleId
+            """)
+    Optional<NotificationArticleProjection> findNotificationArticle(@Param("articleId") UUID articleId);
+
+    @Query("""
             select r as revision, a.publishedAt as publishedAt, a.commentsEnabled as commentsEnabled
             from ArticleRevision r, Article a
             where r.id = a.publishedRevisionId
@@ -101,5 +109,9 @@ public interface ArticleRevisionRepository extends JpaRepository<ArticleRevision
         String getChangeReason();
         UUID getCreatedBy();
         java.time.Instant getCreatedAt();
+    }
+
+    interface NotificationArticleProjection {
+        String getTitle();
     }
 }
