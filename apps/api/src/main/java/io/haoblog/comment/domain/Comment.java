@@ -81,6 +81,16 @@ public class Comment {
         this.updatedAt = now;
     }
 
+    public Comment(UUID id, UUID articleId, UUID parentId, String nickname, byte[] emailCiphertext,
+                   byte[] emailNonce, Integer emailKeyVersion, String content, byte[] ipHmac,
+                   LocalDate ipHmacDate, byte[] contentFingerprint, byte[] deleteTokenDigest,
+                   Instant now) {
+        this(articleId, parentId, nickname, emailCiphertext, emailNonce, emailKeyVersion, content,
+                ipHmac, ipHmacDate, contentFingerprint, deleteTokenDigest, now);
+        if (id == null) throw new IllegalArgumentException("Comment id is required");
+        this.id = id;
+    }
+
     public UUID getId() { return id; }
     public UUID getArticleId() { return articleId; }
     public UUID getParentId() { return parentId; }
@@ -108,6 +118,19 @@ public class Comment {
         this.moderatorId = moderatorId;
         this.moderationReason = reason;
         this.moderatedAt = now;
+        this.updatedAt = now;
+    }
+
+    public void userDelete(Instant now) {
+        if (now == null) throw new IllegalArgumentException("Deletion time is required");
+        if (status == CommentStatus.USER_DELETED) throw new IllegalStateException("Comment is already deleted");
+        this.status = CommentStatus.USER_DELETED;
+        this.nickname = "";
+        this.content = "";
+        this.emailCiphertext = null;
+        this.emailNonce = null;
+        this.emailKeyVersion = null;
+        this.deletedAt = now;
         this.updatedAt = now;
     }
 

@@ -84,6 +84,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/public/articles/{slug}/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listPublicArticleComments"];
+        put?: never;
+        post: operations["createPublicArticleComment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/public/articles/{slug}/comments/form-context": {
         parameters: {
             query?: never;
@@ -95,6 +111,22 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/comments/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["deletePublicComment"];
         options?: never;
         head?: never;
         patch?: never;
@@ -505,6 +537,42 @@ export interface components {
             expiresAt: string;
             commentsEnabled: boolean;
         };
+        CommentCreateRequest: {
+            nickname: string;
+            /** Format: email */
+            email?: string | null;
+            content: string;
+            /** Format: uuid */
+            parentId?: string | null;
+            challenge: string;
+            honeypot?: string;
+            website?: string;
+        };
+        CommentView: {
+            /** Format: uuid */
+            id: string;
+            nickname: string;
+            content: string;
+            /** Format: date-time */
+            createdAt: string;
+            replies: components["schemas"]["CommentView"][];
+        };
+        CommentPageResponse: {
+            items: components["schemas"]["CommentView"][];
+            page: number;
+            size: number;
+            /** Format: int64 */
+            total: number;
+        };
+        CommentSubmissionResponse: {
+            /** Format: uuid */
+            id: string | null;
+            /** @enum {string} */
+            status: "PENDING";
+            /** Format: date-time */
+            createdAt: string;
+            deleteToken?: string | null;
+        };
         ProblemResponse: {
             code: string;
             title: string;
@@ -839,6 +907,26 @@ export interface components {
                 "application/problem+json": components["schemas"]["ProblemResponse"];
             };
         };
+        /** @description Comment submission conflicts with current state or duplicate content */
+        CommentConflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemResponse"];
+            };
+        };
+        /** @description Comment rate limit exceeded */
+        CommentRateLimited: {
+            headers: {
+                /** @description Seconds until another comment may be submitted */
+                "Retry-After"?: number;
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemResponse"];
+            };
+        };
         /** @description Article working copy version is stale */
         ArticleVersionConflict: {
             headers: {
@@ -916,6 +1004,7 @@ export interface components {
     };
     parameters: {
         CsrfHeader: string;
+        CommentDeleteToken: string;
         IfNoneMatch: string;
     };
     requestBodies: never;
@@ -1106,6 +1195,75 @@ export interface operations {
             500: components["responses"]["InternalError"];
         };
     };
+    listPublicArticleComments: {
+        parameters: {
+            query?: {
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Approved top-level comments and first-level replies */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommentPageResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["ArticleNotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    createPublicArticleComment: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-TOKEN": components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommentCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Comment accepted for moderation */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommentSubmissionResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            /** @description Invalid CSRF token or delete credential */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            404: components["responses"]["ArticleNotFound"];
+            409: components["responses"]["CommentConflict"];
+            429: components["responses"]["CommentRateLimited"];
+        };
+    };
     getPublicCommentFormContext: {
         parameters: {
             query?: never;
@@ -1127,6 +1285,32 @@ export interface operations {
                 };
             };
             404: components["responses"]["ArticleNotFound"];
+        };
+    };
+    deletePublicComment: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-TOKEN": components["parameters"]["CsrfHeader"];
+                "X-Comment-Delete-Token": components["parameters"]["CommentDeleteToken"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Comment content deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            403: components["responses"]["CsrfInvalid"];
+            404: components["responses"]["ResourceNotFound"];
+            409: components["responses"]["CommentConflict"];
         };
     };
     getPublicArticlePreview: {

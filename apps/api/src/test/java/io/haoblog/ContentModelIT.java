@@ -57,7 +57,7 @@ class ContentModelIT {
 
     @Test
     void migratesAllVersionsAndCreatesContentTables() {
-        assertEquals(11, jdbc.queryForObject("SELECT count(*) FROM flyway_schema_history", Integer.class));
+        assertEquals(12, jdbc.queryForObject("SELECT count(*) FROM flyway_schema_history", Integer.class));
         for (String table : List.of("article", "category", "tag", "article_tag", "article_revision",
                 "article_preview_token", "media_asset", "media_upload", "outbox_event", "comment")) {
             assertEquals(1, jdbc.queryForObject(
@@ -81,7 +81,8 @@ class ContentModelIT {
                     "SELECT count(*) FROM information_schema.columns WHERE table_name='comment' AND column_name=?",
                     Integer.class, column));
         }
-        for (String index : List.of("comment_article_status_created_idx", "comment_parent_created_idx", "outbox_comment_created_uq")) {
+        for (String index : List.of("comment_article_status_created_idx", "comment_parent_created_idx",
+                "comment_article_fingerprint_uq", "outbox_comment_created_uq")) {
             assertEquals(1, jdbc.queryForObject(
                     "SELECT count(*) FROM pg_indexes WHERE schemaname='public' AND indexname=?", Integer.class, index));
         }

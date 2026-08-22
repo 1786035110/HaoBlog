@@ -137,6 +137,55 @@ paths:
           $ref: '#/components/responses/ArticleNotFound'
         '500':
           $ref: '#/components/responses/InternalError'
+  /api/v1/public/articles/{slug}/comments:
+    get:
+      operationId: listPublicArticleComments
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 160 }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: size
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+      responses:
+        '200':
+          description: Approved top-level comments and first-level replies
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CommentPageResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/ArticleNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      operationId: createPublicArticleComment
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 160 }
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CommentCreateRequest' }
+      responses:
+        '202':
+          description: Comment accepted for moderation
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CommentSubmissionResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403':
+          description: Invalid CSRF token or delete credential
+          content: { application/problem+json: { schema: { $ref: '#/components/schemas/ProblemResponse' } } }
+        '404': { $ref: '#/components/responses/ArticleNotFound' }
+        '409': { $ref: '#/components/responses/CommentConflict' }
+        '429': { $ref: '#/components/responses/CommentRateLimited' }
   /api/v1/public/articles/{slug}/comments/form-context:
     get:
       operationId: getPublicCommentFormContext
@@ -153,6 +202,18 @@ paths:
               schema: { $ref: '#/components/schemas/CommentFormContext' }
         '404':
           $ref: '#/components/responses/ArticleNotFound'
+  /api/v1/public/comments/{id}:
+    delete:
+      operationId: deletePublicComment
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - $ref: '#/components/parameters/CsrfHeader'
+        - $ref: '#/components/parameters/CommentDeleteToken'
+      responses:
+        '204': { description: Comment content deleted }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+        '409': { $ref: '#/components/responses/CommentConflict' }
   /api/v1/public/article-previews/{token}:
     get:
       operationId: getPublicArticlePreview
@@ -619,6 +680,11 @@ components:
       in: header
       required: true
       schema: { type: string }
+    CommentDeleteToken:
+      name: X-Comment-Delete-Token
+      in: header
+      required: true
+      schema: { type: string, minLength: 43, maxLength: 43 }
     IfNoneMatch:
       name: If-None-Match
       in: header
@@ -652,6 +718,20 @@ components:
           schema: { $ref: '#/components/schemas/ProblemResponse' }
     Conflict:
       description: Request conflicts with current resource state
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemResponse' }
+    CommentConflict:
+      description: Comment submission conflicts with current state or duplicate content
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemResponse' }
+    CommentRateLimited:
+      description: Comment rate limit exceeded
+      headers:
+        Retry-After:
+          description: Seconds until another comment may be submitted
+          schema: { type: integer, minimum: 1 }
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/ProblemResponse' }
@@ -751,6 +831,42 @@ components:
         challenge: { type: string, minLength: 43, maxLength: 43 }
         expiresAt: { type: string, format: date-time }
         commentsEnabled: { type: boolean }
+    CommentCreateRequest:
+      type: object
+      required: [nickname, content, challenge]
+      properties:
+        nickname: { type: string, minLength: 2, maxLength: 40 }
+        email: { type: [string, 'null'], maxLength: 254, format: email }
+        content: { type: string, minLength: 2, maxLength: 2000 }
+        parentId: { type: [string, 'null'], format: uuid }
+        challenge: { type: string, minLength: 43, maxLength: 43 }
+        honeypot: { type: string, maxLength: 200 }
+        website: { type: string, maxLength: 200 }
+    CommentView:
+      type: object
+      required: [id, nickname, content, createdAt, replies]
+      properties:
+        id: { type: string, format: uuid }
+        nickname: { type: string }
+        content: { type: string }
+        createdAt: { type: string, format: date-time }
+        replies: { type: array, items: { $ref: '#/components/schemas/CommentView' } }
+    CommentPageResponse:
+      type: object
+      required: [items, page, size, total]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/CommentView' } }
+        page: { type: integer }
+        size: { type: integer }
+        total: { type: integer, format: int64 }
+    CommentSubmissionResponse:
+      type: object
+      required: [id, status, createdAt]
+      properties:
+        id: { type: [string, 'null'], format: uuid }
+        status: { type: string, enum: [PENDING] }
+        createdAt: { type: string, format: date-time }
+        deleteToken: { type: [string, 'null'], minLength: 43, maxLength: 43 }
     ProblemResponse:
       type: object
       required: [code, title, detail, traceId]

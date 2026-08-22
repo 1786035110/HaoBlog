@@ -90,6 +90,18 @@ public class CommentSecurityService {
                 hmac(challengeKey, "challenge-v1:" + articleId + ":" + issuedAt + ":" + UUID.randomUUID()));
     }
 
+    public String newVisitorToken() {
+        byte[] token = new byte[32];
+        random.nextBytes(token);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(token);
+    }
+
+    public String newDeleteToken() {
+        byte[] token = new byte[32];
+        random.nextBytes(token);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(token);
+    }
+
     private static byte[] derive(byte[] masterKey, String purpose) {
         return hmac(masterKey, "haoblog-comment-key:" + purpose);
     }

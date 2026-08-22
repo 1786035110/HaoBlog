@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
@@ -29,7 +30,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler({MethodArgumentNotValidException.class, HandlerMethodValidationException.class,
             MethodArgumentTypeMismatchException.class, MissingServletRequestParameterException.class,
-            HttpMessageNotReadableException.class, IllegalArgumentException.class})
+            HttpMessageNotReadableException.class, HttpMediaTypeNotSupportedException.class,
+            IllegalArgumentException.class})
     ResponseEntity<ProblemResponse> badRequest(Exception exception) {
         return problemResponseWriter.response(HttpStatus.BAD_REQUEST, "BAD_REQUEST", "Invalid request", "Request parameters are invalid");
     }
@@ -39,8 +41,10 @@ public class GlobalExceptionHandler {
         HttpStatus status = "MEDIA_STORAGE_UNAVAILABLE".equals(exception.getCode()) ? HttpStatus.SERVICE_UNAVAILABLE :
                 exception.getCode().endsWith("_NOT_FOUND") ? HttpStatus.NOT_FOUND :
                 (Set.of("ARTICLE_PREVIEW_GONE", "MEDIA_UPLOAD_EXPIRED").contains(exception.getCode()) ? HttpStatus.GONE :
-                        (exception.getCode().contains("CONFLICT") || exception.getCode().endsWith("_IN_USE")
-                                ? HttpStatus.CONFLICT : HttpStatus.BAD_REQUEST));
+                        (Set.of("COMMENTING_DISABLED", "COMMENT_DUPLICATE", "COMMENT_ALREADY_DELETED").contains(exception.getCode())
+                                || exception.getCode().contains("CONFLICT") || exception.getCode().endsWith("_IN_USE")
+                                ? HttpStatus.CONFLICT :
+                                ("COMMENT_DELETE_TOKEN_INVALID".equals(exception.getCode()) ? HttpStatus.FORBIDDEN : HttpStatus.BAD_REQUEST)));
         return problemResponseWriter.response(status, exception.getCode(), exception.getTitle(), exception.getMessage(),
                 exception.getCurrentVersion());
     }

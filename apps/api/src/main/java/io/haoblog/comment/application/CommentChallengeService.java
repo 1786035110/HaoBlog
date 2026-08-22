@@ -36,17 +36,27 @@ public class CommentChallengeService {
     }
 
     public boolean consume(UUID articleId, String token) {
-        if (token == null || token.isBlank()) return false;
-        Challenge challenge = challenges.getIfPresent(token);
-        if (challenge == null) return false;
+        return validateAndConsume(articleId, token) == Validation.VALID;
+    }
+
+    public Validation validateAndConsume(UUID articleId, String token) {
+        if (token == null || token.isBlank()) return Validation.INVALID;
         Instant now = clock.instant();
-        if (!challenge.articleId().equals(articleId)
-                || now.isBefore(challenge.issuedAt().plus(MINIMUM_FILL_TIME))
-                || !challenge.expiresAt().isAfter(now)) {
-            return false;
-        }
-        challenges.invalidate(token);
-        return true;
+        var result = new Validation[] {Validation.INVALID};
+        challenges.asMap().computeIfPresent(token, (key, challenge) -> {
+            if (!challenge.articleId().equals(articleId)) return challenge;
+            if (now.isBefore(challenge.issuedAt().plus(MINIMUM_FILL_TIME))) {
+                result[0] = Validation.TOO_EARLY;
+                return challenge;
+            }
+            if (!challenge.expiresAt().isAfter(now)) {
+                result[0] = Validation.EXPIRED;
+                return null;
+            }
+            result[0] = Validation.VALID;
+            return null;
+        });
+        return result[0];
     }
 
     long cacheSize() {
@@ -55,6 +65,8 @@ public class CommentChallengeService {
     }
 
     public record IssuedChallenge(String token, Instant expiresAt) {}
+
+    public enum Validation { VALID, INVALID, TOO_EARLY, EXPIRED }
 
     private record Challenge(UUID articleId, Instant issuedAt, Instant expiresAt) {}
 }
