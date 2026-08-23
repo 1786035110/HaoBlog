@@ -14,19 +14,26 @@
         </div>
       </details>
       <div class="dock-status">
-        <button class="dock-control dock-control--disabled" type="button" disabled aria-disabled="true" aria-describedby="command-help">⌘K</button>
-        <span id="command-help" class="dock-help">命令入口即将开放</span>
+        <button ref="terminalTrigger" class="dock-control" type="button" aria-keyshortcuts="Control+K Meta+K" aria-describedby="command-help" @click="openTerminal">⌘K</button>
+        <span id="command-help" class="dock-help">打开安全终端</span>
       </div>
       <div class="dock-status">
         <button class="dock-control dock-control--disabled" type="button" disabled aria-disabled="true" aria-describedby="ai-help">AI</button>
         <span id="ai-help" class="dock-help">AI 入口即将开放</span>
       </div>
     </nav>
+    <component :is="terminalComponent" v-if="terminalComponent" :open="terminalOpen" @close="closeTerminal" />
   </div>
 </template>
 
 <script setup lang="ts">
+import type { Component } from 'vue'
+
 const route = useRoute()
+const terminalTrigger = ref<HTMLButtonElement | null>(null)
+const terminalComponent = ref<Component | null>(null)
+const terminalOpen = ref(false)
+let terminalLoad: Promise<void> | null = null
 const routeItems = [
   { to: '/', label: '01 / 首页' },
   { to: '/articles', label: '02 / 文章' },
@@ -34,4 +41,30 @@ const routeItems = [
   { to: '/tools', label: '04 / 工具' },
   { to: '/about', label: '05 / 关于' },
 ]
+
+async function openTerminal() {
+  terminalOpen.value = true
+  if (terminalComponent.value || terminalLoad) return terminalLoad
+  terminalLoad = import('../components/terminal/CommandTerminal.client.vue').then(module => {
+    terminalComponent.value = module.default
+  }).finally(() => {
+    terminalLoad = null
+  })
+  return terminalLoad
+}
+
+function closeTerminal() {
+  terminalOpen.value = false
+  nextTick(() => terminalTrigger.value?.focus())
+}
+
+function handleGlobalShortcut(event: KeyboardEvent) {
+  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+    event.preventDefault()
+    void openTerminal()
+  }
+}
+
+onMounted(() => window.addEventListener('keydown', handleGlobalShortcut))
+onBeforeUnmount(() => window.removeEventListener('keydown', handleGlobalShortcut))
 </script>
