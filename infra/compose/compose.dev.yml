@@ -73,6 +73,7 @@ services:
     restart: unless-stopped
     environment:
       NUXT_API_BASE_URL: http://api:8080
+      HAOBLOG_MUSIC_MANIFEST_URL: ${HAOBLOG_MUSIC_MANIFEST_URL:-}
       NODE_OPTIONS: --max-old-space-size=192
     ports:
       - "127.0.0.1:${WEB_PORT:-3000}:3000"

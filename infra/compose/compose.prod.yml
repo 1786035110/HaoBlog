@@ -34,6 +34,7 @@ services:
     restart: unless-stopped
     environment:
       NUXT_API_BASE_URL: http://api:8080
+      HAOBLOG_MUSIC_MANIFEST_URL: ${HAOBLOG_MUSIC_MANIFEST_URL:-}
       NODE_OPTIONS: --max-old-space-size=192
     depends_on:
       api:

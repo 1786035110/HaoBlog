@@ -11,13 +11,17 @@ import { useDataSaver } from '~/composables/useDataSaver'
 
 const { data: site } = await usePublicSite()
 const { enabled: dataSaver } = useDataSaver()
+const runtimeConfig = useRuntimeConfig()
 useHead(() => ({
   htmlAttrs: { lang: 'zh-CN', 'data-save-data': dataSaver.value ? 'on' : 'off' },
-  link: [{
-    rel: 'alternate',
-    type: 'application/rss+xml',
-    title: `${site.value?.title || 'HaoBlog'} RSS`,
-    href: site.value ? publicAbsoluteUrl(site.value.siteUrl, '/rss.xml') || undefined : undefined,
-  }],
+  link: [
+    {
+      rel: 'alternate',
+      type: 'application/rss+xml',
+      title: `${site.value?.title || 'HaoBlog'} RSS`,
+      href: site.value ? publicAbsoluteUrl(site.value.siteUrl, '/rss.xml') || undefined : undefined,
+    },
+    ...(runtimeConfig.public.pwaEnabled ? [{ rel: 'manifest' as const, href: '/manifest.webmanifest' }] : []),
+  ],
 }))
 </script>

@@ -23,6 +23,8 @@ export default defineNuxtConfig({
     apiBaseUrl: process.env.NUXT_API_BASE_URL || 'http://api:8080',
     public: {
       apiBase: '/',
+      pwaEnabled: process.env.NODE_ENV === 'production' || process.env.HAOBLOG_PWA_TEST === 'true',
+      signalRepair404: process.env.NUXT_SIGNAL_REPAIR_404 !== 'false',
     },
   },
   routeRules: {
