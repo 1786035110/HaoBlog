@@ -168,7 +168,7 @@ test.describe('S4-08 embedded browser tools', () => {
 
     const url = entryFor('url-codec')
     await url.getByLabel('输入').fill('%E0%A4%A')
-    await url.getByRole('button', { name: '解码' }).click()
+    await url.getByRole('button', { name: '解码', exact: true }).click()
     await expect(url).toContainText('非法百分号转义')
 
     const timestamp = entryFor('timestamp')
