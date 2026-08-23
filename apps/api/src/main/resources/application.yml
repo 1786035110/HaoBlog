@@ -50,6 +50,9 @@ management:
   endpoint:
     health:
       show-details: never
+  health:
+    mail:
+      enabled: ${HAOBLOG_COMMENT_NOTIFICATION_ENABLED:false}
 server:
   port: ${API_PORT:8080}
   tomcat:
