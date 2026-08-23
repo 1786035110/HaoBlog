@@ -15,6 +15,7 @@ const resolvedSite = site.value || defaultPublicSite
 const resolvedGraph = computed(() => graph.value || emptyGardenGraph)
 const timeline = computed(() => sortedGardenTimeline(resolvedGraph.value.nodes))
 const canvasAllowed = ref(false)
+const { enabled: saveData } = useDataSaver()
 
 useHead(() => publicPageHead(buildPublicPageSeo(
   resolvedSite,
@@ -29,7 +30,7 @@ onMounted(() => {
   const coarsePointer = window.matchMedia('(pointer: coarse)').matches
   const smallViewport = window.matchMedia('(max-width: 767px)').matches
   const canvas = document.createElement('canvas')
-  canvasAllowed.value = !reducedMotion && !coarsePointer && !smallViewport && !connection?.saveData
+  canvasAllowed.value = !saveData.value && !reducedMotion && !coarsePointer && !smallViewport && !connection?.saveData
     && Boolean(canvas.getContext('2d'))
 })
 
