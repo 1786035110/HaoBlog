@@ -667,6 +667,121 @@ paths:
         '403': { $ref: '#/components/responses/CsrfInvalid' }
         '404': { $ref: '#/components/responses/ResourceNotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/tool-categories:
+    get:
+      operationId: listAdminToolCategories
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Tool categories, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/ToolCategoryResponse' } } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      operationId: createAdminToolCategory
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ToolCategoryCreateRequest' } } } }
+      responses:
+        '201': { description: Tool category created, content: { application/json: { schema: { $ref: '#/components/schemas/ToolCategoryResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/tool-categories/{id}:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+    get:
+      operationId: getAdminToolCategory
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Tool category, content: { application/json: { schema: { $ref: '#/components/schemas/ToolCategoryResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+    put:
+      operationId: updateAdminToolCategory
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ToolCategoryUpdateRequest' } } } }
+      responses:
+        '200': { description: Tool category updated, content: { application/json: { schema: { $ref: '#/components/schemas/ToolCategoryResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      operationId: deleteAdminToolCategory
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/CsrfHeader' }
+        - { name: version, in: query, required: true, schema: { type: integer, format: int64, minimum: 0 } }
+      responses:
+        '204': { description: Tool category deleted }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/tools:
+    get:
+      operationId: listAdminTools
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+        - { name: categoryId, in: query, schema: { type: string, format: uuid } }
+        - { name: type, in: query, schema: { $ref: '#/components/schemas/ToolType' } }
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/ToolStatus' } }
+        - { name: keyword, in: query, schema: { type: string, maxLength: 240 } }
+        - { name: sort, in: query, schema: { type: string, enum: [sortOrder, createdAt, updatedAt, title], default: sortOrder } }
+        - { name: direction, in: query, schema: { type: string, enum: [asc, desc], default: asc } }
+      responses:
+        '200': { description: Tools, content: { application/json: { schema: { $ref: '#/components/schemas/AdminToolListResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      operationId: createAdminTool
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ToolCreateRequest' } } } }
+      responses:
+        '201': { description: Tool created, content: { application/json: { schema: { $ref: '#/components/schemas/ToolResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/tools/{id}:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+    get:
+      operationId: getAdminTool
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Tool, content: { application/json: { schema: { $ref: '#/components/schemas/ToolResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+    put:
+      operationId: updateAdminTool
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ToolUpdateRequest' } } } }
+      responses:
+        '200': { description: Tool updated, content: { application/json: { schema: { $ref: '#/components/schemas/ToolResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      operationId: deleteAdminTool
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/CsrfHeader' }
+        - { name: version, in: query, required: true, schema: { type: integer, format: int64, minimum: 0 } }
+      responses:
+        '204': { description: Tool deleted }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
   /api/v1/admin/session:
     post:
       operationId: loginAdmin
@@ -1267,6 +1382,82 @@ components:
         slug: { type: string }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
+    ToolType:
+      type: string
+      enum: [LINK, EMBEDDED, SHOWCASE]
+    ToolStatus:
+      type: string
+      enum: [ACTIVE, INACTIVE]
+    ToolComponentKey:
+      type: string
+      enum: [json-format, base64, url-codec, timestamp, regex-test]
+    ToolCategoryCreateRequest:
+      type: object
+      required: [name, slug]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        slug: { type: string, minLength: 1, maxLength: 160 }
+        description: { type: [string, 'null'], maxLength: 600 }
+        sortOrder: { type: integer }
+    ToolCategoryUpdateRequest:
+      allOf:
+        - $ref: '#/components/schemas/ToolCategoryCreateRequest'
+        - type: object
+          required: [version]
+          properties:
+            version: { type: integer, format: int64, minimum: 0 }
+    ToolCategoryResponse:
+      type: object
+      required: [id, name, slug, sortOrder, version, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+        description: { type: [string, 'null'] }
+        sortOrder: { type: integer }
+        version: { type: integer, format: int64, minimum: 0 }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    ToolCreateRequest:
+      type: object
+      required: [categoryId, type, status, title, slug, tags]
+      properties:
+        categoryId: { type: string, format: uuid }
+        type: { $ref: '#/components/schemas/ToolType' }
+        status: { $ref: '#/components/schemas/ToolStatus' }
+        title: { type: string, minLength: 1, maxLength: 160 }
+        slug: { type: string, minLength: 1, maxLength: 160 }
+        description: { type: [string, 'null'], maxLength: 600 }
+        url: { type: [string, 'null'], format: uri, pattern: '^https://' }
+        imageUrl: { type: [string, 'null'], format: uri, pattern: '^https://' }
+        componentKey: { oneOf: [{ $ref: '#/components/schemas/ToolComponentKey' }, { type: 'null' }] }
+        tags: { type: array, maxItems: 32, items: { type: string, minLength: 1, maxLength: 64 } }
+        sortOrder: { type: integer }
+    ToolUpdateRequest:
+      allOf:
+        - $ref: '#/components/schemas/ToolCreateRequest'
+        - type: object
+          required: [version]
+          properties:
+            version: { type: integer, format: int64, minimum: 0 }
+    ToolResponse:
+      allOf:
+        - $ref: '#/components/schemas/ToolCreateRequest'
+        - type: object
+          required: [id, version, createdAt, updatedAt]
+          properties:
+            id: { type: string, format: uuid }
+            version: { type: integer, format: int64, minimum: 0 }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+    AdminToolListResponse:
+      type: object
+      required: [items, page, size, total]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/ToolResponse' } }
+        page: { type: integer }
+        size: { type: integer }
+        total: { type: integer, format: int64 }
   headers:
     ETag:
       description: Entity tag for the public representation

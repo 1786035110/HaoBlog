@@ -11,6 +11,7 @@
         <NuxtLink to="/studio/articles" :aria-current="route.path === '/studio/articles' ? 'page' : undefined">文章日志</NuxtLink>
         <NuxtLink to="/studio/articles/new">新建文章</NuxtLink>
         <NuxtLink to="/studio/comments" :aria-current="route.path === '/studio/comments' ? 'page' : undefined">评论审核</NuxtLink>
+        <NuxtLink to="/studio/tools" :aria-current="route.path === '/studio/tools' ? 'page' : undefined">工具控制台</NuxtLink>
         <NuxtLink to="/studio/settings" :aria-current="route.path === '/studio/settings' ? 'page' : undefined">站点开关</NuxtLink>
         <NuxtLink to="/" external>返回公开站</NuxtLink>
         <button type="button" :disabled="pending" @click="signOut">{{ pending ? 'CLEARING…' : '退出' }}</button>

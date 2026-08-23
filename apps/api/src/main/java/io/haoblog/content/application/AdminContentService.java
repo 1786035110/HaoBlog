@@ -153,7 +153,7 @@ public class AdminContentService {
             throw new ProblemException("ARTICLE_VERSION_CONFLICT", "Article version conflict",
                     "Reload the latest article before saving", article.getVersion());
         }
-        String resolvedSlug = Slug.normalizeNullable(slug);
+        String resolvedSlug = slug == null ? article.getSlug() : Slug.normalizeNullable(slug);
         if (resolvedSlug != null && articles.existsBySlugAndIdNot(resolvedSlug, id)) {
             throw conflict("ARTICLE_SLUG_CONFLICT", "Article slug conflict", "The article slug is already in use");
         }

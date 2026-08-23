@@ -518,6 +518,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/tool-categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listAdminToolCategories"];
+        put?: never;
+        post: operations["createAdminToolCategory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tool-categories/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get: operations["getAdminToolCategory"];
+        put: operations["updateAdminToolCategory"];
+        post?: never;
+        delete: operations["deleteAdminToolCategory"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tools": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listAdminTools"];
+        put?: never;
+        post: operations["createAdminTool"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tools/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get: operations["getAdminTool"];
+        put: operations["updateAdminTool"];
+        post?: never;
+        delete: operations["deleteAdminTool"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/session": {
         parameters: {
             query?: never;
@@ -1000,6 +1068,73 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
+        };
+        /** @enum {string} */
+        ToolType: "LINK" | "EMBEDDED" | "SHOWCASE";
+        /** @enum {string} */
+        ToolStatus: "ACTIVE" | "INACTIVE";
+        /** @enum {string} */
+        ToolComponentKey: "json-format" | "base64" | "url-codec" | "timestamp" | "regex-test";
+        ToolCategoryCreateRequest: {
+            name: string;
+            slug: string;
+            description?: string | null;
+            sortOrder?: number;
+        };
+        ToolCategoryUpdateRequest: components["schemas"]["ToolCategoryCreateRequest"] & {
+            /** Format: int64 */
+            version: number;
+        };
+        ToolCategoryResponse: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            slug: string;
+            description?: string | null;
+            sortOrder: number;
+            /** Format: int64 */
+            version: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        ToolCreateRequest: {
+            /** Format: uuid */
+            categoryId: string;
+            type: components["schemas"]["ToolType"];
+            status: components["schemas"]["ToolStatus"];
+            title: string;
+            slug: string;
+            description?: string | null;
+            /** Format: uri */
+            url?: string | null;
+            /** Format: uri */
+            imageUrl?: string | null;
+            componentKey?: components["schemas"]["ToolComponentKey"] | null;
+            tags: string[];
+            sortOrder?: number;
+        };
+        ToolUpdateRequest: components["schemas"]["ToolCreateRequest"] & {
+            /** Format: int64 */
+            version: number;
+        };
+        ToolResponse: components["schemas"]["ToolCreateRequest"] & {
+            /** Format: uuid */
+            id: string;
+            /** Format: int64 */
+            version: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        AdminToolListResponse: {
+            items: components["schemas"]["ToolResponse"][];
+            page: number;
+            size: number;
+            /** Format: int64 */
+            total: number;
         };
     };
     responses: {
@@ -2408,6 +2543,291 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Tag deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["CsrfInvalid"];
+            404: components["responses"]["ResourceNotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    listAdminToolCategories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tool categories */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolCategoryResponse"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createAdminToolCategory: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-TOKEN": components["parameters"]["CsrfHeader"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ToolCategoryCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Tool category created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolCategoryResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["CsrfInvalid"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getAdminToolCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tool category */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolCategoryResponse"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["ResourceNotFound"];
+        };
+    };
+    updateAdminToolCategory: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-TOKEN": components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ToolCategoryUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Tool category updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolCategoryResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["CsrfInvalid"];
+            404: components["responses"]["ResourceNotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    deleteAdminToolCategory: {
+        parameters: {
+            query: {
+                version: number;
+            };
+            header: {
+                "X-CSRF-TOKEN": components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tool category deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["CsrfInvalid"];
+            404: components["responses"]["ResourceNotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    listAdminTools: {
+        parameters: {
+            query?: {
+                page?: number;
+                size?: number;
+                categoryId?: string;
+                type?: components["schemas"]["ToolType"];
+                status?: components["schemas"]["ToolStatus"];
+                keyword?: string;
+                sort?: "sortOrder" | "createdAt" | "updatedAt" | "title";
+                direction?: "asc" | "desc";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tools */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminToolListResponse"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createAdminTool: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-TOKEN": components["parameters"]["CsrfHeader"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ToolCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Tool created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["CsrfInvalid"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getAdminTool: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tool */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolResponse"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["ResourceNotFound"];
+        };
+    };
+    updateAdminTool: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-TOKEN": components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ToolUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Tool updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["CsrfInvalid"];
+            404: components["responses"]["ResourceNotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    deleteAdminTool: {
+        parameters: {
+            query: {
+                version: number;
+            };
+            header: {
+                "X-CSRF-TOKEN": components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tool deleted */
             204: {
                 headers: {
                     [name: string]: unknown;
