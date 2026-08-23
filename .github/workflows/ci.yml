@@ -6,7 +6,7 @@ on:
   pull_request:
 
 jobs:
-  stage-3-acceptance:
+  stage-4-acceptance:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -99,6 +99,13 @@ jobs:
         env:
           LHCI_EXISTING_SERVER: true
           LHCI_BASE_URL: http://localhost
+          LHCI_ARTICLE_PATH: /articles/s3-08-advanced-markdown
+        run: corepack pnpm web:lighthouse
+      - name: Lighthouse public tools budgets
+        env:
+          LHCI_EXISTING_SERVER: true
+          LHCI_BASE_URL: http://localhost
+          LHCI_ARTICLE_PATH: /tools
         run: corepack pnpm web:lighthouse
       - name: Reject whitespace errors
         run: git diff --check

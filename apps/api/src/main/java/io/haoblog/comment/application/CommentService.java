@@ -80,8 +80,10 @@ public class CommentService {
                                         int page, int size, Sort.Direction direction) {
         validatePage(page, size);
         String normalizedKeyword = normalizeKeyword(keyword);
-        var pageable = PageRequest.of(page, size, Sort.by(direction, "createdAt").and(Sort.by(direction, "id")));
-        return comments.findAdminComments(status, articleId, normalizedKeyword, pageable).map(this::adminListView);
+        var pageable = PageRequest.of(page, size);
+        return comments.findAdminComments(status == null ? null : status.name(),
+                articleId == null ? null : articleId.toString(), normalizedKeyword,
+                direction.name().toLowerCase(Locale.ROOT), pageable).map(this::adminListView);
     }
 
     @Transactional(readOnly = true)
@@ -142,7 +144,7 @@ public class CommentService {
         if (keyword == null || keyword.isBlank()) return null;
         String normalized = keyword.strip();
         if (normalized.length() > 240) throw new IllegalArgumentException("keyword is too long");
-        return normalized;
+        return normalized.toLowerCase(Locale.ROOT);
     }
 
     private static String normalizeReason(String reason) {

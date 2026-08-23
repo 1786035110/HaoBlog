@@ -74,10 +74,16 @@ The current repository uses one root pnpm workspace and one Maven application. N
 - API tests (POSIX shell): `cd apps/api && ./mvnw test`
 - API package (Windows PowerShell): `cd apps/api; .\mvnw.cmd verify`
 - API package (POSIX shell): `cd apps/api && ./mvnw verify`
+- PostgreSQL/pgvector integration tests (Windows PowerShell): `cd apps/api; .\mvnw.cmd failsafe:integration-test failsafe:verify`
 - Web type check: `pnpm --dir apps/web typecheck`
 - Web tests: `pnpm --dir apps/web test`
 - Web production build: `pnpm --dir apps/web build`
+- Full Chromium E2E: `pnpm --dir apps/web e2e`
+- Article client bundle budget: `pnpm web:budget`
+- Lighthouse with an existing server: set `LHCI_EXISTING_SERVER=true`, `LHCI_BASE_URL=http://localhost` and `LHCI_ARTICLE_PATH` to `/articles/s3-08-advanced-markdown` or `/tools`, then run `pnpm web:lighthouse`; on Windows also use a task-local `TEMP`/`TMP` directory to avoid Chrome cleanup EPERM
 - Compose validation using placeholder environment values: `docker compose --env-file .env.example -f infra/compose/compose.dev.yml config`
+- Production Compose validation: `docker compose --env-file infra/compose/.env.ci.example -f infra/compose/compose.prod.yml config`
+- Compose resource and health-boundary verification: `pnpm compose:verify`
 - Local database startup: `docker compose --env-file .env -f infra/compose/compose.dev.yml up -d`
 
 The Maven Wrapper is `apps/api/mvnw` / `apps/api/mvnw.cmd`, with Maven distribution `3.9.11`. The pnpm version is pinned as `pnpm@11.16.0` in the root `package.json`; the workspace also permits the explicitly configured `esbuild` build script.

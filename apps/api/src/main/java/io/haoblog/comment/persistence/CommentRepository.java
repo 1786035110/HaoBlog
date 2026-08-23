@@ -13,16 +13,29 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface CommentRepository extends JpaRepository<Comment, UUID> {
-    @Query("""
-            select c from Comment c
-            where (:status is null or c.status = :status)
-              and (:articleId is null or c.articleId = :articleId)
-              and (:keyword is null or lower(c.nickname) like lower(concat('%', :keyword, '%'))
-                   or lower(c.content) like lower(concat('%', :keyword, '%')))
-            """)
-    Page<Comment> findAdminComments(@Param("status") CommentStatus status,
-                                    @Param("articleId") UUID articleId,
+    @Query(value = """
+            select c.* from comment c
+            where (cast(:status as varchar) is null or c.status = cast(:status as varchar))
+              and (cast(:articleId as uuid) is null or c.article_id = cast(:articleId as uuid))
+              and (cast(:keyword as text) is null or lower(c.nickname) like concat('%', cast(:keyword as text), '%')
+                   or lower(c.content) like concat('%', cast(:keyword as text), '%'))
+            order by
+              case when cast(:direction as varchar) = 'asc' then c.created_at end asc,
+              case when cast(:direction as varchar) <> 'asc' then c.created_at end desc,
+              case when cast(:direction as varchar) = 'asc' then c.id end asc,
+              case when cast(:direction as varchar) <> 'asc' then c.id end desc
+            """,
+            countQuery = """
+            select count(*) from comment c
+            where (cast(:status as varchar) is null or c.status = cast(:status as varchar))
+              and (cast(:articleId as uuid) is null or c.article_id = cast(:articleId as uuid))
+              and (cast(:keyword as text) is null or lower(c.nickname) like concat('%', cast(:keyword as text), '%')
+                   or lower(c.content) like concat('%', cast(:keyword as text), '%'))
+            """, nativeQuery = true)
+    Page<Comment> findAdminComments(@Param("status") String status,
+                                    @Param("articleId") String articleId,
                                     @Param("keyword") String keyword,
+                                    @Param("direction") String direction,
                                     Pageable pageable);
 
     Page<Comment> findByArticleIdAndStatusAndParentIdIsNullOrderByCreatedAtAscIdAsc(
