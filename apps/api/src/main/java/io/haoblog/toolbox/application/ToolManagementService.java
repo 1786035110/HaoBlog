@@ -18,7 +18,12 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 public class ToolManagementService {
@@ -34,6 +39,60 @@ public class ToolManagementService {
 
     @Transactional(readOnly = true)
     public List<ToolCategory> listCategories() { return categories.findAllByOrderBySortOrderAscNameAsc(); }
+
+    @Transactional(readOnly = true)
+    public PublicTools listPublicTools(String category, ToolType type, String keyword) {
+        String normalizedCategory = category == null || category.isBlank() ? null : category.trim();
+        if (normalizedCategory != null && normalizedCategory.length() > 160) {
+            throw new IllegalArgumentException("category is too long");
+        }
+        String normalizedKeyword = keyword == null || keyword.isBlank() ? null : keyword.trim();
+        if (normalizedKeyword != null && normalizedKeyword.length() > 240) {
+            throw new IllegalArgumentException("keyword is too long");
+        }
+        return queryPublicTools(normalizedCategory, type, normalizedKeyword);
+    }
+
+    private PublicTools queryPublicTools(String normalizedCategory, ToolType type, String normalizedKeyword) {
+
+        List<Tool> activeTools = tools.findAllByStatus(ToolStatus.ACTIVE,
+                Sort.by(Sort.Direction.ASC, "sortOrder", "title", "id"));
+        Map<UUID, ToolCategory> categoryById = categories.findAllById(
+                activeTools.stream().map(Tool::getCategoryId).distinct().toList()).stream()
+                .collect(Collectors.toMap(ToolCategory::getId, categoryValue -> categoryValue));
+        Predicate<Tool> categoryFilter = categoryPredicate(normalizedCategory, categoryById);
+        String keywordValue = normalizedKeyword == null ? null : normalizedKeyword.toLowerCase(Locale.ROOT);
+        List<PublicTool> items = activeTools.stream()
+                .filter(tool -> type == null || tool.getType() == type)
+                .filter(categoryFilter)
+                .filter(tool -> keywordValue == null || containsKeyword(tool, keywordValue))
+                .map(tool -> PublicTool.from(tool, categoryById.get(tool.getCategoryId())))
+                .filter(tool -> tool.category() != null)
+                .toList();
+        List<ToolCategory> validCategories = items.stream().map(PublicTool::category).distinct()
+                .sorted(java.util.Comparator.comparingInt(ToolCategory::getSortOrder)
+                        .thenComparing(ToolCategory::getName)
+                        .thenComparing(ToolCategory::getId))
+                .toList();
+        return new PublicTools(items, validCategories);
+    }
+
+    private static Predicate<Tool> categoryPredicate(String category, Map<UUID, ToolCategory> categoryById) {
+        if (category == null) return ignored -> true;
+        return tool -> {
+            ToolCategory value = categoryById.get(tool.getCategoryId());
+            return value != null && (value.getSlug().equalsIgnoreCase(category)
+                    || value.getId().toString().equalsIgnoreCase(category));
+        };
+    }
+
+    private static boolean containsKeyword(Tool tool, String keyword) {
+        return Stream.of(tool.getTitle(), tool.getSlug(), tool.getDescription())
+                .filter(java.util.Objects::nonNull)
+                .map(value -> value.toLowerCase(Locale.ROOT))
+                .anyMatch(value -> value.contains(keyword))
+                || tool.getTags().stream().anyMatch(tag -> tag.toLowerCase(Locale.ROOT).contains(keyword));
+    }
 
     @Transactional
     public ToolCategory createCategory(String name, String slug, String description, int sortOrder) {
@@ -164,4 +223,16 @@ public class ToolManagementService {
     }
     private static ProblemException notFound(String code) { return new ProblemException(code, "Resource not found", "The requested toolbox resource was not found"); }
     private static ProblemException conflict(String code, String title, String detail) { return new ProblemException(code, title, detail); }
+
+    public record PublicTools(List<PublicTool> items, List<ToolCategory> categories) {}
+
+    public record PublicTool(UUID id, ToolCategory category, ToolType type, String title, String slug,
+                             String description, String url, String imageUrl, String componentKey, List<String> tags,
+                             int sortOrder) {
+        static PublicTool from(Tool tool, ToolCategory category) {
+            return new PublicTool(tool.getId(), category, tool.getType(), tool.getTitle(), tool.getSlug(), tool.getDescription(),
+                    tool.getUrl(), tool.getImageUrl(), tool.getComponentKey() == null ? null : tool.getComponentKey().getValue(),
+                    tool.getTags(), tool.getSortOrder());
+        }
+    }
 }

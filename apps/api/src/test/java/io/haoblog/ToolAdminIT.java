@@ -15,6 +15,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.junit.jupiter.api.BeforeEach;
 
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -29,6 +30,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -51,6 +53,11 @@ class ToolAdminIT {
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper objectMapper;
     @Autowired JdbcTemplate jdbc;
+
+    @BeforeEach
+    void cleanToolTables() {
+        jdbc.execute("TRUNCATE tool, tool_category CASCADE");
+    }
 
     @Test
     void migrationStartsWithEmptyToolTablesAndWritesNeedAuthAndCsrf() throws Exception {
@@ -103,6 +110,41 @@ class ToolAdminIT {
                 UUID.randomUUID(), categoryId, "EMBEDDED", "ACTIVE", "Invalid", "invalid-" + categoryId.toString().substring(0, 8), "arbitrary-path", "{}", now, now));
     }
 
+    @Test
+    void publicDirectoryReturnsActiveToolsValidCategoriesAndSupportsConditionalFilters() throws Exception {
+        String categoryId = createCategory();
+        createTool(categoryId, "json-link", "JSON Link", "LINK", "https://example.com/json", null);
+        createTool(categoryId, "json-format", "JSON Format", "EMBEDDED", null, "json-format");
+        tool(categoryId, "{\"type\":\"LINK\",\"url\":\"https://example.com/hidden\",\"title\":\"Hidden\",\"slug\":\"hidden\",\"tags\":[],\"status\":\"INACTIVE\"}")
+                .andExpect(status().isCreated());
+
+        var directory = mvc.perform(get("/api/v1/public/tools"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()", org.hamcrest.Matchers.is(2)))
+                .andExpect(jsonPath("$.categories.length()", org.hamcrest.Matchers.is(1)))
+                .andExpect(jsonPath("$.items[0].category.slug").isNotEmpty())
+                .andExpect(jsonPath("$.items[0].tags").isArray())
+                .andExpect(header().string("Cache-Control", org.hamcrest.Matchers.containsString("s-maxage=60")))
+                .andExpect(header().exists("ETag"))
+                .andReturn();
+        String etag = directory.getResponse().getHeader("ETag");
+        mvc.perform(get("/api/v1/public/tools").header("If-None-Match", etag))
+                .andExpect(status().isNotModified()).andExpect(content().string(""));
+        mvc.perform(get("/api/v1/public/tools?type=EMBEDDED&keyword=json"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items.length()", org.hamcrest.Matchers.is(1)))
+                .andExpect(jsonPath("$.items[0].componentKey").value("json-format"));
+        mvc.perform(get("/api/v1/public/tools?category=" + categoryId))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items.length()", org.hamcrest.Matchers.is(2)));
+    }
+
+    @Test
+    void publicDirectoryHasExplicitEmptyState() throws Exception {
+        mvc.perform(get("/api/v1/public/tools?keyword=not-present-" + UUID.randomUUID()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items").isEmpty())
+                .andExpect(jsonPath("$.categories").isEmpty());
+    }
+
     private String createCategory() throws Exception {
         String suffix = UUID.randomUUID().toString().substring(0, 8);
         var result = mvc.perform(post("/api/v1/admin/tool-categories").with(admin()).with(csrf()).contentType(MediaType.APPLICATION_JSON)
@@ -113,7 +155,8 @@ class ToolAdminIT {
 
     private org.springframework.test.web.servlet.ResultActions tool(String categoryId, String body) throws Exception {
         String base = body.substring(0, body.length() - 1);
-        String payload = base + ",\"categoryId\":\"" + categoryId + "\",\"status\":\"ACTIVE\"}";
+        String payload = base + ",\"categoryId\":\"" + categoryId + "\""
+                + (body.contains("\"status\"") ? "" : ",\"status\":\"ACTIVE\"") + "}";
         return mvc.perform(post("/api/v1/admin/tools").with(admin()).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(payload));
     }
 

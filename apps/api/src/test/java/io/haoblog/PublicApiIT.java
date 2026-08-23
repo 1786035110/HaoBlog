@@ -140,7 +140,7 @@ class PublicApiIT {
                 .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("scheduled-feed"))))
                 .andExpect(header().exists("ETag"))
                 .andReturn();
-        assertEquals(5, count(sitemap.getResponse().getContentAsString(), "<url>"));
+        assertEquals(6, count(sitemap.getResponse().getContentAsString(), "<url>"));
         mvc.perform(get("/sitemap.xml").header("If-None-Match", sitemap.getResponse().getHeader("ETag")))
                 .andExpect(status().isNotModified()).andExpect(content().string(""));
     }

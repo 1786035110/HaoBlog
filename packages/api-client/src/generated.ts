@@ -52,6 +52,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/public/tools": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listPublicTools"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/public/articles": {
         parameters: {
             query?: never;
@@ -1129,6 +1145,34 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
         };
+        PublicToolCategoryResponse: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            slug: string;
+            description?: string | null;
+            sortOrder: number;
+        };
+        PublicToolResponse: {
+            /** Format: uuid */
+            id: string;
+            category: components["schemas"]["PublicToolCategoryResponse"];
+            type: components["schemas"]["ToolType"];
+            title: string;
+            slug: string;
+            description: string | null;
+            /** Format: uri */
+            url: string | null;
+            /** Format: uri */
+            imageUrl: string | null;
+            componentKey: components["schemas"]["ToolComponentKey"] | null;
+            tags: string[];
+            sortOrder: number;
+        };
+        PublicToolListResponse: {
+            items: components["schemas"]["PublicToolResponse"][];
+            categories: components["schemas"]["PublicToolCategoryResponse"][];
+        };
         AdminToolListResponse: {
             items: components["schemas"]["ToolResponse"][];
             page: number;
@@ -1402,6 +1446,46 @@ export interface operations {
                 };
                 content?: never;
             };
+            500: components["responses"]["InternalError"];
+        };
+    };
+    listPublicTools: {
+        parameters: {
+            query?: {
+                /** @description Category slug or UUID */
+                category?: string;
+                type?: components["schemas"]["ToolType"];
+                keyword?: string;
+            };
+            header?: {
+                "If-None-Match"?: components["parameters"]["IfNoneMatch"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Active public tools and their valid categories */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    "Cache-Control"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicToolListResponse"];
+                };
+            };
+            /** @description Public tool representation has not changed */
+            304: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    "Cache-Control"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
             500: components["responses"]["InternalError"];
         };
     };

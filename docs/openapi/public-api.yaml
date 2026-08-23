@@ -79,6 +79,41 @@ paths:
             Cache-Control: { schema: { type: string } }
         '500':
           $ref: '#/components/responses/InternalError'
+  /api/v1/public/tools:
+    get:
+      operationId: listPublicTools
+      security: []
+      parameters:
+        - name: category
+          in: query
+          description: Category slug or UUID
+          schema: { type: string, maxLength: 160 }
+        - name: type
+          in: query
+          schema: { $ref: '#/components/schemas/ToolType' }
+        - name: keyword
+          in: query
+          schema: { type: string, maxLength: 240 }
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: Active public tools and their valid categories
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            Cache-Control: { schema: { type: string } }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicToolListResponse'
+        '304':
+          description: Public tool representation has not changed
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            Cache-Control: { schema: { type: string } }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /api/v1/public/articles:
     get:
       operationId: listPublicArticles
@@ -1450,6 +1485,36 @@ components:
             version: { type: integer, format: int64, minimum: 0 }
             createdAt: { type: string, format: date-time }
             updatedAt: { type: string, format: date-time }
+    PublicToolCategoryResponse:
+      type: object
+      required: [id, name, slug, sortOrder]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+        description: { type: [string, 'null'] }
+        sortOrder: { type: integer }
+    PublicToolResponse:
+      type: object
+      required: [id, category, type, title, slug, description, url, imageUrl, componentKey, tags, sortOrder]
+      properties:
+        id: { type: string, format: uuid }
+        category: { $ref: '#/components/schemas/PublicToolCategoryResponse' }
+        type: { $ref: '#/components/schemas/ToolType' }
+        title: { type: string }
+        slug: { type: string }
+        description: { type: [string, 'null'] }
+        url: { type: [string, 'null'], format: uri, pattern: '^https://' }
+        imageUrl: { type: [string, 'null'], format: uri, pattern: '^https://' }
+        componentKey: { oneOf: [{ $ref: '#/components/schemas/ToolComponentKey' }, { type: 'null' }] }
+        tags: { type: array, items: { type: string } }
+        sortOrder: { type: integer }
+    PublicToolListResponse:
+      type: object
+      required: [items, categories]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/PublicToolResponse' } }
+        categories: { type: array, items: { $ref: '#/components/schemas/PublicToolCategoryResponse' } }
     AdminToolListResponse:
       type: object
       required: [items, page, size, total]
