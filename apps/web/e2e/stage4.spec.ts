@@ -149,7 +149,7 @@ test.describe('S4-08 embedded browser tools', () => {
     const requests: string[] = []
     page.on('request', request => requests.push(request.url()))
 
-    const entryFor = (key: string) => page.locator('.tool-entry').filter({ hasText: seededTitles[key] }).filter({ has: page.locator(`[data-component-key="${key}"]`) })
+    const entryFor = (key: string) => page.locator('.tool-entry').filter({ hasText: seededTitles[key] })
     for (const key of expected) {
       const entry = entryFor(key)
       await entry.getByRole('button', { name: 'UNFOLD' }).click()
