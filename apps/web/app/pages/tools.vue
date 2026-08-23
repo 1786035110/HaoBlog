@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import { provide } from 'vue'
 import type { components } from '@haoblog/api-client'
+import { embeddedWorkerKey, useEmbeddedWorker } from '~/composables/useEmbeddedWorker'
+import { getEmbeddedToolComponent } from '~/utils/embeddedTools'
 
 type PublicTools = components['schemas']['PublicToolListResponse']
 type PublicTool = components['schemas']['PublicToolResponse']
@@ -23,6 +26,8 @@ const sortMode = ref<SortMode>('stable')
 const favorites = ref(new Set<string>())
 const usage = ref<Record<string, { count: number; lastUsed: string }>>({})
 const expanded = ref(new Set<string>())
+const embeddedWorker = useEmbeddedWorker()
+provide(embeddedWorkerKey, embeddedWorker)
 
 const tools = computed(() => data.value?.items || [])
 const categories = computed(() => data.value?.categories || [])
@@ -173,8 +178,10 @@ function safeExternalUrl(url: string | null) {
           <template v-if="tool.type === 'EMBEDDED'">
             <div class="embedded-slot" :data-component-key="tool.componentKey || undefined">
               <span class="slot-marker" aria-hidden="true">/</span>
-              <strong>内嵌组件槽位已建立</strong>
-              <span>当前版本未装载此工具算法；不会上传或模拟你的输入。</span>
+              <strong>内嵌组件槽位已建立 · 浏览器本地运行</strong>
+              <span>输入不会上传；组件按白名单 componentKey 懒加载。</span>
+              <component :is="getEmbeddedToolComponent(tool.componentKey)" v-if="getEmbeddedToolComponent(tool.componentKey)" />
+              <span v-else class="tool-warning">此工具组件未通过白名单校验，已停止装载。</span>
             </div>
           </template>
           <template v-else>
