@@ -23,7 +23,7 @@ public class PublicFeedService {
     private static final int RSS_LIMIT = 20;
     private static final int SITEMAP_BATCH_SIZE = 500;
     private static final int SITEMAP_URL_LIMIT = 50_000;
-    private static final int STATIC_URL_COUNT = 4;
+    private static final int STATIC_URL_COUNT = 5;
     private static final DateTimeFormatter RSS_DATE_FORMAT = DateTimeFormatter.RFC_1123_DATE_TIME;
     private final SiteService siteService;
     private final ArticleService articleService;
@@ -104,7 +104,7 @@ public class PublicFeedService {
         return write(writer -> {
             writer.writeStartElement("urlset");
             writer.writeDefaultNamespace("http://www.sitemaps.org/schemas/sitemap/0.9");
-            for (String path : List.of("/", "/articles", "/tools", "/about")) {
+            for (String path : List.of("/", "/articles", "/garden", "/tools", "/about")) {
                 urlElement(writer, url(site.siteUrl(), path));
             }
             for (var article : articles) {

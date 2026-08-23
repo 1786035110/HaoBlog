@@ -20,7 +20,8 @@ public class PublicSiteController {
     @GetMapping
     public ResponseEntity<SiteResponse> site(@RequestHeader(value = HttpHeaders.IF_NONE_MATCH, required = false) String ifNoneMatch) {
         var result = service.get();
-        var response = new SiteResponse(result.title(), result.description(), result.siteUrl(), result.authorName(), result.commentsEnabled());
+        var response = new SiteResponse(result.title(), result.description(), result.siteUrl(), result.authorName(),
+                result.commentsEnabled(), result.musicEnabled(), result.threeDEnabled(), result.musicManifestUrl());
         var headers = new HttpHeaders();
         headers.setETag(representationHash(response));
         headers.setCacheControl("public, max-age=0, s-maxage=60, must-revalidate");
@@ -39,9 +40,15 @@ public class PublicSiteController {
         }
     }
 
-    public record SiteResponse(String title, String description, String siteUrl, String authorName, boolean commentsEnabled) {
+    public record SiteResponse(String title, String description, String siteUrl, String authorName,
+                               boolean commentsEnabled, boolean musicEnabled, boolean threeDEnabled,
+                               String musicManifestUrl) {
         public SiteResponse(String title, String description, String siteUrl, String authorName) {
-            this(title, description, siteUrl, authorName, true);
+            this(title, description, siteUrl, authorName, true, false, false, null);
+        }
+        public SiteResponse(String title, String description, String siteUrl, String authorName,
+                            boolean commentsEnabled) {
+            this(title, description, siteUrl, authorName, commentsEnabled, false, false, null);
         }
     }
 }

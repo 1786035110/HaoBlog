@@ -17,7 +17,6 @@ export default defineNuxtConfig({
     '/articles': { cache: false },
     '/articles/**': { cache: false },
     '/article-previews/**': { cache: false, headers: { 'cache-control': 'no-store', 'referrer-policy': 'no-referrer', 'x-robots-tag': 'noindex, nofollow' } },
-    '/garden': { headers: { 'x-robots-tag': 'noindex, nofollow' } },
   },
   nitro: {
     compressPublicAssets: true,

@@ -19,18 +19,20 @@ const { data, error } = await usePublicApi<PublicTools>('/api/v1/public/tools', 
   default: () => emptyTools,
 })
 
+const route = useRoute()
+const selectedToolSlug = computed(() => typeof route.query.tool === 'string' ? route.query.tool : '')
 const category = ref('')
 const type = ref('')
 const keyword = ref('')
 const sortMode = ref<SortMode>('stable')
 const favorites = ref(new Set<string>())
 const usage = ref<Record<string, { count: number; lastUsed: string }>>({})
-const expanded = ref(new Set<string>())
 const embeddedWorker = useEmbeddedWorker()
 provide(embeddedWorkerKey, embeddedWorker)
 
 const tools = computed(() => data.value?.items || [])
 const categories = computed(() => data.value?.categories || [])
+const expanded = ref(new Set<string>(tools.value.filter(tool => tool.slug === selectedToolSlug.value).map(tool => tool.id)))
 const filteredTools = computed(() => {
   const query = keyword.value.trim().toLocaleLowerCase()
   const result = tools.value.filter((tool) => {
@@ -51,6 +53,18 @@ onMounted(() => {
   favorites.value = readFavorites()
   usage.value = readUsage()
 })
+
+watch([selectedToolSlug, tools], async () => {
+  if (!import.meta.client) return
+  const slug = selectedToolSlug.value
+  if (!slug) return
+  const tool = tools.value.find(item => item.slug === slug)
+  if (!tool) return
+  expanded.value = new Set([...expanded.value, tool.id])
+  await nextTick()
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  document.getElementById(`tool-${tool.slug}`)?.scrollIntoView({ block: 'center', behavior: reducedMotion ? 'auto' : 'smooth' })
+}, { immediate: true })
 
 function compareTools(left: PublicTool, right: PublicTool, mode: Exclude<SortMode, 'stable'>) {
   const leftUsage = usage.value[left.id] || { count: 0, lastUsed: '' }
@@ -155,7 +169,7 @@ function safeExternalUrl(url: string | null) {
       <span>尝试清除一个筛选条件。</span>
     </div>
     <ol v-else class="tool-console" aria-label="公共工具目录">
-      <li v-for="(tool, index) in filteredTools" :key="tool.id" class="tool-entry" :data-expanded="expanded.has(tool.id)">
+      <li v-for="(tool, index) in filteredTools" :id="`tool-${tool.slug}`" :key="tool.id" class="tool-entry" :data-expanded="expanded.has(tool.id)">
         <div class="tool-row">
           <span class="tool-index" aria-hidden="true">{{ String(index + 1).padStart(2, '0') }}</span>
           <span class="tool-signal" aria-hidden="true" />

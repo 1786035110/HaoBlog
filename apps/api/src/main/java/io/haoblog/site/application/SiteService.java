@@ -2,9 +2,12 @@ package io.haoblog.site.application;
 
 import io.haoblog.site.persistence.SiteSettingRepository;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.net.URI;
+import java.util.Arrays;
+import java.util.Locale;
 
 
 @Service
@@ -12,40 +15,71 @@ public class SiteService {
     private final SiteSettingRepository repository;
     private final String publicBaseUrl;
     private final String authorName;
+    private final String musicManifestUrl;
 
+    @Autowired
     public SiteService(SiteSettingRepository repository,
                        @Value("${haoblog.site.public-base-url}") String publicBaseUrl,
-                       @Value("${haoblog.site.author-name}") String authorName) {
+                       @Value("${haoblog.site.author-name}") String authorName,
+                       @Value("${haoblog.site.music-manifest-url:}") String musicManifestUrl,
+                       @Value("${spring.profiles.active:local}") String activeProfiles) {
+        this(repository, publicBaseUrl, authorName, musicManifestUrl, activeProfiles, true);
+    }
+
+    public SiteService(SiteSettingRepository repository, String publicBaseUrl, String authorName) {
+        this(repository, publicBaseUrl, authorName, null, "local", false);
+    }
+
+    private SiteService(SiteSettingRepository repository, String publicBaseUrl, String authorName,
+                        String musicManifestUrl, String activeProfiles, boolean validateManifest) {
         this.repository = repository;
         this.publicBaseUrl = normalizePublicBaseUrl(publicBaseUrl);
         if (authorName == null || authorName.isBlank()) {
             throw new IllegalArgumentException("HAOBLOG_AUTHOR_NAME must not be blank");
         }
         this.authorName = authorName.trim();
+        this.musicManifestUrl = validateManifest
+                ? normalizeMusicManifestUrl(musicManifestUrl, activeProfiles)
+                : null;
     }
 
     public SiteResult get() {
         var setting = repository.findBySiteKey("default").orElseThrow();
-        return new SiteResult(setting.getTitle(), setting.getDescription(), publicBaseUrl, authorName, setting.isCommentsEnabled());
+        return new SiteResult(setting.getTitle(), setting.getDescription(), publicBaseUrl, authorName,
+                setting.isCommentsEnabled(), setting.isMusicEnabled() && musicManifestUrl != null,
+                setting.isThreeDEnabled(), musicManifestUrl);
     }
 
     public AdminSiteResult getAdmin() {
         var setting = repository.findBySiteKey("default").orElseThrow();
         return new AdminSiteResult(setting.getTitle(), setting.getDescription(), publicBaseUrl, authorName,
-                setting.isCommentsEnabled(), setting.getVersion());
+                setting.isCommentsEnabled(), setting.isMusicEnabled(), setting.isThreeDEnabled(), setting.getVersion());
     }
 
     @org.springframework.transaction.annotation.Transactional
     public AdminSiteResult updateCommentsEnabled(long expectedVersion, boolean commentsEnabled) {
+        return updateSettings(expectedVersion, commentsEnabled, null, null);
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public AdminSiteResult updateSettings(long expectedVersion, Boolean commentsEnabled,
+                                          Boolean musicEnabled, Boolean threeDEnabled) {
         var setting = repository.findBySiteKey("default").orElseThrow();
         if (setting.getVersion() != expectedVersion) {
             throw new io.haoblog.shared.web.ProblemException("SITE_VERSION_CONFLICT", "Site setting version conflict",
                     "Reload the latest site settings before saving", setting.getVersion());
         }
-        setting.setCommentsEnabled(commentsEnabled);
+        boolean nextMusicEnabled = musicEnabled == null ? setting.isMusicEnabled() : musicEnabled;
+        if (nextMusicEnabled && musicManifestUrl == null) {
+            throw new io.haoblog.shared.web.ProblemException("MUSIC_MANIFEST_NOT_CONFIGURED",
+                    "Music manifest is not configured", "Configure HAOBLOG_MUSIC_MANIFEST_URL before enabling music");
+        }
+        if (commentsEnabled != null) setting.setCommentsEnabled(commentsEnabled);
+        setting.setMusicEnabled(nextMusicEnabled);
+        if (threeDEnabled != null) setting.setThreeDEnabled(threeDEnabled);
         var saved = repository.saveAndFlush(setting);
         return new AdminSiteResult(saved.getTitle(), saved.getDescription(), publicBaseUrl, authorName,
-                saved.isCommentsEnabled(), saved.getVersion());
+                saved.isCommentsEnabled(), saved.isMusicEnabled(), saved.isThreeDEnabled(), saved.getVersion());
     }
 
     public long currentVersion() {
@@ -70,12 +104,49 @@ public class SiteService {
         return raw.trim().replaceFirst("/+$", "");
     }
 
-    public record SiteResult(String title, String description, String siteUrl, String authorName, boolean commentsEnabled) {
+    static String normalizeMusicManifestUrl(String raw, String activeProfiles) {
+        if (raw == null || raw.isBlank()) return null;
+        String value = raw.trim();
+        URI uri;
+        try {
+            uri = URI.create(value);
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalArgumentException("HAOBLOG_MUSIC_MANIFEST_URL must be an absolute HTTPS URL", exception);
+        }
+        boolean absoluteHost = uri.isAbsolute() && uri.getHost() != null && uri.getUserInfo() == null
+                && uri.getFragment() == null;
+        boolean https = "https".equalsIgnoreCase(uri.getScheme());
+        boolean localProfile = Arrays.stream((activeProfiles == null ? "" : activeProfiles).split(","))
+                .map(String::trim).map(valueProfile -> valueProfile.toLowerCase(Locale.ROOT))
+                .anyMatch(profile -> profile.equals("local") || profile.equals("dev") || profile.equals("test"));
+        boolean localhostHttp = "http".equalsIgnoreCase(uri.getScheme()) && localProfile
+                && SetOfLocalHosts.contains(uri.getHost().toLowerCase(Locale.ROOT));
+        if (!absoluteHost || (!https && !localhostHttp)) {
+            throw new IllegalArgumentException("HAOBLOG_MUSIC_MANIFEST_URL must be HTTPS; local/dev may use localhost HTTP");
+        }
+        return value;
+    }
+
+    private static final java.util.Set<String> SetOfLocalHosts = java.util.Set.of("localhost", "127.0.0.1", "::1");
+
+    public record SiteResult(String title, String description, String siteUrl, String authorName,
+                             boolean commentsEnabled, boolean musicEnabled, boolean threeDEnabled,
+                             String musicManifestUrl) {
         public SiteResult(String title, String description, String siteUrl, String authorName) {
-            this(title, description, siteUrl, authorName, true);
+            this(title, description, siteUrl, authorName, true, false, false, null);
+        }
+        public SiteResult(String title, String description, String siteUrl, String authorName,
+                          boolean commentsEnabled) {
+            this(title, description, siteUrl, authorName, commentsEnabled, false, false, null);
         }
     }
 
     public record AdminSiteResult(String title, String description, String siteUrl, String authorName,
-                                  boolean commentsEnabled, long version) {}
+                                  boolean commentsEnabled, boolean musicEnabled, boolean threeDEnabled,
+                                  long version) {
+        public AdminSiteResult(String title, String description, String siteUrl, String authorName,
+                               boolean commentsEnabled, long version) {
+            this(title, description, siteUrl, authorName, commentsEnabled, false, false, version);
+        }
+    }
 }

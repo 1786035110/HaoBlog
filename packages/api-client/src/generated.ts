@@ -52,6 +52,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/public/garden": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getPublicGarden"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/public/tools": {
         parameters: {
             query?: never;
@@ -661,6 +677,10 @@ export interface components {
             siteUrl: string;
             authorName: string;
             commentsEnabled: boolean;
+            musicEnabled: boolean;
+            threeDEnabled: boolean;
+            /** Format: uri */
+            musicManifestUrl: string | null;
         };
         ArticleSummary: {
             /** Format: uuid */
@@ -1017,6 +1037,8 @@ export interface components {
             /** Format: int64 */
             version: number;
             commentsEnabled: boolean;
+            musicEnabled?: boolean;
+            threeDEnabled?: boolean;
         };
         AdminSiteResponse: {
             title: string;
@@ -1025,8 +1047,33 @@ export interface components {
             siteUrl: string;
             authorName: string;
             commentsEnabled: boolean;
+            musicEnabled: boolean;
+            threeDEnabled: boolean;
             /** Format: int64 */
             version: number;
+        };
+        GardenGraphResponse: {
+            nodes: components["schemas"]["GardenNode"][];
+            edges: components["schemas"]["GardenEdge"][];
+            truncated: boolean;
+        };
+        GardenNode: {
+            id: string;
+            /** @enum {string} */
+            type: "ARTICLE" | "TAG" | "CATEGORY" | "TOOL";
+            label: string;
+            href: string;
+            summary?: string | null;
+            /** Format: date-time */
+            publishedAt?: string | null;
+            degree: number;
+        };
+        GardenEdge: {
+            source: string;
+            target: string;
+            /** @enum {string} */
+            kind: "MEMBERSHIP" | "CO_OCCURRENCE";
+            weight: number;
         };
         MediaUploadRequest: {
             /** @enum {string} */
@@ -1454,6 +1501,40 @@ export interface operations {
                 };
             };
             /** @description Site representation has not changed */
+            304: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    "Cache-Control"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            500: components["responses"]["InternalError"];
+        };
+    };
+    getPublicGarden: {
+        parameters: {
+            query?: never;
+            header?: {
+                "If-None-Match"?: components["parameters"]["IfNoneMatch"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Public knowledge garden graph derived from published article snapshots and active tools */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    "Cache-Control"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GardenGraphResponse"];
+                };
+            };
+            /** @description Garden graph has not changed */
             304: {
                 headers: {
                     ETag: components["headers"]["ETag"];

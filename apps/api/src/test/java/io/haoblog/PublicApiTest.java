@@ -27,7 +27,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import com.jayway.jsonpath.JsonPath;
 
-@WebMvcTest({PublicSiteController.class, PublicArticleController.class, PublicFeedController.class})
+@WebMvcTest({PublicSiteController.class, PublicArticleController.class, PublicFeedController.class, io.haoblog.site.web.PublicGardenController.class})
 @Import({io.haoblog.shared.web.TraceIdFilter.class, io.haoblog.shared.web.GlobalExceptionHandler.class,
         io.haoblog.shared.web.ProblemResponseWriter.class})
 class PublicApiTest {
@@ -35,6 +35,7 @@ class PublicApiTest {
     @MockitoBean io.haoblog.site.application.SiteService siteService;
     @MockitoBean io.haoblog.content.application.ArticleService articleService;
     @MockitoBean io.haoblog.site.application.PublicFeedService publicFeedService;
+    @MockitoBean io.haoblog.site.application.GardenGraphService gardenGraphService;
 
     @BeforeEach
     void rejectInvalidServiceArguments() {
@@ -103,6 +104,24 @@ class PublicApiTest {
             mvc.perform(get(path).header("If-None-Match", first.getResponse().getHeader("ETag")))
                     .andExpect(status().isNotModified()).andExpect(content().string(""));
         }
+    }
+
+    @Test void gardenSupportsStableGraphResponseAnd304() throws Exception {
+        when(gardenGraphService.get()).thenReturn(new io.haoblog.site.application.GardenGraphService.Graph(
+                List.of(new io.haoblog.site.application.GardenGraphService.Node(
+                        "article:visible", io.haoblog.site.application.GardenGraphService.NodeType.ARTICLE,
+                        "Visible", "/articles/visible", "Excerpt", Instant.parse("2026-01-01T00:00:00Z"), 1)),
+                List.of(new io.haoblog.site.application.GardenGraphService.Edge(
+                        "article:visible", "tag:java", io.haoblog.site.application.GardenGraphService.EdgeKind.MEMBERSHIP, 1)), false));
+
+        var first = mvc.perform(get("/api/v1/public/garden"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nodes[0].href").value("/articles/visible"))
+                .andExpect(jsonPath("$.edges[0].kind").value("MEMBERSHIP"))
+                .andExpect(header().string("Cache-Control", "public, max-age=0, s-maxage=60, must-revalidate"))
+                .andReturn();
+        mvc.perform(get("/api/v1/public/garden").header("If-None-Match", first.getResponse().getHeader("ETag")))
+                .andExpect(status().isNotModified()).andExpect(content().string(""));
     }
 
     @Test void unknownStaticResourcePathReturnsSafeProblem() throws Exception {

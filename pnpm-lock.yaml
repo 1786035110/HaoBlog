@@ -40,6 +40,9 @@ importers:
       '@unocss/nuxt':
         specifier: 66.4.2
         version: 66.4.2(magic-string@1.1.0)(magicast@0.5.4)(oxc-parser@0.142.0)(postcss@8.5.26)(rolldown@1.2.3)(supports-color@10.2.2)(unplugin@3.3.0(esbuild@0.28.2)(rolldown@1.2.3)(rollup@4.62.4)(vite@7.3.6(@types/node@26.2.0)(jiti@2.7.0)(lightningcss@1.33.0)(terser@5.49.2)(yaml@2.9.0))(webpack@5.109.2(cssnano@8.0.5(postcss@8.5.26))(csso@5.0.5)(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.26)))(vite@7.3.6(@types/node@26.2.0)(jiti@2.7.0)(lightningcss@1.33.0)(terser@5.49.2)(yaml@2.9.0))(webpack@5.109.2(cssnano@8.0.5(postcss@8.5.26))(csso@5.0.5)(esbuild@0.28.2)(lightningcss@1.33.0)(postcss@8.5.26))
+      d3-force:
+        specifier: 3.0.0
+        version: 3.0.0
       diff:
         specifier: 8.0.4
         version: 8.0.4
@@ -74,6 +77,9 @@ importers:
       '@playwright/test':
         specifier: 1.62.1
         version: 1.62.1
+      '@types/d3-force':
+        specifier: 3.0.10
+        version: 3.0.10
       '@types/sanitize-html':
         specifier: 2.16.0
         version: 2.16.0

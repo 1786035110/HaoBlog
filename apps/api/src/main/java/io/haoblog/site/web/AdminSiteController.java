@@ -28,20 +28,22 @@ public class AdminSiteController {
     @PutMapping
     public Response update(@RequestBody @Valid UpdateRequest request) {
         try {
-            return Response.from(service.updateCommentsEnabled(request.version(), request.commentsEnabled()));
+            return Response.from(service.updateSettings(request.version(), request.commentsEnabled(),
+                    request.musicEnabled(), request.threeDEnabled()));
         } catch (OptimisticLockingFailureException exception) {
             throw new ProblemException("SITE_VERSION_CONFLICT", "Site setting version conflict",
                     "Reload the latest site settings before saving", service.currentVersion());
         }
     }
 
-    public record UpdateRequest(@NotNull Long version, @NotNull Boolean commentsEnabled) {}
+    public record UpdateRequest(@NotNull Long version, @NotNull Boolean commentsEnabled,
+                                Boolean musicEnabled, Boolean threeDEnabled) {}
 
     public record Response(String title, String description, String siteUrl, String authorName,
-                           boolean commentsEnabled, long version) {
+                           boolean commentsEnabled, boolean musicEnabled, boolean threeDEnabled, long version) {
         static Response from(SiteService.AdminSiteResult result) {
             return new Response(result.title(), result.description(), result.siteUrl(), result.authorName(),
-                    result.commentsEnabled(), result.version());
+                    result.commentsEnabled(), result.musicEnabled(), result.threeDEnabled(), result.version());
         }
     }
 }

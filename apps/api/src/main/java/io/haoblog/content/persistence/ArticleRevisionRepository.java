@@ -11,6 +11,7 @@ import org.springframework.data.repository.query.Param;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.List;
 
 public interface ArticleRevisionRepository extends JpaRepository<ArticleRevision, UUID> {
     boolean existsByArticleId(UUID articleId);
@@ -100,6 +101,25 @@ public interface ArticleRevisionRepository extends JpaRepository<ArticleRevision
     Page<SearchProjection> searchVisible(@Param("pattern") String pattern, @Param("now") Instant now,
                                          Pageable pageable);
 
+    @Query(value = """
+            select r.article_id as "articleId", r.slug as slug, r.title as title, r.excerpt as excerpt,
+                   a.published_at as "publishedAt",
+                   r.category_snapshot ->> 'name' as "categoryName",
+                   r.category_snapshot ->> 'slug' as "categorySlug",
+                   tag.value ->> 'name' as "tagName",
+                   tag.value ->> 'slug' as "tagSlug"
+            from article_revision r
+            join article a on a.published_revision_id = r.id
+            left join lateral jsonb_array_elements(coalesce(r.tag_snapshot, '[]'::jsonb)) as tag(value) on true
+            where a.status in ('PUBLISHED', 'SCHEDULED')
+              and a.published_revision_id is not null
+              and a.published_at is not null
+              and a.published_at <= :now
+            order by a.published_at desc, a.id desc,
+                     tag.value ->> 'slug' asc nulls last
+            """, nativeQuery = true)
+    List<PublicGardenRow> findPublicGardenRows(@Param("now") Instant now);
+
     @Query("""
             select r as revision, a.publishedAt as publishedAt, a.commentsEnabled as commentsEnabled
             from ArticleRevision r, Article a
@@ -157,5 +177,17 @@ public interface ArticleRevisionRepository extends JpaRepository<ArticleRevision
         Instant getPublishedAt();
         UUID getCoverMediaId();
         boolean getCommentsEnabled();
+    }
+
+    interface PublicGardenRow {
+        UUID getArticleId();
+        String getSlug();
+        String getTitle();
+        String getExcerpt();
+        Instant getPublishedAt();
+        String getCategoryName();
+        String getCategorySlug();
+        String getTagName();
+        String getTagSlug();
     }
 }

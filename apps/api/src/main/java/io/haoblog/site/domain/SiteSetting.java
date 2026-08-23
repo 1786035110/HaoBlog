@@ -12,6 +12,8 @@ public class SiteSetting {
     @Column(nullable = false, length = 160) private String title;
     @Column(nullable = false, length = 600) private String description;
     @Column(name = "comments_enabled", nullable = false) private boolean commentsEnabled = true;
+    @Column(name = "music_enabled", nullable = false) private boolean musicEnabled = false;
+    @Column(name = "three_d_enabled", nullable = false) private boolean threeDEnabled = false;
     @Version @Column(nullable = false) private long version;
     protected SiteSetting() {}
     public SiteSetting(String siteKey, String title, String description) {
@@ -20,6 +22,10 @@ public class SiteSetting {
     public String getTitle() { return title; }
     public String getDescription() { return description; }
     public boolean isCommentsEnabled() { return commentsEnabled; }
+    public boolean isMusicEnabled() { return musicEnabled; }
+    public boolean isThreeDEnabled() { return threeDEnabled; }
     public long getVersion() { return version; }
     public void setCommentsEnabled(boolean commentsEnabled) { this.commentsEnabled = commentsEnabled; }
+    public void setMusicEnabled(boolean musicEnabled) { this.musicEnabled = musicEnabled; }
+    public void setThreeDEnabled(boolean threeDEnabled) { this.threeDEnabled = threeDEnabled; }
 }
