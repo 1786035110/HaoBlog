@@ -132,6 +132,7 @@ test.describe.serial('S3-08 public reading acceptance', () => {
         expect(xml).toContain('<item>')
       } else {
         expect(xml).toContain('s3-08-advanced-markdown')
+        expect(xml).toContain('/tools')
       }
       const etag = response.headers().etag
       expect(etag).toBeTruthy()

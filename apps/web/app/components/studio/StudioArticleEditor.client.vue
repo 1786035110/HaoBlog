@@ -73,6 +73,13 @@
         <small v-else>暂无可用标签。</small>
       </div>
       <div class="field-line field-wide">
+        <label class="switch-line" for="article-comments-enabled">
+          <input id="article-comments-enabled" v-model="form.commentsEnabled" type="checkbox" name="commentsEnabled">
+          <span>允许公开评论</span>
+        </label>
+        <small>关闭后仅影响这篇文章；站点全局开关仍可统一暂停评论。</small>
+      </div>
+      <div class="field-line field-wide">
         <span class="field-label">媒体 / DIRECT OSS UPLOAD</span>
         <div class="media-upload-box">
           <input ref="fileInput" class="sr-only" type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" @change="selectImage">
@@ -315,6 +322,8 @@ legend { padding: 0 var(--space-2); color: var(--color-accent); font: var(--text
 .field-wide { grid-column: 1 / -1; }
 .field-line { display: grid; gap: var(--space-2); min-width: 0; }
 .field-line label, .field-label { color: var(--color-accent); font: var(--text-xs)/1.4 var(--font-mono); letter-spacing: .08em; }
+.switch-line { display: inline-flex; align-items: center; gap: .6rem; width: fit-content; cursor: pointer; }
+.switch-line input { width: 1rem; height: 1rem; accent-color: var(--color-accent); }
 .field-line input, .field-line textarea, .field-line select { width: 100%; min-width: 0; padding: .7rem 0; border: 0; border-bottom: 1px solid var(--color-border); border-radius: 0; outline: 0; background: transparent; color: var(--color-text-main); font: var(--text-base)/1.45 var(--font-body); }
 .field-line textarea { resize: vertical; }
 .field-line select { appearance: auto; }

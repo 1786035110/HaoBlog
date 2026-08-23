@@ -52,6 +52,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/public/tools": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listPublicTools"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/public/articles": {
         parameters: {
             query?: never;
@@ -79,6 +95,70 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/search/articles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["searchPublicArticles"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/articles/{slug}/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listPublicArticleComments"];
+        put?: never;
+        post: operations["createPublicArticleComment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/articles/{slug}/comments/form-context": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getPublicCommentFormContext"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/comments/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: operations["deletePublicComment"];
         options?: never;
         head?: never;
         patch?: never;
@@ -126,6 +206,74 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["createAdminMediaUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listAdminComments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/comments/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get: operations["getAdminComment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/comments/{id}/moderation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["moderateAdminComment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/site": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["getAdminSite"];
+        put: operations["updateAdminSite"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -402,6 +550,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/tool-categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listAdminToolCategories"];
+        put?: never;
+        post: operations["createAdminToolCategory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tool-categories/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get: operations["getAdminToolCategory"];
+        put: operations["updateAdminToolCategory"];
+        post?: never;
+        delete: operations["deleteAdminToolCategory"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tools": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["listAdminTools"];
+        put?: never;
+        post: operations["createAdminTool"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tools/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        get: operations["getAdminTool"];
+        put: operations["updateAdminTool"];
+        post?: never;
+        delete: operations["deleteAdminTool"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/session": {
         parameters: {
             query?: never;
@@ -444,6 +660,7 @@ export interface components {
             /** Format: uri */
             siteUrl: string;
             authorName: string;
+            commentsEnabled: boolean;
         };
         ArticleSummary: {
             /** Format: uuid */
@@ -455,6 +672,7 @@ export interface components {
             publishedAt: string;
             /** Format: uri */
             coverImageUrl: string | null;
+            commentsEnabled: boolean;
         };
         ArticleListResponse: {
             items: components["schemas"]["ArticleSummary"][];
@@ -478,6 +696,113 @@ export interface components {
             seoDescription: string | null;
             /** Format: uri */
             coverImageUrl: string | null;
+            commentsEnabled: boolean;
+        };
+        CommentFormContext: {
+            csrfToken: string;
+            challenge: string;
+            /** Format: date-time */
+            expiresAt: string;
+            commentsEnabled: boolean;
+        };
+        CommentCreateRequest: {
+            nickname: string;
+            /** Format: email */
+            email?: string | null;
+            content: string;
+            /** Format: uuid */
+            parentId?: string | null;
+            challenge: string;
+            honeypot?: string;
+            website?: string;
+        };
+        CommentView: {
+            /** Format: uuid */
+            id: string;
+            nickname: string;
+            content: string;
+            /** Format: date-time */
+            createdAt: string;
+            replies: components["schemas"]["CommentView"][];
+        };
+        CommentPageResponse: {
+            items: components["schemas"]["CommentView"][];
+            page: number;
+            size: number;
+            /** Format: int64 */
+            total: number;
+        };
+        CommentSubmissionResponse: {
+            /** Format: uuid */
+            id: string | null;
+            /** @enum {string} */
+            status: "PENDING";
+            /** Format: date-time */
+            createdAt: string;
+            deleteToken?: string | null;
+        };
+        /** @enum {string} */
+        CommentStatus: "PENDING" | "APPROVED" | "SPAM" | "REJECTED" | "USER_DELETED";
+        CommentModerationRequest: {
+            /** Format: int64 */
+            version: number;
+            /** @enum {string} */
+            status: "APPROVED" | "SPAM" | "REJECTED";
+            reason?: string | null;
+        };
+        AdminCommentSummary: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            articleId: string;
+            /** Format: uuid */
+            parentId?: string | null;
+            nickname: string;
+            content: string;
+            emailMasked?: string | null;
+            status: components["schemas"]["CommentStatus"];
+            /** Format: uuid */
+            moderatorId?: string | null;
+            moderationReason?: string | null;
+            /** Format: date-time */
+            moderatedAt?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: int64 */
+            version: number;
+        };
+        AdminCommentListResponse: {
+            items: components["schemas"]["AdminCommentSummary"][];
+            page: number;
+            size: number;
+            /** Format: int64 */
+            total: number;
+        };
+        AdminCommentDetail: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            articleId: string;
+            /** Format: uuid */
+            parentId?: string | null;
+            nickname: string;
+            content: string;
+            /** Format: email */
+            email: string | null;
+            status: components["schemas"]["CommentStatus"];
+            /** Format: uuid */
+            moderatorId?: string | null;
+            moderationReason?: string | null;
+            /** Format: date-time */
+            moderatedAt?: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: int64 */
+            version: number;
         };
         ProblemResponse: {
             code: string;
@@ -618,6 +943,8 @@ export interface components {
             /** Format: uuid */
             coverMediaId?: string | null;
             tagIds?: string[];
+            /** @description Defaults to true when omitted */
+            commentsEnabled?: boolean;
         };
         AdminArticleUpdateRequest: {
             /** Format: int64 */
@@ -635,6 +962,8 @@ export interface components {
             /** Format: uuid */
             coverMediaId?: string | null;
             tagIds?: string[];
+            /** @description Defaults to true when omitted */
+            commentsEnabled?: boolean;
         };
         AdminArticleSummary: {
             /** Format: uuid */
@@ -648,6 +977,7 @@ export interface components {
             updatedAt: string;
             /** Format: int64 */
             version: number;
+            commentsEnabled: boolean;
         };
         AdminArticleListResponse: {
             items: components["schemas"]["AdminArticleSummary"][];
@@ -679,6 +1009,22 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
+            /** Format: int64 */
+            version: number;
+            commentsEnabled: boolean;
+        };
+        AdminSiteUpdateRequest: {
+            /** Format: int64 */
+            version: number;
+            commentsEnabled: boolean;
+        };
+        AdminSiteResponse: {
+            title: string;
+            description: string;
+            /** Format: uri */
+            siteUrl: string;
+            authorName: string;
+            commentsEnabled: boolean;
             /** Format: int64 */
             version: number;
         };
@@ -755,6 +1101,101 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
         };
+        /** @enum {string} */
+        ToolType: "LINK" | "EMBEDDED" | "SHOWCASE";
+        /** @enum {string} */
+        ToolStatus: "ACTIVE" | "INACTIVE";
+        /** @enum {string} */
+        ToolComponentKey: "json-format" | "base64" | "url-codec" | "timestamp" | "regex-test";
+        ToolCategoryCreateRequest: {
+            name: string;
+            slug: string;
+            description?: string | null;
+            sortOrder?: number;
+        };
+        ToolCategoryUpdateRequest: components["schemas"]["ToolCategoryCreateRequest"] & {
+            /** Format: int64 */
+            version: number;
+        };
+        ToolCategoryResponse: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            slug: string;
+            description?: string | null;
+            sortOrder: number;
+            /** Format: int64 */
+            version: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        ToolCreateRequest: {
+            /** Format: uuid */
+            categoryId: string;
+            type: components["schemas"]["ToolType"];
+            status: components["schemas"]["ToolStatus"];
+            title: string;
+            slug: string;
+            description?: string | null;
+            /** Format: uri */
+            url?: string | null;
+            /** Format: uri */
+            imageUrl?: string | null;
+            componentKey?: components["schemas"]["ToolComponentKey"] | null;
+            tags: string[];
+            sortOrder?: number;
+        };
+        ToolUpdateRequest: components["schemas"]["ToolCreateRequest"] & {
+            /** Format: int64 */
+            version: number;
+        };
+        ToolResponse: components["schemas"]["ToolCreateRequest"] & {
+            /** Format: uuid */
+            id: string;
+            /** Format: int64 */
+            version: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        PublicToolCategoryResponse: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            slug: string;
+            description?: string | null;
+            sortOrder: number;
+        };
+        PublicToolResponse: {
+            /** Format: uuid */
+            id: string;
+            category: components["schemas"]["PublicToolCategoryResponse"];
+            type: components["schemas"]["ToolType"];
+            title: string;
+            slug: string;
+            description: string | null;
+            /** Format: uri */
+            url: string | null;
+            /** Format: uri */
+            imageUrl: string | null;
+            componentKey: components["schemas"]["ToolComponentKey"] | null;
+            tags: string[];
+            sortOrder: number;
+        };
+        PublicToolListResponse: {
+            items: components["schemas"]["PublicToolResponse"][];
+            categories: components["schemas"]["PublicToolCategoryResponse"][];
+        };
+        AdminToolListResponse: {
+            items: components["schemas"]["ToolResponse"][];
+            page: number;
+            size: number;
+            /** Format: int64 */
+            total: number;
+        };
     };
     responses: {
         /** @description Invalid request */
@@ -805,6 +1246,26 @@ export interface components {
         /** @description Request conflicts with current resource state */
         Conflict: {
             headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemResponse"];
+            };
+        };
+        /** @description Comment submission conflicts with current state or duplicate content */
+        CommentConflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemResponse"];
+            };
+        };
+        /** @description Comment rate limit exceeded */
+        CommentRateLimited: {
+            headers: {
+                /** @description Seconds until another comment may be submitted */
+                "Retry-After"?: number;
                 [name: string]: unknown;
             };
             content: {
@@ -888,6 +1349,7 @@ export interface components {
     };
     parameters: {
         CsrfHeader: string;
+        CommentDeleteToken: string;
         IfNoneMatch: string;
     };
     requestBodies: never;
@@ -1003,6 +1465,46 @@ export interface operations {
             500: components["responses"]["InternalError"];
         };
     };
+    listPublicTools: {
+        parameters: {
+            query?: {
+                /** @description Category slug or UUID */
+                category?: string;
+                type?: components["schemas"]["ToolType"];
+                keyword?: string;
+            };
+            header?: {
+                "If-None-Match"?: components["parameters"]["IfNoneMatch"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Active public tools and their valid categories */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    "Cache-Control"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicToolListResponse"];
+                };
+            };
+            /** @description Public tool representation has not changed */
+            304: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    "Cache-Control"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            500: components["responses"]["InternalError"];
+        };
+    };
     listPublicArticles: {
         parameters: {
             query?: {
@@ -1076,6 +1578,164 @@ export interface operations {
             };
             404: components["responses"]["ArticleNotFound"];
             500: components["responses"]["InternalError"];
+        };
+    };
+    searchPublicArticles: {
+        parameters: {
+            query: {
+                /** @description NFKC-normalized search query; 2 to 100 Unicode code points */
+                q: string;
+                page?: number;
+                size?: number;
+            };
+            header?: {
+                "If-None-Match"?: components["parameters"]["IfNoneMatch"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Public article summaries matching the query */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    "Cache-Control"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArticleListResponse"];
+                };
+            };
+            /** @description Search representation has not changed */
+            304: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    "Cache-Control"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    listPublicArticleComments: {
+        parameters: {
+            query?: {
+                page?: number;
+                size?: number;
+            };
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Approved top-level comments and first-level replies */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommentPageResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            404: components["responses"]["ArticleNotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    createPublicArticleComment: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-TOKEN": components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommentCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Comment accepted for moderation */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommentSubmissionResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            /** @description Invalid CSRF token or delete credential */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemResponse"];
+                };
+            };
+            404: components["responses"]["ArticleNotFound"];
+            409: components["responses"]["CommentConflict"];
+            429: components["responses"]["CommentRateLimited"];
+        };
+    };
+    getPublicCommentFormContext: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description CSRF token and one-time comment form challenge */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommentFormContext"];
+                };
+            };
+            404: components["responses"]["ArticleNotFound"];
+        };
+    };
+    deletePublicComment: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-TOKEN": components["parameters"]["CsrfHeader"];
+                "X-Comment-Delete-Token": components["parameters"]["CommentDeleteToken"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Comment content deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            403: components["responses"]["CsrfInvalid"];
+            404: components["responses"]["ResourceNotFound"];
+            409: components["responses"]["CommentConflict"];
         };
     };
     getPublicArticlePreview: {
@@ -1193,6 +1853,146 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["CsrfInvalid"];
             503: components["responses"]["MediaStorageUnavailable"];
+        };
+    };
+    listAdminComments: {
+        parameters: {
+            query?: {
+                page?: number;
+                size?: number;
+                status?: components["schemas"]["CommentStatus"];
+                articleId?: string;
+                keyword?: string;
+                direction?: "asc" | "desc";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Administrator comment moderation log; email is masked and security material is omitted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCommentListResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getAdminComment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Comment detail with decrypted optional email, content, and moderation audit */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCommentDetail"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["ResourceNotFound"];
+        };
+    };
+    moderateAdminComment: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-TOKEN": components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommentModerationRequest"];
+            };
+        };
+        responses: {
+            /** @description Moderated comment */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminCommentDetail"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["CsrfInvalid"];
+            404: components["responses"]["ResourceNotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getAdminSite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Administrator site settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSiteResponse"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    updateAdminSite: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-TOKEN": components["parameters"]["CsrfHeader"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminSiteUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Site settings updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSiteResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["CsrfInvalid"];
+            409: components["responses"]["Conflict"];
         };
     };
     completeAdminMediaUpload: {
@@ -1883,6 +2683,291 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Tag deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["CsrfInvalid"];
+            404: components["responses"]["ResourceNotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    listAdminToolCategories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tool categories */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolCategoryResponse"][];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createAdminToolCategory: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-TOKEN": components["parameters"]["CsrfHeader"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ToolCategoryCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Tool category created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolCategoryResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["CsrfInvalid"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getAdminToolCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tool category */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolCategoryResponse"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["ResourceNotFound"];
+        };
+    };
+    updateAdminToolCategory: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-TOKEN": components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ToolCategoryUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Tool category updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolCategoryResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["CsrfInvalid"];
+            404: components["responses"]["ResourceNotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    deleteAdminToolCategory: {
+        parameters: {
+            query: {
+                version: number;
+            };
+            header: {
+                "X-CSRF-TOKEN": components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tool category deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["CsrfInvalid"];
+            404: components["responses"]["ResourceNotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    listAdminTools: {
+        parameters: {
+            query?: {
+                page?: number;
+                size?: number;
+                categoryId?: string;
+                type?: components["schemas"]["ToolType"];
+                status?: components["schemas"]["ToolStatus"];
+                keyword?: string;
+                sort?: "sortOrder" | "createdAt" | "updatedAt" | "title";
+                direction?: "asc" | "desc";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tools */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminToolListResponse"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createAdminTool: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-TOKEN": components["parameters"]["CsrfHeader"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ToolCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Tool created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["CsrfInvalid"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    getAdminTool: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tool */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolResponse"];
+                };
+            };
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["ResourceNotFound"];
+        };
+    };
+    updateAdminTool: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-CSRF-TOKEN": components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ToolUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Tool updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthenticated"];
+            403: components["responses"]["CsrfInvalid"];
+            404: components["responses"]["ResourceNotFound"];
+            409: components["responses"]["Conflict"];
+        };
+    };
+    deleteAdminTool: {
+        parameters: {
+            query: {
+                version: number;
+            };
+            header: {
+                "X-CSRF-TOKEN": components["parameters"]["CsrfHeader"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Tool deleted */
             204: {
                 headers: {
                     [name: string]: unknown;

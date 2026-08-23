@@ -11,6 +11,7 @@ const article = (version = 1): Article => ({
   id: 'article-1', title: 'Server title', slug: 'server-title', excerpt: null, markdown: '# Server', status: 'DRAFT',
   publishedAt: null, scheduledAt: null, seoTitle: null, seoDescription: null, categoryId: null, coverMediaId: null,
   tagIds: [], createdAt: '2030-01-01T00:00:00Z', updatedAt: '2030-01-01T00:00:00Z', version,
+  commentsEnabled: true,
 })
 
 function storeWith(record: ArticleDraftRecord | null = null) {
@@ -26,6 +27,7 @@ function localRecord(baseVersion = 0): ArticleDraftRecord {
   const form: ArticleFormModel = {
     title: 'Local title', slug: 'local-title', excerpt: '', seoTitle: '', seoDescription: '', categoryId: '', tagIds: [],
     coverMediaId: null, scheduledAt: '', markdown: '# Local', version: baseVersion,
+    commentsEnabled: true,
   }
   return { articleId: 'article-1', form, baseVersion, localUpdatedAt: '2030-01-02T00:00:00.000Z' }
 }

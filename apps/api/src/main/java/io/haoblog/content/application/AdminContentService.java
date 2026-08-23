@@ -66,7 +66,7 @@ public class AdminContentService {
     @Transactional
     public Article createArticle(String slug, String title, String excerpt, String markdown,
                                  String seoTitle, String seoDescription, Instant scheduledAt, UUID categoryId,
-                                 UUID coverMediaId, List<UUID> tagIds) {
+                                 UUID coverMediaId, List<UUID> tagIds, Boolean commentsEnabled) {
         String resolvedTitle = title == null || title.isBlank() ? "未命名草稿" : title.trim();
         String resolvedMarkdown = markdown == null ? "" : markdown;
         validateArticle(resolvedTitle, resolvedMarkdown, excerpt, seoTitle, seoDescription);
@@ -82,6 +82,7 @@ public class AdminContentService {
                 ArticleStatus.DRAFT, null, now);
         article.updateWorkingCopy(normalizedSlug, resolvedTitle, excerpt, resolvedMarkdown, seoTitle, seoDescription,
                 scheduledAt, categoryId, coverMediaId, now);
+        article.setCommentsEnabled(commentsEnabled == null || commentsEnabled);
         article.replaceTags(resolvedTags);
         return articles.saveAndFlush(article);
     }
@@ -142,7 +143,7 @@ public class AdminContentService {
     @Transactional
     public Article updateArticle(UUID id, long version, String slug, String title, String excerpt, String markdown,
                                  String seoTitle, String seoDescription, Instant scheduledAt, UUID categoryId,
-                                 UUID coverMediaId, List<UUID> tagIds) {
+                                 UUID coverMediaId, List<UUID> tagIds, Boolean commentsEnabled) {
         Article article = getArticle(id);
         if (article.getStatus() == ArticleStatus.ARCHIVED) {
             throw new ProblemException("ARTICLE_STATE_CONFLICT", "Article is archived",
@@ -152,7 +153,7 @@ public class AdminContentService {
             throw new ProblemException("ARTICLE_VERSION_CONFLICT", "Article version conflict",
                     "Reload the latest article before saving", article.getVersion());
         }
-        String resolvedSlug = Slug.normalizeNullable(slug);
+        String resolvedSlug = slug == null ? article.getSlug() : Slug.normalizeNullable(slug);
         if (resolvedSlug != null && articles.existsBySlugAndIdNot(resolvedSlug, id)) {
             throw conflict("ARTICLE_SLUG_CONFLICT", "Article slug conflict", "The article slug is already in use");
         }
@@ -162,6 +163,7 @@ public class AdminContentService {
         requireMedia(coverMediaId);
         article.updateWorkingCopy(resolvedSlug, title.trim(), excerpt, markdown, seoTitle, seoDescription,
                 scheduledAt, categoryId, coverMediaId, Instant.now(clock));
+        if (commentsEnabled != null) article.setCommentsEnabled(commentsEnabled);
         article.replaceTags(resolvedTags);
         return articles.saveAndFlush(article);
     }

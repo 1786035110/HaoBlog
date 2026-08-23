@@ -2,6 +2,7 @@
 import type { components } from '@haoblog/api-client'
 import { computed } from 'vue'
 import { publicArticlePageUrl } from '../../utils/publicArticlePagination'
+import { publicSearchPageUrl } from '../../utils/publicSearch'
 import { useDataSaver } from '../../composables/useDataSaver'
 
 type ArticleList = components['schemas']['ArticleListResponse']
@@ -9,11 +10,16 @@ type ArticleList = components['schemas']['ArticleListResponse']
 const props = defineProps<{
   result: ArticleList
   page: number
+  searchQuery?: string
+  emptyMessage?: string
 }>()
 const { enabled: dataSaver } = useDataSaver()
 
 const hasPrevious = computed(() => props.page > 1)
 const hasNext = computed(() => props.page * props.result.size < props.result.total)
+const pageUrl = (page: number) => props.searchQuery === undefined
+  ? publicArticlePageUrl(page)
+  : publicSearchPageUrl(props.searchQuery, page)
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat('zh-CN', {
@@ -36,7 +42,7 @@ function httpsCoverUrl(value: string | null) {
 </script>
 
 <template>
-  <p v-if="result.items.length === 0" class="signal-note">当前没有已锁定的公开文章。</p>
+  <p v-if="result.items.length === 0" class="signal-note">{{ emptyMessage || '当前没有已锁定的公开文章。' }}</p>
   <template v-else>
     <ol class="observation-timeline" aria-label="公开文章列表">
       <li v-for="(article, index) in result.items" :key="article.id" class="observation-entry">
@@ -63,9 +69,9 @@ function httpsCoverUrl(value: string | null) {
     </ol>
 
     <nav v-if="hasPrevious || hasNext" class="article-pagination" aria-label="文章列表分页">
-      <a v-if="hasPrevious" :href="publicArticlePageUrl(page - 1)">上一页</a>
+      <a v-if="hasPrevious" :href="pageUrl(page - 1)">上一页</a>
       <span aria-current="page">第 {{ page }} 页</span>
-      <a v-if="hasNext" :href="publicArticlePageUrl(page + 1)">下一页</a>
+      <a v-if="hasNext" :href="pageUrl(page + 1)">下一页</a>
     </nav>
   </template>
 </template>

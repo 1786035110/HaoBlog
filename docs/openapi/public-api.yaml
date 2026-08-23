@@ -79,6 +79,41 @@ paths:
             Cache-Control: { schema: { type: string } }
         '500':
           $ref: '#/components/responses/InternalError'
+  /api/v1/public/tools:
+    get:
+      operationId: listPublicTools
+      security: []
+      parameters:
+        - name: category
+          in: query
+          description: Category slug or UUID
+          schema: { type: string, maxLength: 160 }
+        - name: type
+          in: query
+          schema: { $ref: '#/components/schemas/ToolType' }
+        - name: keyword
+          in: query
+          schema: { type: string, maxLength: 240 }
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: Active public tools and their valid categories
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            Cache-Control: { schema: { type: string } }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublicToolListResponse'
+        '304':
+          description: Public tool representation has not changed
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            Cache-Control: { schema: { type: string } }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /api/v1/public/articles:
     get:
       operationId: listPublicArticles
@@ -137,6 +172,118 @@ paths:
           $ref: '#/components/responses/ArticleNotFound'
         '500':
           $ref: '#/components/responses/InternalError'
+  /api/v1/public/search/articles:
+    get:
+      operationId: searchPublicArticles
+      security: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: NFKC-normalized search query; 2 to 100 Unicode code points
+          schema: { type: string, minLength: 2, maxLength: 100 }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: size
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 20, default: 20 }
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: Public article summaries matching the query
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            Cache-Control: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ArticleListResponse' }
+        '304':
+          description: Search representation has not changed
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            Cache-Control: { schema: { type: string } }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/public/articles/{slug}/comments:
+    get:
+      operationId: listPublicArticleComments
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 160 }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: size
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+      responses:
+        '200':
+          description: Approved top-level comments and first-level replies
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CommentPageResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404': { $ref: '#/components/responses/ArticleNotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      operationId: createPublicArticleComment
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 160 }
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CommentCreateRequest' }
+      responses:
+        '202':
+          description: Comment accepted for moderation
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CommentSubmissionResponse' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403':
+          description: Invalid CSRF token or delete credential
+          content: { application/problem+json: { schema: { $ref: '#/components/schemas/ProblemResponse' } } }
+        '404': { $ref: '#/components/responses/ArticleNotFound' }
+        '409': { $ref: '#/components/responses/CommentConflict' }
+        '429': { $ref: '#/components/responses/CommentRateLimited' }
+  /api/v1/public/articles/{slug}/comments/form-context:
+    get:
+      operationId: getPublicCommentFormContext
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 160 }
+      responses:
+        '200':
+          description: CSRF token and one-time comment form challenge
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CommentFormContext' }
+        '404':
+          $ref: '#/components/responses/ArticleNotFound'
+  /api/v1/public/comments/{id}:
+    delete:
+      operationId: deletePublicComment
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - $ref: '#/components/parameters/CsrfHeader'
+        - $ref: '#/components/parameters/CommentDeleteToken'
+      responses:
+        '204': { description: Comment content deleted }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+        '409': { $ref: '#/components/responses/CommentConflict' }
   /api/v1/public/article-previews/{token}:
     get:
       operationId: getPublicArticlePreview
@@ -203,6 +350,71 @@ paths:
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/CsrfInvalid' }
         '503': { $ref: '#/components/responses/MediaStorageUnavailable' }
+  /api/v1/admin/comments:
+    get:
+      operationId: listAdminComments
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/CommentStatus' } }
+        - { name: articleId, in: query, schema: { type: string, format: uuid } }
+        - { name: keyword, in: query, schema: { type: string, maxLength: 240 } }
+        - { name: direction, in: query, schema: { type: string, enum: [asc, desc], default: desc } }
+      responses:
+        '200':
+          description: Administrator comment moderation log; email is masked and security material is omitted
+          content: { application/json: { schema: { $ref: '#/components/schemas/AdminCommentListResponse' } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/admin/comments/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: getAdminComment
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          description: Comment detail with decrypted optional email, content, and moderation audit
+          content: { application/json: { schema: { $ref: '#/components/schemas/AdminCommentDetail' } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+  /api/v1/admin/comments/{id}/moderation:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      operationId: moderateAdminComment
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CommentModerationRequest' } } } }
+      responses:
+        '200': { description: Moderated comment, content: { application/json: { schema: { $ref: '#/components/schemas/AdminCommentDetail' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/site:
+    get:
+      operationId: getAdminSite
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Administrator site settings, content: { application/json: { schema: { $ref: '#/components/schemas/AdminSiteResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    put:
+      operationId: updateAdminSite
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AdminSiteUpdateRequest' } } } }
+      responses:
+        '200': { description: Site settings updated, content: { application/json: { schema: { $ref: '#/components/schemas/AdminSiteResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '409': { $ref: '#/components/responses/Conflict' }
   /api/v1/admin/media/uploads/{uploadId}/complete:
     post:
       operationId: completeAdminMediaUpload
@@ -525,6 +737,121 @@ paths:
         '403': { $ref: '#/components/responses/CsrfInvalid' }
         '404': { $ref: '#/components/responses/ResourceNotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/tool-categories:
+    get:
+      operationId: listAdminToolCategories
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Tool categories, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/ToolCategoryResponse' } } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      operationId: createAdminToolCategory
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ToolCategoryCreateRequest' } } } }
+      responses:
+        '201': { description: Tool category created, content: { application/json: { schema: { $ref: '#/components/schemas/ToolCategoryResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/tool-categories/{id}:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+    get:
+      operationId: getAdminToolCategory
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Tool category, content: { application/json: { schema: { $ref: '#/components/schemas/ToolCategoryResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+    put:
+      operationId: updateAdminToolCategory
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ToolCategoryUpdateRequest' } } } }
+      responses:
+        '200': { description: Tool category updated, content: { application/json: { schema: { $ref: '#/components/schemas/ToolCategoryResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      operationId: deleteAdminToolCategory
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/CsrfHeader' }
+        - { name: version, in: query, required: true, schema: { type: integer, format: int64, minimum: 0 } }
+      responses:
+        '204': { description: Tool category deleted }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/tools:
+    get:
+      operationId: listAdminTools
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
+        - { name: categoryId, in: query, schema: { type: string, format: uuid } }
+        - { name: type, in: query, schema: { $ref: '#/components/schemas/ToolType' } }
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/ToolStatus' } }
+        - { name: keyword, in: query, schema: { type: string, maxLength: 240 } }
+        - { name: sort, in: query, schema: { type: string, enum: [sortOrder, createdAt, updatedAt, title], default: sortOrder } }
+        - { name: direction, in: query, schema: { type: string, enum: [asc, desc], default: asc } }
+      responses:
+        '200': { description: Tools, content: { application/json: { schema: { $ref: '#/components/schemas/AdminToolListResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      operationId: createAdminTool
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ToolCreateRequest' } } } }
+      responses:
+        '201': { description: Tool created, content: { application/json: { schema: { $ref: '#/components/schemas/ToolResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/admin/tools/{id}:
+    parameters: [{ name: id, in: path, required: true, schema: { type: string, format: uuid } }]
+    get:
+      operationId: getAdminTool
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200': { description: Tool, content: { application/json: { schema: { $ref: '#/components/schemas/ToolResponse' } } } }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+    put:
+      operationId: updateAdminTool
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ToolUpdateRequest' } } } }
+      responses:
+        '200': { description: Tool updated, content: { application/json: { schema: { $ref: '#/components/schemas/ToolResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      operationId: deleteAdminTool
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/CsrfHeader' }
+        - { name: version, in: query, required: true, schema: { type: integer, format: int64, minimum: 0 } }
+      responses:
+        '204': { description: Tool deleted }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/CsrfInvalid' }
+        '404': { $ref: '#/components/responses/ResourceNotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
   /api/v1/admin/session:
     post:
       operationId: loginAdmin
@@ -603,6 +930,11 @@ components:
       in: header
       required: true
       schema: { type: string }
+    CommentDeleteToken:
+      name: X-Comment-Delete-Token
+      in: header
+      required: true
+      schema: { type: string, minLength: 43, maxLength: 43 }
     IfNoneMatch:
       name: If-None-Match
       in: header
@@ -636,6 +968,20 @@ components:
           schema: { $ref: '#/components/schemas/ProblemResponse' }
     Conflict:
       description: Request conflicts with current resource state
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemResponse' }
+    CommentConflict:
+      description: Comment submission conflicts with current state or duplicate content
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemResponse' }
+    CommentRateLimited:
+      description: Comment rate limit exceeded
+      headers:
+        Retry-After:
+          description: Seconds until another comment may be submitted
+          schema: { type: integer, minimum: 1 }
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/ProblemResponse' }
@@ -686,15 +1032,16 @@ components:
   schemas:
     SiteResponse:
       type: object
-      required: [title, description, siteUrl, authorName]
+      required: [title, description, siteUrl, authorName, commentsEnabled]
       properties:
         title: { type: string }
         description: { type: string }
         siteUrl: { type: string, format: uri }
         authorName: { type: string }
+        commentsEnabled: { type: boolean }
     ArticleSummary:
       type: object
-      required: [id, slug, title, excerpt, publishedAt, coverImageUrl]
+      required: [id, slug, title, excerpt, publishedAt, coverImageUrl, commentsEnabled]
       properties:
         id: { type: string, format: uuid }
         slug: { type: string }
@@ -702,6 +1049,7 @@ components:
         excerpt: { type: [string, 'null'] }
         publishedAt: { type: string, format: date-time }
         coverImageUrl: { type: [string, 'null'], format: uri }
+        commentsEnabled: { type: boolean }
     ArticleListResponse:
       type: object
       required: [items, page, size, total]
@@ -712,7 +1060,7 @@ components:
         total: { type: integer, format: int64 }
     ArticleResponse:
       type: object
-      required: [id, slug, title, excerpt, publishedAt, modifiedAt, markdown, seoTitle, seoDescription, coverImageUrl]
+      required: [id, slug, title, excerpt, publishedAt, modifiedAt, markdown, seoTitle, seoDescription, coverImageUrl, commentsEnabled]
       properties:
         id: { type: string, format: uuid }
         slug: { type: string }
@@ -724,6 +1072,103 @@ components:
         seoTitle: { type: [string, 'null'] }
         seoDescription: { type: [string, 'null'] }
         coverImageUrl: { type: [string, 'null'], format: uri }
+        commentsEnabled: { type: boolean }
+    CommentFormContext:
+      type: object
+      required: [csrfToken, challenge, expiresAt, commentsEnabled]
+      properties:
+        csrfToken: { type: string, minLength: 1 }
+        challenge: { type: string, minLength: 43, maxLength: 43 }
+        expiresAt: { type: string, format: date-time }
+        commentsEnabled: { type: boolean }
+    CommentCreateRequest:
+      type: object
+      required: [nickname, content, challenge]
+      properties:
+        nickname: { type: string, minLength: 2, maxLength: 40 }
+        email: { type: [string, 'null'], maxLength: 254, format: email }
+        content: { type: string, minLength: 2, maxLength: 2000 }
+        parentId: { type: [string, 'null'], format: uuid }
+        challenge: { type: string, minLength: 43, maxLength: 43 }
+        honeypot: { type: string, maxLength: 200 }
+        website: { type: string, maxLength: 200 }
+    CommentView:
+      type: object
+      required: [id, nickname, content, createdAt, replies]
+      properties:
+        id: { type: string, format: uuid }
+        nickname: { type: string }
+        content: { type: string }
+        createdAt: { type: string, format: date-time }
+        replies: { type: array, items: { $ref: '#/components/schemas/CommentView' } }
+    CommentPageResponse:
+      type: object
+      required: [items, page, size, total]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/CommentView' } }
+        page: { type: integer }
+        size: { type: integer }
+        total: { type: integer, format: int64 }
+    CommentSubmissionResponse:
+      type: object
+      required: [id, status, createdAt]
+      properties:
+        id: { type: [string, 'null'], format: uuid }
+        status: { type: string, enum: [PENDING] }
+        createdAt: { type: string, format: date-time }
+        deleteToken: { type: [string, 'null'], minLength: 43, maxLength: 43 }
+    CommentStatus:
+      type: string
+      enum: [PENDING, APPROVED, SPAM, REJECTED, USER_DELETED]
+    CommentModerationRequest:
+      type: object
+      required: [version, status]
+      properties:
+        version: { type: integer, format: int64, minimum: 0 }
+        status: { type: string, enum: [APPROVED, SPAM, REJECTED] }
+        reason: { type: [string, 'null'], maxLength: 600 }
+    AdminCommentSummary:
+      type: object
+      required: [id, articleId, nickname, content, status, createdAt, updatedAt, version]
+      properties:
+        id: { type: string, format: uuid }
+        articleId: { type: string, format: uuid }
+        parentId: { type: [string, 'null'], format: uuid }
+        nickname: { type: string }
+        content: { type: string }
+        emailMasked: { type: [string, 'null'] }
+        status: { $ref: '#/components/schemas/CommentStatus' }
+        moderatorId: { type: [string, 'null'], format: uuid }
+        moderationReason: { type: [string, 'null'] }
+        moderatedAt: { type: [string, 'null'], format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        version: { type: integer, format: int64, minimum: 0 }
+    AdminCommentListResponse:
+      type: object
+      required: [items, page, size, total]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/AdminCommentSummary' } }
+        page: { type: integer }
+        size: { type: integer }
+        total: { type: integer, format: int64 }
+    AdminCommentDetail:
+      type: object
+      required: [id, articleId, nickname, content, email, status, createdAt, updatedAt, version]
+      properties:
+        id: { type: string, format: uuid }
+        articleId: { type: string, format: uuid }
+        parentId: { type: [string, 'null'], format: uuid }
+        nickname: { type: string }
+        content: { type: string }
+        email: { type: [string, 'null'], format: email }
+        status: { $ref: '#/components/schemas/CommentStatus' }
+        moderatorId: { type: [string, 'null'], format: uuid }
+        moderationReason: { type: [string, 'null'] }
+        moderatedAt: { type: [string, 'null'], format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        version: { type: integer, format: int64, minimum: 0 }
     ProblemResponse:
       type: object
       required: [code, title, detail, traceId]
@@ -866,6 +1311,7 @@ components:
         categoryId: { type: [string, 'null'], format: uuid }
         coverMediaId: { type: [string, 'null'], format: uuid }
         tagIds: { type: array, items: { type: string, format: uuid } }
+        commentsEnabled: { type: boolean, description: Defaults to true when omitted }
     AdminArticleUpdateRequest:
       type: object
       required: [version, title, markdown]
@@ -881,9 +1327,10 @@ components:
         categoryId: { type: [string, 'null'], format: uuid }
         coverMediaId: { type: [string, 'null'], format: uuid }
         tagIds: { type: array, items: { type: string, format: uuid } }
+        commentsEnabled: { type: boolean, description: Defaults to true when omitted }
     AdminArticleSummary:
       type: object
-      required: [id, title, status, categoryId, updatedAt, version]
+      required: [id, title, status, categoryId, updatedAt, version, commentsEnabled]
       properties:
         id: { type: string, format: uuid }
         slug: { type: [string, 'null'] }
@@ -892,6 +1339,7 @@ components:
         categoryId: { type: [string, 'null'], format: uuid }
         updatedAt: { type: string, format: date-time }
         version: { type: integer, format: int64, minimum: 0 }
+        commentsEnabled: { type: boolean }
     AdminArticleListResponse:
       type: object
       required: [items, page, size, total]
@@ -902,7 +1350,7 @@ components:
         total: { type: integer, format: int64 }
     AdminArticleResponse:
       type: object
-      required: [id, title, markdown, status, createdAt, updatedAt, version, tagIds]
+      required: [id, title, markdown, status, createdAt, updatedAt, version, tagIds, commentsEnabled]
       properties:
         id: { type: string, format: uuid }
         slug: { type: [string, 'null'] }
@@ -919,6 +1367,23 @@ components:
         tagIds: { type: array, items: { type: string, format: uuid } }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
+        version: { type: integer, format: int64, minimum: 0 }
+        commentsEnabled: { type: boolean }
+    AdminSiteUpdateRequest:
+      type: object
+      required: [version, commentsEnabled]
+      properties:
+        version: { type: integer, format: int64, minimum: 0 }
+        commentsEnabled: { type: boolean }
+    AdminSiteResponse:
+      type: object
+      required: [title, description, siteUrl, authorName, commentsEnabled, version]
+      properties:
+        title: { type: string }
+        description: { type: string }
+        siteUrl: { type: string, format: uri }
+        authorName: { type: string }
+        commentsEnabled: { type: boolean }
         version: { type: integer, format: int64, minimum: 0 }
     MediaUploadRequest:
       type: object
@@ -987,6 +1452,112 @@ components:
         slug: { type: string }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
+    ToolType:
+      type: string
+      enum: [LINK, EMBEDDED, SHOWCASE]
+    ToolStatus:
+      type: string
+      enum: [ACTIVE, INACTIVE]
+    ToolComponentKey:
+      type: string
+      enum: [json-format, base64, url-codec, timestamp, regex-test]
+    ToolCategoryCreateRequest:
+      type: object
+      required: [name, slug]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 120 }
+        slug: { type: string, minLength: 1, maxLength: 160 }
+        description: { type: [string, 'null'], maxLength: 600 }
+        sortOrder: { type: integer }
+    ToolCategoryUpdateRequest:
+      allOf:
+        - $ref: '#/components/schemas/ToolCategoryCreateRequest'
+        - type: object
+          required: [version]
+          properties:
+            version: { type: integer, format: int64, minimum: 0 }
+    ToolCategoryResponse:
+      type: object
+      required: [id, name, slug, sortOrder, version, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+        description: { type: [string, 'null'] }
+        sortOrder: { type: integer }
+        version: { type: integer, format: int64, minimum: 0 }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    ToolCreateRequest:
+      type: object
+      required: [categoryId, type, status, title, slug, tags]
+      properties:
+        categoryId: { type: string, format: uuid }
+        type: { $ref: '#/components/schemas/ToolType' }
+        status: { $ref: '#/components/schemas/ToolStatus' }
+        title: { type: string, minLength: 1, maxLength: 160 }
+        slug: { type: string, minLength: 1, maxLength: 160 }
+        description: { type: [string, 'null'], maxLength: 600 }
+        url: { type: [string, 'null'], format: uri, pattern: '^https://' }
+        imageUrl: { type: [string, 'null'], format: uri, pattern: '^https://' }
+        componentKey: { oneOf: [{ $ref: '#/components/schemas/ToolComponentKey' }, { type: 'null' }] }
+        tags: { type: array, maxItems: 32, items: { type: string, minLength: 1, maxLength: 64 } }
+        sortOrder: { type: integer }
+    ToolUpdateRequest:
+      allOf:
+        - $ref: '#/components/schemas/ToolCreateRequest'
+        - type: object
+          required: [version]
+          properties:
+            version: { type: integer, format: int64, minimum: 0 }
+    ToolResponse:
+      allOf:
+        - $ref: '#/components/schemas/ToolCreateRequest'
+        - type: object
+          required: [id, version, createdAt, updatedAt]
+          properties:
+            id: { type: string, format: uuid }
+            version: { type: integer, format: int64, minimum: 0 }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+    PublicToolCategoryResponse:
+      type: object
+      required: [id, name, slug, sortOrder]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+        description: { type: [string, 'null'] }
+        sortOrder: { type: integer }
+    PublicToolResponse:
+      type: object
+      required: [id, category, type, title, slug, description, url, imageUrl, componentKey, tags, sortOrder]
+      properties:
+        id: { type: string, format: uuid }
+        category: { $ref: '#/components/schemas/PublicToolCategoryResponse' }
+        type: { $ref: '#/components/schemas/ToolType' }
+        title: { type: string }
+        slug: { type: string }
+        description: { type: [string, 'null'] }
+        url: { type: [string, 'null'], format: uri, pattern: '^https://' }
+        imageUrl: { type: [string, 'null'], format: uri, pattern: '^https://' }
+        componentKey: { oneOf: [{ $ref: '#/components/schemas/ToolComponentKey' }, { type: 'null' }] }
+        tags: { type: array, items: { type: string } }
+        sortOrder: { type: integer }
+    PublicToolListResponse:
+      type: object
+      required: [items, categories]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/PublicToolResponse' } }
+        categories: { type: array, items: { $ref: '#/components/schemas/PublicToolCategoryResponse' } }
+    AdminToolListResponse:
+      type: object
+      required: [items, page, size, total]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/ToolResponse' } }
+        page: { type: integer }
+        size: { type: integer }
+        total: { type: integer, format: int64 }
   headers:
     ETag:
       description: Entity tag for the public representation

@@ -44,6 +44,8 @@ public class Article {
     private UUID categoryId;
     @Column(name = "cover_media_id")
     private UUID coverMediaId;
+    @Column(name = "comments_enabled", nullable = false)
+    private boolean commentsEnabled = true;
     @ManyToMany
     @JoinTable(name = "article_tag",
             joinColumns = @JoinColumn(name = "article_id"),
@@ -139,6 +141,8 @@ public class Article {
     public UUID getPublishedRevisionId() { return publishedRevisionId; }
     public UUID getCategoryId() { return categoryId; }
     public UUID getCoverMediaId() { return coverMediaId; }
+    public boolean isCommentsEnabled() { return commentsEnabled; }
+    public void setCommentsEnabled(boolean commentsEnabled) { this.commentsEnabled = commentsEnabled; }
     public Set<Tag> getTags() { return tags; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }

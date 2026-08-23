@@ -12,7 +12,8 @@ module.exports = {
         startServerReadyTimeout: 120000,
       }),
       url: [`${baseUrl}${articlePath}`],
-      numberOfRuns: 1,
+      // 移动端 Lighthouse 单次采样抖动明显，使用聚合结果避免偶发误报；性能门槛仍保持 0.90。
+      numberOfRuns: 3,
       settings: {
         formFactor: 'mobile',
         throttlingMethod: 'provided',

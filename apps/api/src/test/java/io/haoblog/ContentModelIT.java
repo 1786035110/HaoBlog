@@ -1,8 +1,12 @@
 package io.haoblog;
 
+import io.haoblog.comment.domain.Comment;
+import io.haoblog.comment.domain.CommentStatus;
+import io.haoblog.comment.persistence.CommentRepository;
 import io.haoblog.content.domain.Article;
 import io.haoblog.content.domain.ArticleStatus;
 import io.haoblog.content.persistence.ArticleRepository;
+import io.haoblog.shared.id.UuidV7;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityManagerFactory;
 import jakarta.persistence.RollbackException;
@@ -20,6 +24,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.sql.Timestamp;
 import java.util.List;
@@ -47,13 +52,14 @@ class ContentModelIT {
 
     @Autowired JdbcTemplate jdbc;
     @Autowired ArticleRepository articles;
+    @Autowired CommentRepository comments;
     @Autowired EntityManagerFactory entityManagerFactory;
 
     @Test
     void migratesAllVersionsAndCreatesContentTables() {
-        assertEquals(9, jdbc.queryForObject("SELECT count(*) FROM flyway_schema_history", Integer.class));
+        assertEquals(15, jdbc.queryForObject("SELECT count(*) FROM flyway_schema_history", Integer.class));
         for (String table : List.of("article", "category", "tag", "article_tag", "article_revision",
-                "article_preview_token", "media_asset", "media_upload", "outbox_event")) {
+                "article_preview_token", "media_asset", "media_upload", "outbox_event", "comment")) {
             assertEquals(1, jdbc.queryForObject(
                     "SELECT count(*) FROM information_schema.tables WHERE table_schema='public' AND table_name=?",
                     Integer.class, table));
@@ -62,6 +68,29 @@ class ContentModelIT {
                 "SELECT is_nullable FROM information_schema.columns WHERE table_name='article' AND column_name='slug'", String.class));
         assertEquals("bigint", jdbc.queryForObject(
                 "SELECT data_type FROM information_schema.columns WHERE table_name='article' AND column_name='version'", String.class));
+        assertEquals("boolean", jdbc.queryForObject(
+                "SELECT data_type FROM information_schema.columns WHERE table_name='article' AND column_name='comments_enabled'", String.class));
+        assertEquals("boolean", jdbc.queryForObject(
+                "SELECT data_type FROM information_schema.columns WHERE table_name='site_setting' AND column_name='comments_enabled'", String.class));
+        assertEquals("bigint", jdbc.queryForObject(
+                "SELECT data_type FROM information_schema.columns WHERE table_name='site_setting' AND column_name='version'", String.class));
+        for (String column : List.of("article_id", "parent_id", "content", "email_ciphertext", "email_nonce",
+                "email_key_version", "ip_hmac", "ip_hmac_date", "content_fingerprint", "delete_token_digest",
+                "moderator_id", "moderation_reason", "moderated_at", "version", "created_at", "updated_at")) {
+            assertEquals(1, jdbc.queryForObject(
+                    "SELECT count(*) FROM information_schema.columns WHERE table_name='comment' AND column_name=?",
+                    Integer.class, column));
+        }
+        for (String index : List.of("comment_article_status_created_idx", "comment_parent_created_idx",
+                "comment_article_fingerprint_uq", "outbox_comment_created_uq", "outbox_comment_available_idx")) {
+            assertEquals(1, jdbc.queryForObject(
+                    "SELECT count(*) FROM pg_indexes WHERE schemaname='public' AND indexname=?", Integer.class, index));
+        }
+        for (String constraint : List.of("comment_article_parent_fk", "comment_email_pair", "comment_uuid_v7_check",
+                "outbox_event_payload_by_type")) {
+            assertEquals(1, jdbc.queryForObject(
+                    "SELECT count(*) FROM pg_constraint WHERE conname=?", Integer.class, constraint));
+        }
     }
 
     @Test
@@ -166,7 +195,7 @@ class ContentModelIT {
     }
 
     @Test
-    void outboxPayloadIsRestrictedToPublicationEnvelope() {
+    void outboxPayloadsAreRestrictedAndDeduplicatedByEventType() {
         Instant now = Instant.now();
         Timestamp timestamp = Timestamp.from(now);
         UUID eventId = UUID.randomUUID();
@@ -186,6 +215,94 @@ class ContentModelIT {
         assertThrows(DataAccessException.class, () -> jdbc.update(
                 "INSERT INTO outbox_event(id, aggregate_id, event_type, payload, available_at, created_at) VALUES (?, ?, ?, ?::jsonb, ?, ?)",
                 UUID.randomUUID(), UUID.randomUUID(), "ARTICLE_PUBLISHED", "{\"articleId\":\"x\",\"revisionId\":\"y\",\"eventType\":\"x\",\"occurredAt\":\"z\",\"markdown\":\"secret\"}", timestamp, timestamp));
+
+        UUID commentId = UuidV7.generate();
+        String commentPayload = "{\"commentId\":\"" + commentId + "\",\"articleId\":\"" + aggregateId
+                + "\",\"eventType\":\"COMMENT_CREATED\",\"occurredAt\":\"" + now + "\"}";
+        jdbc.update("INSERT INTO outbox_event(id, aggregate_id, event_type, payload, available_at, created_at) VALUES (?, ?, ?, ?::jsonb, ?, ?)",
+                UUID.randomUUID(), commentId, "COMMENT_CREATED", commentPayload, timestamp, timestamp);
+        assertThrows(DataAccessException.class, () -> jdbc.update(
+                "INSERT INTO outbox_event(id, aggregate_id, event_type, payload, available_at, created_at) VALUES (?, ?, ?, ?::jsonb, ?, ?)",
+                UUID.randomUUID(), commentId, "COMMENT_CREATED", commentPayload, timestamp, timestamp));
+        assertThrows(DataAccessException.class, () -> jdbc.update(
+                "INSERT INTO outbox_event(id, aggregate_id, event_type, payload, available_at, created_at) VALUES (?, ?, ?, ?::jsonb, ?, ?)",
+                UUID.randomUUID(), UUID.randomUUID(), "COMMENT_CREATED",
+                commentPayload.replace("COMMENT_CREATED", "ARTICLE_PUBLISHED"), timestamp, timestamp));
+    }
+
+    @Test
+    void commentConstraintsStatusParentAndUuidAreEnforced() {
+        Instant now = Instant.now();
+        Timestamp timestamp = Timestamp.from(now);
+        UUID articleId = UUID.randomUUID();
+        UUID otherArticleId = UUID.randomUUID();
+        insertDraft(articleId, "comment-article-" + articleId);
+        insertDraft(otherArticleId, "comment-article-" + otherArticleId);
+        UUID parentId = UuidV7.generate();
+        byte[] digest = new byte[32];
+        jdbc.update("INSERT INTO comment(id, article_id, nickname, content, ip_hmac, ip_hmac_date, content_fingerprint, delete_token_digest, created_at, updated_at) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                parentId, articleId, "Hao", "parent", digest, now.atZone(ZoneOffset.UTC).toLocalDate(), digest, digest, timestamp, timestamp);
+        assertEquals("PENDING", jdbc.queryForObject("SELECT status FROM comment WHERE id=?", String.class, parentId));
+        assertThrows(DataAccessException.class, () -> jdbc.update(
+                "INSERT INTO comment(id, article_id, nickname, content, status, ip_hmac, ip_hmac_date, content_fingerprint, delete_token_digest, created_at, updated_at) "
+                        + "VALUES (?, ?, ?, ?, 'UNKNOWN', ?, ?, ?, ?, ?, ?)",
+                UuidV7.generate(), articleId, "Hao", "invalid", digest, now.atZone(ZoneOffset.UTC).toLocalDate(), digest, new byte[31], timestamp, timestamp));
+        assertThrows(DataAccessException.class, () -> jdbc.update(
+                "INSERT INTO comment(id, article_id, nickname, content, ip_hmac, ip_hmac_date, content_fingerprint, delete_token_digest, created_at, updated_at) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                UUID.randomUUID(), articleId, "Hao", "not v7", digest, now.atZone(ZoneOffset.UTC).toLocalDate(), digest, new byte[32], timestamp, timestamp));
+        assertThrows(DataAccessException.class, () -> jdbc.update(
+                "INSERT INTO comment(id, article_id, parent_id, nickname, content, ip_hmac, ip_hmac_date, content_fingerprint, delete_token_digest, created_at, updated_at) "
+                        + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                UuidV7.generate(), otherArticleId, parentId, "Hao", "wrong parent article", digest, now.atZone(ZoneOffset.UTC).toLocalDate(), digest,
+                new byte[32], timestamp, timestamp));
+    }
+
+    @Test
+    void commentStatusPersistsAndOptimisticLockRejectsStaleUpdate() {
+        Instant now = Instant.now();
+        Article article = articles.saveAndFlush(new Article("comment-lock-" + UUID.randomUUID(), "Comment lock", null, "# lock",
+                ArticleStatus.DRAFT, null, now));
+        byte[] deleteTokenDigest;
+        try {
+            deleteTokenDigest = MessageDigest.getInstance("SHA-256")
+                    .digest(UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8));
+        } catch (Exception exception) {
+            throw new AssertionError(exception);
+        }
+        Comment saved = comments.saveAndFlush(new Comment(article.getId(), null, "Hao", null, null, null,
+                "body", new byte[32], now.atZone(ZoneOffset.UTC).toLocalDate(), new byte[32], deleteTokenDigest, now));
+        assertEquals(7, saved.getId().version());
+        assertEquals(CommentStatus.PENDING, saved.getStatus());
+        EntityManager firstManager = entityManagerFactory.createEntityManager();
+        EntityManager secondManager = entityManagerFactory.createEntityManager();
+        var firstTransaction = firstManager.getTransaction();
+        var secondTransaction = secondManager.getTransaction();
+        try {
+            firstTransaction.begin();
+            secondTransaction.begin();
+            Comment first = firstManager.find(Comment.class, saved.getId());
+            Comment second = secondManager.find(Comment.class, saved.getId());
+            first.moderate(CommentStatus.APPROVED, UUID.fromString("0198a4f0-0000-7000-8000-000000000002"), "ok", now.plusSeconds(1));
+            firstTransaction.commit();
+            assertEquals(1, first.getVersion());
+            assertEquals(CommentStatus.APPROVED, first.getStatus());
+            second.moderate(CommentStatus.SPAM, null, "stale", now.plusSeconds(2));
+            assertThrows(RollbackException.class, secondTransaction::commit);
+        } finally {
+            if (firstTransaction.isActive()) firstTransaction.rollback();
+            if (secondTransaction.isActive()) secondTransaction.rollback();
+            firstManager.close();
+            secondManager.close();
+        }
+    }
+
+    private void insertDraft(UUID id, String slug) {
+        Instant now = Instant.now();
+        Timestamp timestamp = Timestamp.from(now);
+        jdbc.update("INSERT INTO article(id, slug, title, markdown_source, status, created_at, updated_at) VALUES (?, ?, ?, ?, 'DRAFT', ?, ?)",
+                id, slug, "Comment article", "# article", timestamp, timestamp);
     }
 
     private static String toJson(Map<String, Object> values) {

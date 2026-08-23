@@ -37,6 +37,7 @@ useHead(() => publicPageHead(buildPublicPageSeo(resolvedSite, page === 1 ? '/art
     <h1 id="articles-title">文章观测日志</h1>
     <p class="signal-copy">沿着时间线阅读正在演化的技术记录。</p>
     <p class="index-note"><span class="status-light" aria-hidden="true" /> 按发布时间排列 / PUBLIC SIGNALS ONLY</p>
+    <NuxtLink class="article-search-entry" to="/search">TEXT SEARCH / 检索文章信号 →</NuxtLink>
     <p v-if="pending" class="signal-note" role="status">正在接收文章信号…</p>
     <p v-else-if="error" class="signal-note" role="alert">文章信号暂时不可用，请稍后重试。</p>
     <PublicArticleList v-else-if="data" :result="data" :page="page" />

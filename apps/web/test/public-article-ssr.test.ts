@@ -8,6 +8,7 @@ import PublicHomeOverview from '../app/components/home/PublicHomeOverview.vue'
 import { isPublicArticlePageOutOfRange, parsePublicArticlePage, publicArticlePageUrl } from '../app/utils/publicArticlePagination'
 import { buildPublicArticleJsonLd, buildPublicArticleSeo, buildPublicPageSeo, publicPageHead, serializeJsonLd } from '../app/utils/publicArticleSeo'
 import { buildPublicArticleContent } from '../server/utils/publicArticleContent'
+import { isPublicSearchPageOutOfRange, normalizePublicSearchQuery, publicSearchPageUrl } from '../app/utils/publicSearch'
 import type { components } from '@haoblog/api-client'
 
 type Article = components['schemas']['ArticleResponse']
@@ -104,6 +105,24 @@ describe('public article SSR contract', () => {
     expect(isPublicArticlePageOutOfRange(1, { items: [], page: 0, size: 20, total: 0 })).toBe(false)
     expect(isPublicArticlePageOutOfRange(2, { items: [], page: 1, size: 20, total: 20 })).toBe(true)
     expect(isPublicArticlePageOutOfRange(2, { items: [singleSummary()], page: 1, size: 20, total: 21 })).toBe(false)
+  })
+
+  it('normalizes Unicode search terms and renders search pagination as plain links', async () => {
+    expect(normalizePublicSearchQuery('  ＰＧ＿ＴＲＧＭ  ')).toBe('PG_TRGM')
+    expect(normalizePublicSearchQuery('a')).toBeNull()
+    expect(normalizePublicSearchQuery('😀'.repeat(101))).toBeNull()
+    expect(publicSearchPageUrl('PG_TRGM', 2)).toBe('/search?q=PG_TRGM&page=2')
+    expect(isPublicSearchPageOutOfRange(2, { items: [], page: 1, size: 20, total: 20 })).toBe(true)
+
+    const result: ArticleList = {
+      items: [{ id: 'article-1', slug: 'search-signal', title: 'Search signal', excerpt: 'Excerpt only', publishedAt: article.publishedAt, coverImageUrl: null }],
+      page: 0,
+      size: 20,
+      total: 1,
+    }
+    const html = await renderPublic(PublicArticleList, { result, page: 1, searchQuery: 'signal' })
+    expect(html).toContain('href="/articles/search-signal"')
+    expect(html).not.toContain('markdown')
   })
 
   it('renders title, excerpt and safe markdown into SSR HTML', async () => {

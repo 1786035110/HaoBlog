@@ -51,9 +51,9 @@ public class AdminArticleController {
 
     @PostMapping
     public ResponseEntity<Response> create(@RequestBody(required = false) @Valid CreateRequest request) {
-        CreateRequest body = request == null ? new CreateRequest(null, null, null, null, null, null, null, null, null, null) : request;
+        CreateRequest body = request == null ? new CreateRequest(null, null, null, null, null, null, null, null, null, null, null) : request;
         Response response = Response.from(service.createArticle(body.slug(), body.title(), body.excerpt(), body.markdown(),
-                body.seoTitle(), body.seoDescription(), body.scheduledAt(), body.categoryId(), body.coverMediaId(), body.tagIds()));
+                body.seoTitle(), body.seoDescription(), body.scheduledAt(), body.categoryId(), body.coverMediaId(), body.tagIds(), body.commentsEnabled()));
         URI location = ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}").buildAndExpand(response.id()).toUri();
         return ResponseEntity.created(location).body(response);
     }
@@ -89,7 +89,7 @@ public class AdminArticleController {
     public Response update(@PathVariable UUID id, @RequestBody @Valid UpdateRequest request) {
         try {
             return Response.from(service.updateArticle(id, request.version(), request.slug(), request.title(), request.excerpt(),
-                    request.markdown(), request.seoTitle(), request.seoDescription(), request.scheduledAt(), request.categoryId(), request.coverMediaId(), request.tagIds()));
+                    request.markdown(), request.seoTitle(), request.seoDescription(), request.scheduledAt(), request.categoryId(), request.coverMediaId(), request.tagIds(), request.commentsEnabled()));
         } catch (OptimisticLockingFailureException exception) {
             throw new ProblemException("ARTICLE_VERSION_CONFLICT", "Article version conflict",
                     "Reload the latest article before saving", service.currentVersion(id));
