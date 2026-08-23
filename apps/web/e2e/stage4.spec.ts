@@ -135,6 +135,13 @@ test.describe('S4-08 embedded browser tools', () => {
     const payload = await response.json() as { items: Array<{ title: string; componentKey: string }> }
     const expected = ['json-format', 'base64', 'url-codec', 'timestamp', 'regex-test']
     expect(new Set(payload.items.map(item => item.componentKey))).toEqual(new Set(expected))
+    const seededTitles: Record<string, string> = {
+      'json-format': 'JSON 格式化',
+      base64: 'Base64 编解码',
+      'url-codec': 'URL 编解码',
+      timestamp: '时间戳转换',
+      'regex-test': '正则测试',
+    }
 
     await page.setViewportSize({ width: 360, height: 900 })
     await page.goto('/tools')
@@ -142,11 +149,11 @@ test.describe('S4-08 embedded browser tools', () => {
     const requests: string[] = []
     page.on('request', request => requests.push(request.url()))
 
-    const entryFor = (key: string) => page.locator('.tool-entry').filter({ has: page.locator(`[data-component-key="${key}"]`) })
-    for (const item of payload.items) {
-      const entry = page.locator('.tool-entry').filter({ hasText: item.title })
+    const entryFor = (key: string) => page.locator('.tool-entry').filter({ hasText: seededTitles[key] }).filter({ has: page.locator(`[data-component-key="${key}"]`) })
+    for (const key of expected) {
+      const entry = entryFor(key)
       await entry.getByRole('button', { name: 'UNFOLD' }).click()
-      await expect(entry.locator(`[data-component-key="${item.componentKey}"]`)).toBeVisible()
+      await expect(entry.locator(`[data-component-key="${key}"]`)).toBeVisible()
     }
 
     const json = entryFor('json-format')
