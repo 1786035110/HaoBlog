@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -66,6 +67,39 @@ public interface ArticleRevisionRepository extends JpaRepository<ArticleRevision
                                                 @Param("now") java.time.Instant now,
                                                 Pageable pageable);
 
+    @Query(value = """
+            select a.id as id, r.slug as slug, r.title as title, r.excerpt as excerpt,
+                   a.published_at as "publishedAt", r.cover_media_id as "coverMediaId",
+                   a.comments_enabled as "commentsEnabled"
+            from article_revision r
+            join article a on a.published_revision_id = r.id
+            where a.status in ('PUBLISHED', 'SCHEDULED')
+              and a.published_revision_id is not null
+              and a.published_at is not null
+              and a.published_at <= :now
+              and (coalesce(r.title, '') || ' ' || coalesce(r.excerpt, '') || ' ' || r.markdown_source)
+                    ilike :pattern escape chr(92)
+            order by case
+                         when r.title ilike :pattern escape chr(92) then 0
+                         when coalesce(r.excerpt, '') ilike :pattern escape chr(92) then 1
+                         else 2
+                       end,
+                       a.published_at desc, a.id desc
+            """,
+            countQuery = """
+            select count(*)
+            from article_revision r
+            join article a on a.published_revision_id = r.id
+            where a.status in ('PUBLISHED', 'SCHEDULED')
+              and a.published_revision_id is not null
+              and a.published_at is not null
+              and a.published_at <= :now
+              and (coalesce(r.title, '') || ' ' || coalesce(r.excerpt, '') || ' ' || r.markdown_source)
+                    ilike :pattern escape chr(92)
+            """, nativeQuery = true)
+    Page<SearchProjection> searchVisible(@Param("pattern") String pattern, @Param("now") Instant now,
+                                         Pageable pageable);
+
     @Query("""
             select r as revision, a.publishedAt as publishedAt, a.commentsEnabled as commentsEnabled
             from ArticleRevision r, Article a
@@ -113,5 +147,15 @@ public interface ArticleRevisionRepository extends JpaRepository<ArticleRevision
 
     interface NotificationArticleProjection {
         String getTitle();
+    }
+
+    interface SearchProjection {
+        UUID getId();
+        String getSlug();
+        String getTitle();
+        String getExcerpt();
+        Instant getPublishedAt();
+        UUID getCoverMediaId();
+        boolean getCommentsEnabled();
     }
 }

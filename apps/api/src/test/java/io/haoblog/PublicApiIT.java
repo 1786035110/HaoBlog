@@ -18,6 +18,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
+import java.util.List;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -109,6 +110,77 @@ class PublicApiIT {
                 .andExpect(jsonPath("$.title").value("HaoBlog"));
     }
 
+    @Test
+    void searchNormalizesUnicodeMatchesCaseInsensitivelyAndRanksFields() throws Exception {
+        seedPublished("search-title", "SIGNAL title", "no match", "# body", Instant.now().minus(3, ChronoUnit.HOURS), Instant.now());
+        seedPublished("search-excerpt", "Older title", "SIGNAL excerpt", "# body", Instant.now().minus(2, ChronoUnit.HOURS), Instant.now());
+        seedPublished("search-body", "Oldest title", "no match", "# SIGNAL body", Instant.now().minus(1, ChronoUnit.HOURS), Instant.now());
+
+        mvc.perform(get("/api/v1/public/search/articles").param("q", "  ＳＩＧＮＡＬ  "))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(3))
+                .andExpect(jsonPath("$.items[0].title").value("SIGNAL title"))
+                .andExpect(jsonPath("$.items[1].title").value("Older title"))
+                .andExpect(jsonPath("$.items[2].title").value("Oldest title"))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("markdown"))));
+    }
+
+    @Test
+    void searchEscapesPercentUnderscoreAndBackslashAndKeepsOnlyPublishedSnapshot() throws Exception {
+        seedPublished("search-special", "Literal %_\\ path", "special token", "# special", Instant.now(), Instant.now());
+        UUID archivedId = seedPublished("search-archived", "Literal %_\\ archived", "special token", "# special", Instant.now(), Instant.now());
+        jdbc.update("UPDATE article SET status='ARCHIVED' WHERE id=?", archivedId);
+
+        mvc.perform(get("/api/v1/public/search/articles").param("q", "%_\\"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(1))
+                .andExpect(jsonPath("$.items[0].slug").value("search-special"));
+        mvc.perform(get("/api/v1/public/search/articles").param("q", "Future"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(0));
+    }
+
+    @Test
+    void searchPaginatesEmptyResultsAndIsolatesUnpublishedWorkingChanges() throws Exception {
+        for (int index = 0; index < 21; index++) {
+            seedPublished("search-page-" + index, "Page match " + index, "page", "# page", Instant.now().minus(index, ChronoUnit.MINUTES), Instant.now());
+        }
+        mvc.perform(get("/api/v1/public/search/articles").param("q", "page").param("size", "20"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(21)).andExpect(jsonPath("$.items.length()").value(20));
+        mvc.perform(get("/api/v1/public/search/articles").param("q", "page").param("page", "1").param("size", "20"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items.length()").value(1));
+        mvc.perform(get("/api/v1/public/search/articles").param("q", "no-such-signal"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(0)).andExpect(jsonPath("$.items.length()").value(0));
+
+        UUID articleId = seedPublished("search-snapshot", "Published snapshot", "published", "# published", Instant.now(), Instant.now());
+        jdbc.update("UPDATE article SET title=?, excerpt=?, markdown_source=? WHERE id=?",
+                "Unpublished working copy", "unpublished", "# unpublished", articleId);
+        mvc.perform(get("/api/v1/public/search/articles").param("q", "Published"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(1));
+        mvc.perform(get("/api/v1/public/search/articles").param("q", "Unpublished"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(0));
+    }
+
+    @Test
+    void searchQueryUsesTheTrigramExpressionIndex() {
+        jdbc.execute("SET enable_seqscan = off");
+        try {
+            List<String> plan = jdbc.queryForList("""
+                    EXPLAIN (COSTS OFF)
+                    SELECT r.id
+                    FROM article_revision r
+                    JOIN article a ON a.published_revision_id = r.id
+                    WHERE a.status IN ('PUBLISHED', 'SCHEDULED')
+                      AND a.published_at IS NOT NULL
+                      AND a.published_at <= now()
+                      AND (coalesce(r.title, '') || ' ' || coalesce(r.excerpt, '') || ' ' || r.markdown_source)
+                            ILIKE '%Vis%' ESCAPE chr(92)
+                    """, String.class);
+            assertTrue(plan.stream().anyMatch(line -> line.contains("article_revision_search_trgm_idx")), plan.toString());
+        } finally {
+            jdbc.execute("RESET enable_seqscan");
+        }
+    }
+
     @Test void feedsContainOnlyPublishedArticlesAndSupportConditionalCaching() throws Exception {
         seedPublished("newer-feed", "Newer feed", "Newest", "# newer", Instant.now().minus(30, ChronoUnit.SECONDS), Instant.now());
         UUID archivedId = seedPublished("archived-feed", "Archived feed", "No", "# archived", Instant.now().minus(1, ChronoUnit.DAYS), Instant.now());
@@ -159,6 +231,9 @@ class PublicApiIT {
         assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM pg_index WHERE indexrelid='article_public_published_idx'::regclass AND indpred IS NOT NULL", Integer.class));
         String predicate = jdbc.queryForObject("SELECT pg_get_expr(indpred, indrelid) FROM pg_index WHERE indexrelid='article_public_published_idx'::regclass", String.class);
         assertTrue(predicate.contains("status") && predicate.contains("PUBLISHED") && predicate.contains("published_at"));
+        assertEquals(1, jdbc.queryForObject("SELECT count(*) FROM pg_indexes WHERE indexname='article_revision_search_trgm_idx'", Integer.class));
+        String searchIndex = jdbc.queryForObject("SELECT indexdef FROM pg_indexes WHERE indexname='article_revision_search_trgm_idx'", String.class);
+        assertTrue(searchIndex.contains("gin") && searchIndex.contains("gin_trgm_ops"));
     }
 
     @Test void applicationPersistsUuidV7WithoutDatabaseUuidDefault() {

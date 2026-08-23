@@ -172,6 +172,41 @@ paths:
           $ref: '#/components/responses/ArticleNotFound'
         '500':
           $ref: '#/components/responses/InternalError'
+  /api/v1/public/search/articles:
+    get:
+      operationId: searchPublicArticles
+      security: []
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: NFKC-normalized search query; 2 to 100 Unicode code points
+          schema: { type: string, minLength: 2, maxLength: 100 }
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 0, default: 0 }
+        - name: size
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 20, default: 20 }
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: Public article summaries matching the query
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            Cache-Control: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ArticleListResponse' }
+        '304':
+          description: Search representation has not changed
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            Cache-Control: { schema: { type: string } }
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /api/v1/public/articles/{slug}/comments:
     get:
       operationId: listPublicArticleComments

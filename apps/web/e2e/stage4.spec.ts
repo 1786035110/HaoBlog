@@ -188,3 +188,49 @@ test.describe('S4-08 embedded browser tools', () => {
     await expect(page.locator(':focus')).toBeVisible()
   })
 })
+
+test.describe('S4-09 minimal article search', () => {
+  test('renders normalized public search in SSR, supports no-JS, pagination links and 360px keyboard use', async ({ page, browser }) => {
+    const articles = await page.request.get('/api/v1/public/articles?size=1')
+    expect(articles.ok()).toBe(true)
+    const first = (await articles.json() as { items: Array<{ slug: string; title: string }> }).items[0]
+    expect(first?.slug).toBeTruthy()
+    const query = Array.from(first.title).slice(0, 3).join('')
+    expect(Array.from(query).length).toBeGreaterThanOrEqual(2)
+
+    const api = await page.request.get('/api/v1/public/search/articles', { params: { q: query } })
+    expect(api.ok()).toBe(true)
+    const payload = await api.json() as { items: Array<{ slug: string; title: string }>; total: number }
+    expect(payload.total).toBeGreaterThan(0)
+    expect(payload.items.some(item => item.slug === first.slug)).toBe(true)
+
+    const ssr = await page.request.get(`/search?q=${encodeURIComponent(query)}`)
+    expect(ssr.status()).toBe(200)
+    const html = await ssr.text()
+    expect(html).toContain(first.title)
+    expect(html).toContain('name="robots"')
+    expect(html).toContain('noindex,follow')
+    expect(html).toContain('name="q"')
+    expect(html).not.toContain('/sitemap.xml/search')
+
+    const noJs = await browser.newContext({ baseURL: process.env.HAOBLOG_BASE_URL || 'http://127.0.0.1', javaScriptEnabled: false })
+    const noJsPage = await noJs.newPage()
+    await noJsPage.setViewportSize({ width: 360, height: 900 })
+    const noJsResponse = await noJsPage.goto(`/search?q=${encodeURIComponent(query)}`)
+    expect(noJsResponse?.status()).toBe(200)
+    await expect(noJsPage.getByRole('heading', { name: '文章搜索' })).toBeVisible()
+    await expect(noJsPage.locator('input[name="q"]')).toHaveValue(query)
+    await expect(noJsPage.locator('a[href^="/articles/"]').first()).toBeVisible()
+    expect(await noJsPage.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360)
+    await noJs.close()
+
+    await page.setViewportSize({ width: 360, height: 900 })
+    await page.goto(`/search?q=${encodeURIComponent(query)}`)
+    await page.getByLabel('检索词').focus()
+    await page.keyboard.press('Tab')
+    await expect(page.getByRole('button', { name: 'SEARCH →' })).toBeFocused()
+
+    const sitemap = await page.request.get('/sitemap.xml')
+    expect(await sitemap.text()).not.toContain('/search')
+  })
+})

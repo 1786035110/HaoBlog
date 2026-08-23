@@ -13,6 +13,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
+import org.mockito.ArgumentCaptor;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -79,5 +80,26 @@ class ArticleServiceTest {
         assertEquals(article, result.revision());
         assertEquals(publishedAt, result.publishedAt());
         verify(repository).findVisibleBySlug(eq("visible"), eq(ArticleStatus.PUBLISHED), eq(ArticleStatus.SCHEDULED), any(Instant.class));
+    }
+
+    @Test
+    void normalizesUnicodeAndEscapesLikeWildcardsBeforeSearching() {
+        when(repository.searchVisible(any(), any(Instant.class), any())).thenReturn(new PageImpl<>(List.of()));
+
+        service.search("  Ａ%_\\  ", 0, 20);
+
+        var pattern = ArgumentCaptor.forClass(String.class);
+        verify(repository).searchVisible(pattern.capture(), eq(Instant.parse("2026-01-01T00:00:00Z")), any());
+        assertEquals("%A\\%\\_\\\\%", pattern.getValue());
+    }
+
+    @Test
+    void rejectsEmptyShortLongAndOversizedSearchRequestsBeforeRepository() {
+        for (String query : new String[]{null, "", "a", "a".repeat(101)}) {
+            assertThrows(IllegalArgumentException.class, () -> service.search(query, 0, 20));
+        }
+        assertThrows(IllegalArgumentException.class, () -> service.search("ok", -1, 20));
+        assertThrows(IllegalArgumentException.class, () -> service.search("ok", 0, 21));
+        verifyNoInteractions(repository, mediaRepository);
     }
 }

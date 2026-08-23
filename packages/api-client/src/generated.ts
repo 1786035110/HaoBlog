@@ -100,6 +100,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/public/search/articles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["searchPublicArticles"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/public/articles/{slug}/comments": {
         parameters: {
             query?: never;
@@ -1561,6 +1577,46 @@ export interface operations {
                 content?: never;
             };
             404: components["responses"]["ArticleNotFound"];
+            500: components["responses"]["InternalError"];
+        };
+    };
+    searchPublicArticles: {
+        parameters: {
+            query: {
+                /** @description NFKC-normalized search query; 2 to 100 Unicode code points */
+                q: string;
+                page?: number;
+                size?: number;
+            };
+            header?: {
+                "If-None-Match"?: components["parameters"]["IfNoneMatch"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Public article summaries matching the query */
+            200: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    "Cache-Control"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ArticleListResponse"];
+                };
+            };
+            /** @description Search representation has not changed */
+            304: {
+                headers: {
+                    ETag: components["headers"]["ETag"];
+                    "Cache-Control"?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
             500: components["responses"]["InternalError"];
         };
     };

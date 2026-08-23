@@ -11,6 +11,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.time.Clock;
+import java.text.Normalizer;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -59,6 +60,28 @@ public class ArticleService implements ArticleCommentLookup {
         var result = repository.findPublished(ArticleStatus.PUBLISHED, java.time.Instant.now(clock), PageRequest.of(page, size));
         return new PublishedBatch(result.getContent().stream().map(this::toPublicFeedArticle).toList(), result.hasNext());
     }
+
+    public SearchPage search(String query, int page, int size) {
+        String normalizedQuery = normalizeSearchQuery(query);
+        if (page < 0 || size < 1 || size > 20) throw new IllegalArgumentException("page/size out of range");
+        var result = repository.searchVisible(toLikePattern(normalizedQuery), java.time.Instant.now(clock),
+                PageRequest.of(page, size));
+        return new SearchPage(normalizedQuery, result.map(projection -> new PublicSearchArticle(
+                projection.getId(), projection.getSlug(), projection.getTitle(), projection.getExcerpt(),
+                projection.getPublishedAt(), projection.getCoverMediaId(), projection.getCommentsEnabled())));
+    }
+
+    public static String normalizeSearchQuery(String query) {
+        if (query == null) throw new IllegalArgumentException("query is required");
+        String normalized = Normalizer.normalize(query, Normalizer.Form.NFKC).strip();
+        int length = normalized.codePointCount(0, normalized.length());
+        if (length < 2 || length > 100) throw new IllegalArgumentException("query length out of range");
+        return normalized;
+    }
+
+    private static String toLikePattern(String query) {
+        return "%" + query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
+    }
     public Map<UUID, String> publicCoverUrls(Collection<UUID> mediaIds) {
         if (mediaIds == null || mediaIds.isEmpty()) return Map.of();
         return mediaRepository.findAllByIdInAndStatus(mediaIds, MediaAssetStatus.AVAILABLE).stream()
@@ -88,4 +111,7 @@ public class ArticleService implements ArticleCommentLookup {
     public record PageResult(Page<PublicArticle> page) {}
     public record PublishedBatch(List<PublicFeedArticle> items, boolean hasNext) {}
     public record PublicFeedArticle(UUID id, String slug, String title, String excerpt, java.time.Instant publishedAt) {}
+    public record SearchPage(String query, Page<PublicSearchArticle> page) {}
+    public record PublicSearchArticle(UUID id, String slug, String title, String excerpt,
+                                      java.time.Instant publishedAt, UUID coverMediaId, boolean commentsEnabled) {}
 }
