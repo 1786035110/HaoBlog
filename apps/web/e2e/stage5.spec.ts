@@ -1,5 +1,14 @@
 import { expect, test, type APIRequestContext } from '@playwright/test'
 
+async function navigateInApp(page: import('@playwright/test').Page, path: string) {
+  await page.evaluate(async target => {
+    const useNuxtApp = (window as typeof window & { useNuxtApp?: () => { $router: { push: (value: string) => Promise<unknown> } } }).useNuxtApp
+    if (!useNuxtApp) throw new Error('Nuxt app is unavailable.')
+    await useNuxtApp().$router.push(target)
+  }, path)
+  await page.waitForURL(url => url.pathname === path)
+}
+
 test.describe('S5-01/S5-02 knowledge garden', () => {
   test('keeps the garden readable in SSR, no-JS, 360px, Save-Data and reduced-motion paths', async ({ page, browser }) => {
     const ssr = await page.request.get('/garden')
@@ -267,6 +276,7 @@ test.describe('S5-05 music and S5-06 signal repair', () => {
     const notFound = await page.goto('/s5-06-missing-signal')
     expect(notFound?.status()).toBe(404)
     await expect(page.getByRole('heading', { name: /页面未找到/ })).toBeVisible()
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex,nofollow')
     await expect(page.getByRole('searchbox', { name: '搜索文章' })).toBeVisible()
     await expect(page.getByRole('link', { name: '文章观测日志' })).toHaveAttribute('href', '/articles')
     await expect(page.getByRole('link', { name: '公开工具箱' })).toHaveAttribute('href', '/tools')
@@ -309,6 +319,214 @@ test.describe('S5-05 music and S5-06 signal repair', () => {
       await page.keyboard.press('Enter')
     }
     await expect(page.getByText('信号已修复。可以返回首页继续观测。')).toBeVisible()
+  })
+})
+
+test.describe('S5-08 performance and lifecycle closure', () => {
+  test('keeps 360/768/1280/1600 layouts readable and handles Canvas, WebGL and Service Worker failures', async ({ page, browser }) => {
+    for (const width of [360, 768, 1280, 1600]) {
+      await page.setViewportSize({ width, height: 900 })
+      for (const path of ['/', '/garden']) {
+        await page.goto(path)
+        await expect(page.locator('h1')).toBeVisible()
+        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
+      }
+    }
+
+    const canvasFailure = await browser.newContext({ baseURL: process.env.HAOBLOG_BASE_URL || 'http://127.0.0.1' })
+    await canvasFailure.addInitScript(() => {
+      const original = HTMLCanvasElement.prototype.getContext
+      HTMLCanvasElement.prototype.getContext = function (type: string, ...args: unknown[]) {
+        if (type === '2d') return null
+        return original.call(this, type, ...args as [])
+      } as typeof HTMLCanvasElement.prototype.getContext
+    })
+    const canvasPage = await canvasFailure.newPage()
+    await canvasPage.setViewportSize({ width: 1280, height: 900 })
+    await canvasPage.goto('/garden')
+    await expect(canvasPage.locator('.garden-canvas-panel')).toHaveCount(0)
+    await expect(canvasPage.getByRole('heading', { name: '可读的知识时间线' })).toBeVisible()
+    await canvasFailure.close()
+
+    await setThreeDFlag(page.request, true)
+    try {
+      const webglFailure = await browser.newContext({ baseURL: process.env.HAOBLOG_BASE_URL || 'http://127.0.0.1' })
+      await webglFailure.addInitScript(() => {
+        const original = HTMLCanvasElement.prototype.getContext
+        HTMLCanvasElement.prototype.getContext = function (type: string, ...args: unknown[]) {
+          if (/^webgl/.test(type)) return null
+          return original.call(this, type, ...args as [])
+        } as typeof HTMLCanvasElement.prototype.getContext
+      })
+      const webglPage = await webglFailure.newPage()
+      await webglPage.setViewportSize({ width: 1280, height: 900 })
+      const heavyRequests: string[] = []
+      webglPage.on('request', request => {
+        if (/HomeThreeScene|C5rh5wLt2|\/public\/garden/i.test(request.url())) heavyRequests.push(request.url())
+      })
+      await webglPage.goto('/')
+      await webglPage.locator('#starmap-scene').scrollIntoViewIfNeeded()
+      await expect(webglPage.locator('.home-starmap-status')).toContainText('动态星图不可用')
+      expect(heavyRequests).toEqual([])
+      await webglFailure.close()
+    } finally {
+      await setThreeDFlag(page.request, false)
+    }
+
+    const swFailure = await browser.newContext({
+      baseURL: process.env.HAOBLOG_BASE_URL || 'http://127.0.0.1',
+      serviceWorkers: 'block',
+    })
+    const swPage = await swFailure.newPage()
+    await swPage.goto('/tools')
+    await swPage.getByRole('button', { name: '准备离线工具' }).click()
+    await swPage.getByRole('button', { name: '确认准备' }).click()
+    await expect(swPage.getByText(/Service Worker 暂时不可用|离线工具准备失败/)).toBeVisible({ timeout: 20_000 })
+    await expect(swPage.getByRole('heading', { name: '工具目录' })).toBeVisible()
+    await swFailure.close()
+  })
+
+  test('does not accumulate Canvas, RAF or global listeners across home, garden and Studio routes', async ({ page }) => {
+    await page.addInitScript(() => {
+      const originalRequest = window.requestAnimationFrame.bind(window)
+      const originalCancel = window.cancelAnimationFrame.bind(window)
+      const pending = new Set<number>()
+      window.requestAnimationFrame = callback => {
+        let id = 0
+        id = originalRequest(time => {
+          pending.delete(id)
+          callback(time)
+        })
+        pending.add(id)
+        return id
+      }
+      window.cancelAnimationFrame = id => {
+        pending.delete(id)
+        originalCancel(id)
+      }
+
+      const records: Array<{ target: EventTarget; type: string; listener: EventListenerOrEventListenerObject; capture: boolean }> = []
+      const originalAdd = EventTarget.prototype.addEventListener
+      const originalRemove = EventTarget.prototype.removeEventListener
+      const capture = (options?: boolean | AddEventListenerOptions) => typeof options === 'boolean' ? options : Boolean(options?.capture)
+      EventTarget.prototype.addEventListener = function (type, listener, options) {
+        if ((this === window || this === document) && listener && !records.some(record => record.target === this && record.type === type && record.listener === listener && record.capture === capture(options))) {
+          records.push({ target: this, type, listener, capture: capture(options) })
+        }
+        return originalAdd.call(this, type, listener, options)
+      }
+      EventTarget.prototype.removeEventListener = function (type, listener, options) {
+        const index = records.findIndex(record => record.target === this && record.type === type && record.listener === listener && record.capture === capture(options))
+        if (index >= 0) records.splice(index, 1)
+        return originalRemove.call(this, type, listener, options)
+      }
+      Object.defineProperty(window, '__s5Lifecycle', {
+        value: { snapshot: () => ({ raf: pending.size, listeners: records.length }) },
+      })
+    })
+
+    await setThreeDFlag(page.request, true)
+    try {
+      await page.setViewportSize({ width: 1280, height: 900 })
+      await page.goto('/articles')
+      const snapshot = () => page.evaluate(() => (window as typeof window & { __s5Lifecycle: { snapshot: () => { raf: number; listeners: number } } }).__s5Lifecycle.snapshot())
+      await expect.poll(async () => (await snapshot()).raf).toBe(0)
+      await navigateInApp(page, '/')
+      await page.locator('#starmap-scene').scrollIntoViewIfNeeded()
+      await page.waitForTimeout(300)
+      await navigateInApp(page, '/garden')
+      await page.waitForTimeout(300)
+      await navigateInApp(page, '/studio')
+      await navigateInApp(page, '/articles')
+      await expect(page.locator('canvas')).toHaveCount(0)
+      await expect.poll(async () => (await snapshot()).raf).toBe(0)
+      const baseline = await snapshot()
+
+      for (let index = 0; index < 3; index += 1) {
+        await navigateInApp(page, '/')
+        await page.locator('#starmap-scene').scrollIntoViewIfNeeded()
+        await page.waitForTimeout(300)
+        await navigateInApp(page, '/garden')
+        await page.waitForTimeout(300)
+        await navigateInApp(page, '/studio')
+        await navigateInApp(page, '/articles')
+        await expect(page.locator('canvas')).toHaveCount(0)
+        await expect.poll(async () => (await snapshot()).raf).toBe(0)
+        expect((await snapshot()).listeners).toBeLessThanOrEqual(baseline.listeners)
+      }
+    } finally {
+      await setThreeDFlag(page.request, false)
+    }
+  })
+
+  test('closes AudioContext in Studio and keeps playback usable when AudioContext fails', async ({ page, browser }) => {
+    test.skip(process.env.HAOBLOG_MUSIC_TEST !== 'true', '需要阶段五专用音乐清单配置。')
+    await setMusicFlag(page.request, true)
+    const manifest = {
+      version: 1,
+      tracks: [{
+        id: 'acceptance-signal',
+        title: 'Acceptance Signal',
+        artist: 'HaoBlog Test',
+        audioUrl: 'https://media.example.test/acceptance.mp3',
+        licenseName: 'Test fixture',
+      }],
+    }
+    try {
+      await page.route('**/music-manifest.json', route => route.fulfill({ json: manifest }))
+      await page.route('https://media.example.test/**', route => route.fulfill({ contentType: 'audio/mpeg', body: '' }))
+      await page.addInitScript(() => {
+        const state = { created: 0, closed: 0 }
+        class FakeAnalyser {
+          fftSize = 64
+          smoothingTimeConstant = 0
+          frequencyBinCount = 32
+          connect() {}
+          disconnect() {}
+          getByteFrequencyData(values: Uint8Array) { values.fill(0) }
+        }
+        class FakeAudioContext {
+          state = 'running'
+          destination = {}
+          constructor() { state.created += 1 }
+          createMediaElementSource() { return { connect() {}, disconnect() {} } }
+          createAnalyser() { return new FakeAnalyser() }
+          resume() { return Promise.resolve() }
+          close() { state.closed += 1; return Promise.resolve() }
+        }
+        Object.defineProperty(window, 'AnalyserNode', { configurable: true, value: FakeAnalyser })
+        Object.defineProperty(window, 'AudioContext', { configurable: true, value: FakeAudioContext })
+        Object.defineProperty(window, '__s5Audio', { value: state })
+        HTMLMediaElement.prototype.play = function () { this.dispatchEvent(new Event('play')); return Promise.resolve() }
+        HTMLMediaElement.prototype.pause = function () { this.dispatchEvent(new Event('pause')) }
+      })
+      await page.goto('/')
+      await page.getByRole('button', { name: /SIGNAL TAPE/ }).click()
+      await page.getByRole('button', { name: '开始播放' }).click()
+      await expect.poll(() => page.evaluate(() => (window as typeof window & { __s5Audio: { created: number } }).__s5Audio.created)).toBe(1)
+      await navigateInApp(page, '/studio')
+      await expect.poll(() => page.evaluate(() => (window as typeof window & { __s5Audio: { closed: number } }).__s5Audio.closed)).toBe(1)
+
+      const audioFailure = await browser.newContext({ baseURL: process.env.HAOBLOG_BASE_URL || 'http://127.0.0.1' })
+      await audioFailure.addInitScript(() => {
+        class FakeAnalyser {}
+        Object.defineProperty(window, 'AnalyserNode', { configurable: true, value: FakeAnalyser })
+        Object.defineProperty(window, 'AudioContext', { configurable: true, value: class { constructor() { throw new Error('blocked') } } })
+        HTMLMediaElement.prototype.play = function () { this.dispatchEvent(new Event('play')); return Promise.resolve() }
+        HTMLMediaElement.prototype.pause = function () { this.dispatchEvent(new Event('pause')) }
+      })
+      const audioFailurePage = await audioFailure.newPage()
+      await audioFailurePage.route('**/music-manifest.json', route => route.fulfill({ json: manifest }))
+      await audioFailurePage.route('https://media.example.test/**', route => route.fulfill({ contentType: 'audio/mpeg', body: '' }))
+      await audioFailurePage.goto('/')
+      await audioFailurePage.getByRole('button', { name: /SIGNAL TAPE/ }).click()
+      await audioFailurePage.getByRole('button', { name: '开始播放' }).click()
+      await expect(audioFailurePage.getByText('频谱接入失败，已保留普通播放。')).toBeVisible()
+      await expect(audioFailurePage.getByRole('button', { name: '暂停播放' })).toBeVisible()
+      await audioFailure.close()
+    } finally {
+      await setMusicFlag(page.request, false)
+    }
   })
 })
 

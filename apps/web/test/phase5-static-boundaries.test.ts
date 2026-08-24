@@ -15,6 +15,29 @@ describe('phase five static boundaries', () => {
     expect(readFileSync(resolve(app, 'components/music/SignalTape.client.vue'), 'utf8')).toContain('preload="none"')
   })
 
+  it('releases every stage five heavyweight owner on unmount', () => {
+    const home = readFileSync(resolve(app, 'components/home/HomeThreeScene.client.vue'), 'utf8')
+    expect(home).toContain('cancelAnimationFrame(raf)')
+    expect(home).toContain('nodeGeometry?.dispose()')
+    expect(home).toContain('nodeMaterial?.dispose()')
+    expect(home).toContain('lineGeometry?.dispose()')
+    expect(home).toContain('lineMaterial?.dispose()')
+    expect(home).toContain('renderer?.forceContextLoss()')
+    expect(home).toContain('renderer?.dispose()')
+
+    const garden = readFileSync(resolve(app, 'components/garden/GardenCanvas.client.vue'), 'utf8')
+    expect(garden).toContain('simulation?.stop()')
+    expect(garden).toContain("simulation?.on('tick', null)")
+    expect(garden).toContain('cancelAnimationFrame(frame)')
+    expect(garden).toContain('resizeObserver?.disconnect()')
+
+    const music = readFileSync(resolve(app, 'components/music/SignalTape.client.vue'), 'utf8')
+    expect(music).toContain('stopSpectrumLoop()')
+    expect(music).toContain('source?.disconnect()')
+    expect(music).toContain('analyser.value?.disconnect()')
+    expect(music).toContain('context.close()')
+  })
+
   it('keeps PWA cache boundaries explicit and excludes API, Studio, articles, graph, comments and audio', () => {
     const worker = readFileSync(resolve(publicDir, 'sw.js'), 'utf8')
     expect(worker).toContain("url.pathname === '/tools'")

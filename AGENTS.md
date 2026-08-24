@@ -9,6 +9,7 @@ Build HaoBlog as a low-cost developer blog and digital garden using Java and Vue
 - Current user request defines the task scope.
 - `docs/HaoBlog 完整开发计划.md` defines architecture, modules, resource budgets, APIs, data and milestones.
 - `docs/HaoBlog-design-language.md` defines public-site UI/UX, tokens, layout, motion and accessibility.
+- `docs/target`: local/private development target plans and admission checklists. These files are not public and must not be committed or pushed; do not create the typo directory `docs/taget`.
 - For public-site design work, use the repo skill at `.agents/skills/haoblog-design/SKILL.md` when available.
 - If sources conflict, report the conflict and propose the smallest safe resolution. Do not silently override a locked decision.
 
@@ -19,7 +20,7 @@ Build HaoBlog as a low-cost developer blog and digital garden using Java and Vue
 - `packages/api-client`: reserved package for generated OpenAPI TypeScript types/client.
 - `infra/compose/compose.dev.yml`: local PostgreSQL + pgvector development Compose configuration.
 - `.github/workflows/ci.yml`: API, Web and Compose configuration CI.
-- `docs`: architecture and design documents.
+- `docs`: architecture, design and general project documents; private stage target plans/checklists stay under ignored `docs/target` and are never part of the public repository.
 
 Do not create additional services unless the user changes the architecture.
 
@@ -80,7 +81,7 @@ The current repository uses one root pnpm workspace and one Maven application. N
 - Web production build: `pnpm --dir apps/web build`
 - Full Chromium E2E: `pnpm --dir apps/web e2e`
 - Article client bundle budget: `pnpm web:budget`
-- Lighthouse with an existing server: set `LHCI_EXISTING_SERVER=true`, `LHCI_BASE_URL=http://localhost` and `LHCI_ARTICLE_PATH` to `/articles/s3-08-advanced-markdown` or `/tools`, then run `pnpm web:lighthouse`; on Windows also use a task-local `TEMP`/`TMP` directory to avoid Chrome cleanup EPERM
+- Lighthouse with an existing server: set `LHCI_EXISTING_SERVER=true`, `LHCI_BASE_URL=http://localhost` and run `pnpm web:lighthouse` serially with `LHCI_ARTICLE_PATH` set to `/`, `/garden`, `/tools` or `/articles/s3-08-advanced-markdown`; set `LHCI_NOINDEX=true` only for a noindex/404 audit, and use `LHCI_NUMBER_OF_RUNS`/`LHCI_CHROME_PORT` only for isolated local runner control; on Windows also use a task-local `TEMP`/`TMP` directory and never share a still-running Chrome instance between routes
 - Compose validation using placeholder environment values: `docker compose --env-file .env.example -f infra/compose/compose.dev.yml config`
 - Production Compose validation: `docker compose --env-file infra/compose/.env.ci.example -f infra/compose/compose.prod.yml config`
 - Compose resource and health-boundary verification: `pnpm compose:verify`
