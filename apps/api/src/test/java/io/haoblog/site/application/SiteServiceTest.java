@@ -46,6 +46,8 @@ class SiteServiceTest {
                 SiteService.normalizeMusicManifestUrl("https://cdn.example.test/music.json", "prod"));
         assertThrows(IllegalArgumentException.class,
                 () -> SiteService.normalizeMusicManifestUrl("http://cdn.example.test/music.json", "prod"));
+        assertThrows(IllegalArgumentException.class,
+                () -> SiteService.normalizeMusicManifestUrl("http:relative", "local"));
 
         var service = new SiteService(repository, "https://blog.example.test", "Hao", null, "prod");
         var missing = assertThrows(io.haoblog.shared.web.ProblemException.class,
@@ -66,6 +68,5 @@ class SiteServiceTest {
 
         assertEquals(false, result.musicEnabled());
         assertEquals(true, result.threeDEnabled());
-        assertEquals(null, result.musicManifestUrl());
     }
 }

@@ -44,8 +44,9 @@ public class AliyunOssObjectStorage implements ObjectStorage {
             throw new IllegalArgumentException("OSS upload limits must be positive");
         }
         host = properties.getBucket() + "." + endpointHost(properties.getEndpoint());
-        publicBaseUrl = trimTrailingSlash(properties.getPublicBaseUrl().isBlank()
-                ? "https://" + host : properties.getPublicBaseUrl());
+        String configuredPublicBaseUrl = properties.getPublicBaseUrl();
+        publicBaseUrl = normalizePublicBaseUrl(configuredPublicBaseUrl == null || configuredPublicBaseUrl.isBlank()
+                ? "https://" + host : configuredPublicBaseUrl);
     }
 
     @Override
@@ -77,14 +78,14 @@ public class AliyunOssObjectStorage implements ObjectStorage {
         fields.put("x-oss-credential", credential);
         fields.put("x-oss-date", dateTime);
         fields.put("x-oss-signature", signature);
-        return new UploadGrant("https://" + host + "/", fields, expiresAt);
+        return new UploadGrant(publicBaseUrl + "/", fields, expiresAt);
     }
 
     @Override
     public StoredObject head(String objectKey) {
         if (!headSlots.tryAcquire()) throw new ObjectStorageException("OSS metadata capacity is temporarily exhausted");
         try {
-            HttpRequest request = HttpRequest.newBuilder(URI.create("https://" + host + "/" + encodePath(objectKey)))
+            HttpRequest request = HttpRequest.newBuilder(URI.create(publicBaseUrl + "/" + encodePath(objectKey)))
                     .timeout(Duration.ofSeconds(5))
                     .method("HEAD", HttpRequest.BodyPublishers.noBody())
                     .build();
@@ -164,6 +165,23 @@ public class AliyunOssObjectStorage implements ObjectStorage {
         URI uri = URI.create(endpoint.contains("://") ? endpoint : "https://" + endpoint);
         if (uri.getHost() == null || uri.getHost().isBlank()) throw new IllegalStateException("OSS endpoint is invalid");
         return uri.getHost();
+    }
+
+    private static String normalizePublicBaseUrl(String value) {
+        URI uri;
+        try {
+            uri = URI.create(value.trim());
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalStateException("OSS publicBaseUrl must be an HTTPS origin", exception);
+        }
+        String path = uri.getRawPath();
+        if (!uri.isAbsolute() || !"https".equalsIgnoreCase(uri.getScheme())
+                || uri.getHost() == null || uri.getHost().isBlank() || uri.getUserInfo() != null
+                || uri.getQuery() != null || uri.getFragment() != null
+                || (path != null && !path.isEmpty() && !"/".equals(path))) {
+            throw new IllegalStateException("OSS publicBaseUrl must be an HTTPS origin");
+        }
+        return trimTrailingSlash(value.trim());
     }
 
     private static String trimTrailingSlash(String value) { return value.replaceAll("/+$", ""); }

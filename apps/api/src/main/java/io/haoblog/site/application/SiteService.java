@@ -47,7 +47,7 @@ public class SiteService {
         var setting = repository.findBySiteKey("default").orElseThrow();
         return new SiteResult(setting.getTitle(), setting.getDescription(), publicBaseUrl, authorName,
                 setting.isCommentsEnabled(), setting.isMusicEnabled() && musicManifestUrl != null,
-                setting.isThreeDEnabled(), musicManifestUrl);
+                setting.isThreeDEnabled());
     }
 
     public AdminSiteResult getAdmin() {
@@ -113,14 +113,15 @@ public class SiteService {
         } catch (IllegalArgumentException exception) {
             throw new IllegalArgumentException("HAOBLOG_MUSIC_MANIFEST_URL must be an absolute HTTPS URL", exception);
         }
-        boolean absoluteHost = uri.isAbsolute() && uri.getHost() != null && uri.getUserInfo() == null
+        String host = uri.getHost();
+        boolean absoluteHost = uri.isAbsolute() && host != null && uri.getUserInfo() == null
                 && uri.getFragment() == null;
         boolean https = "https".equalsIgnoreCase(uri.getScheme());
         boolean localProfile = Arrays.stream((activeProfiles == null ? "" : activeProfiles).split(","))
                 .map(String::trim).map(valueProfile -> valueProfile.toLowerCase(Locale.ROOT))
                 .anyMatch(profile -> profile.equals("local") || profile.equals("dev") || profile.equals("test"));
-        boolean localhostHttp = "http".equalsIgnoreCase(uri.getScheme()) && localProfile
-                && SetOfLocalHosts.contains(uri.getHost().toLowerCase(Locale.ROOT));
+        boolean localhostHttp = host != null && "http".equalsIgnoreCase(uri.getScheme()) && localProfile
+                && SetOfLocalHosts.contains(host.toLowerCase(Locale.ROOT));
         if (!absoluteHost || (!https && !localhostHttp)) {
             throw new IllegalArgumentException("HAOBLOG_MUSIC_MANIFEST_URL must be HTTPS; local/dev may use localhost HTTP");
         }
@@ -130,14 +131,13 @@ public class SiteService {
     private static final java.util.Set<String> SetOfLocalHosts = java.util.Set.of("localhost", "127.0.0.1", "::1");
 
     public record SiteResult(String title, String description, String siteUrl, String authorName,
-                             boolean commentsEnabled, boolean musicEnabled, boolean threeDEnabled,
-                             String musicManifestUrl) {
+                             boolean commentsEnabled, boolean musicEnabled, boolean threeDEnabled) {
         public SiteResult(String title, String description, String siteUrl, String authorName) {
-            this(title, description, siteUrl, authorName, true, false, false, null);
+            this(title, description, siteUrl, authorName, true, false, false);
         }
         public SiteResult(String title, String description, String siteUrl, String authorName,
                           boolean commentsEnabled) {
-            this(title, description, siteUrl, authorName, commentsEnabled, false, false, null);
+            this(title, description, siteUrl, authorName, commentsEnabled, false, false);
         }
     }
 

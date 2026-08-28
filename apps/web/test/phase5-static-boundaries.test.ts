@@ -30,6 +30,11 @@ describe('phase five static boundaries', () => {
     expect(garden).toContain("simulation?.on('tick', null)")
     expect(garden).toContain('cancelAnimationFrame(frame)')
     expect(garden).toContain('resizeObserver?.disconnect()')
+    expect(garden).toContain('const renderSize =')
+    expect(garden).toContain('const palette =')
+    const draw = garden.slice(garden.indexOf('function draw()'), garden.indexOf('function screenPoint'))
+    expect(draw).not.toContain('measure()')
+    expect(draw).not.toContain('getComputedStyle(')
 
     const music = readFileSync(resolve(app, 'components/music/SignalTape.client.vue'), 'utf8')
     expect(music).toContain('stopSpectrumLoop()')

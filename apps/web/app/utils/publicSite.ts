@@ -10,7 +10,6 @@ export const defaultPublicSite: PublicSite = {
   commentsEnabled: true,
   musicEnabled: false,
   threeDEnabled: false,
-  musicManifestUrl: null,
 }
 
 export function usePublicSite() {

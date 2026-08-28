@@ -679,8 +679,6 @@ export interface components {
             commentsEnabled: boolean;
             musicEnabled: boolean;
             threeDEnabled: boolean;
-            /** Format: uri */
-            musicManifestUrl: string | null;
         };
         ArticleSummary: {
             /** Format: uuid */

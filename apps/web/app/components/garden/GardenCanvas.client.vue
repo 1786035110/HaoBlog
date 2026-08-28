@@ -12,6 +12,9 @@ const host = ref<HTMLElement | null>(null)
 const selectedId = ref<string | null>(null)
 const status = ref('桌面星图正在校准。')
 const view = reactive({ scale: 1, x: 0, y: 0 })
+const { theme } = useTheme()
+const renderSize = { width: 720, height: 480 }
+const palette = { accent: '#a8ff60', line: 'rgba(168,255,96,.2)' }
 
 let context: CanvasRenderingContext2D | null = null
 let simulation: Simulation<RenderNode, RenderLink> | null = null
@@ -76,6 +79,12 @@ onBeforeUnmount(() => {
   context = null
 })
 
+watch(theme, async () => {
+  await nextTick()
+  refreshPalette()
+  scheduleDraw()
+})
+
 function measure() {
   const rect = host.value?.getBoundingClientRect()
   return { width: Math.max(320, rect?.width || 720), height: Math.max(320, Math.min(620, rect?.height || 480)) }
@@ -84,6 +93,9 @@ function measure() {
 function resize() {
   if (!canvas.value || !context) return
   const { width, height } = measure()
+  renderSize.width = width
+  renderSize.height = height
+  refreshPalette()
   const dpr = Math.min(window.devicePixelRatio || 1, 1.5)
   canvas.value.width = Math.floor(width * dpr)
   canvas.value.height = Math.floor(height * dpr)
@@ -96,6 +108,13 @@ function resize() {
   scheduleDraw()
 }
 
+function refreshPalette() {
+  if (!canvas.value) return
+  const styles = getComputedStyle(canvas.value)
+  palette.accent = styles.getPropertyValue('--garden-accent').trim() || '#a8ff60'
+  palette.line = styles.getPropertyValue('--garden-line').trim() || 'rgba(168,255,96,.2)'
+}
+
 function scheduleDraw() {
   if (frame || disposed) return
   frame = requestAnimationFrame(() => {
@@ -106,11 +125,8 @@ function scheduleDraw() {
 
 function draw() {
   if (!context || !canvas.value) return
-  const { width, height } = measure()
+  const { width, height } = renderSize
   context.clearRect(0, 0, width, height)
-  const styles = getComputedStyle(canvas.value)
-  const accent = styles.getPropertyValue('--garden-accent') || '#a8ff60'
-  const line = styles.getPropertyValue('--garden-line') || 'rgba(168,255,96,.2)'
   for (const edge of renderLinks) {
     const source = edge.source as RenderNode
     const target = edge.target as RenderNode
@@ -121,7 +137,7 @@ function draw() {
     context.moveTo(left.x, left.y)
     context.lineTo(right.x, right.y)
     context.lineWidth = Math.min(4, 1 + edge.weight * .45)
-    context.strokeStyle = line
+    context.strokeStyle = palette.line
     context.stroke()
   }
   for (const node of renderNodes) {
@@ -130,10 +146,10 @@ function draw() {
     const radius = nodeRadius(node)
     context.beginPath()
     context.arc(point.x, point.y, radius, 0, Math.PI * 2)
-    context.fillStyle = node.id === selectedId.value ? accent : nodeColor(node.type)
+    context.fillStyle = node.id === selectedId.value ? palette.accent : nodeColor(node.type)
     context.fill()
     context.lineWidth = node.id === selectedId.value ? 2 : 1
-    context.strokeStyle = accent
+    context.strokeStyle = palette.accent
     context.stroke()
   }
 }
@@ -168,7 +184,7 @@ function focusNode(node: GardenNode) {
   selectNode(node)
   const renderNode = renderNodes.find(item => item.id === node.id)
   if (!renderNode) return
-  const { width, height } = measure()
+  const { width, height } = renderSize
   view.x = width / 2 - renderNode.x * view.scale
   view.y = height / 2 - renderNode.y * view.scale
   scheduleDraw()

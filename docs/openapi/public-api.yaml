@@ -1054,7 +1054,7 @@ components:
   schemas:
     SiteResponse:
       type: object
-      required: [title, description, siteUrl, authorName, commentsEnabled, musicEnabled, threeDEnabled, musicManifestUrl]
+      required: [title, description, siteUrl, authorName, commentsEnabled, musicEnabled, threeDEnabled]
       properties:
         title: { type: string }
         description: { type: string }
@@ -1063,7 +1063,6 @@ components:
         commentsEnabled: { type: boolean }
         musicEnabled: { type: boolean }
         threeDEnabled: { type: boolean }
-        musicManifestUrl: { type: [string, 'null'], format: uri }
     ArticleSummary:
       type: object
       required: [id, slug, title, excerpt, publishedAt, coverImageUrl, commentsEnabled]

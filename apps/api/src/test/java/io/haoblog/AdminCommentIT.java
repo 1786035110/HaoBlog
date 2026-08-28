@@ -169,7 +169,7 @@ class AdminCommentIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.musicEnabled").value(false))
                 .andExpect(jsonPath("$.threeDEnabled").value(true))
-                .andExpect(jsonPath("$.musicManifestUrl").isEmpty());
+                .andExpect(jsonPath("$.musicManifestUrl").doesNotExist());
         mvc.perform(put("/api/v1/admin/site").with(admin()).with(csrf()).contentType("application/json")
                         .content("{\"version\":0,\"commentsEnabled\":true,\"musicEnabled\":false,\"threeDEnabled\":false}"))
                 .andExpect(status().isConflict())
