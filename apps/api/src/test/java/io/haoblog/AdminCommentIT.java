@@ -65,7 +65,7 @@ class AdminCommentIT {
     @BeforeEach
     void seed() {
         jdbc.execute("TRUNCATE comment, article_revision, article CASCADE");
-        jdbc.update("UPDATE site_setting SET comments_enabled=true, version=0 WHERE site_key='default'");
+        jdbc.update("UPDATE site_setting SET comments_enabled=true, music_enabled=false, three_d_enabled=false, version=0 WHERE site_key='default'");
         Instant now = Instant.parse("2020-01-01T00:00:00Z");
         Article article = articles.saveAndFlush(new Article("moderation-signal", "Moderation signal", "Excerpt", "# body",
                 ArticleStatus.PUBLISHED, now.minus(1, ChronoUnit.DAYS), now));
@@ -149,6 +149,31 @@ class AdminCommentIT {
         mvc.perform(put("/api/v1/admin/site").with(admin()).with(csrf()).contentType("application/json")
                         .content("{\"version\":0,\"commentsEnabled\":true}"))
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("SITE_VERSION_CONFLICT"));
+    }
+
+    @Test
+    void protectsExperienceFlagsAndRequiresMusicManifest() throws Exception {
+        mvc.perform(get("/api/v1/admin/site"))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(put("/api/v1/admin/site").with(admin()).with(csrf()).contentType("application/json")
+                        .content("{\"version\":0,\"commentsEnabled\":true,\"musicEnabled\":true,\"threeDEnabled\":false}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("MUSIC_MANIFEST_NOT_CONFIGURED"));
+
+        mvc.perform(put("/api/v1/admin/site").with(admin()).with(csrf()).contentType("application/json")
+                        .content("{\"version\":0,\"commentsEnabled\":true,\"musicEnabled\":false,\"threeDEnabled\":true}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.threeDEnabled").value(true))
+                .andExpect(jsonPath("$.version").value(1));
+        mvc.perform(get("/api/v1/public/site"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.musicEnabled").value(false))
+                .andExpect(jsonPath("$.threeDEnabled").value(true))
+                .andExpect(jsonPath("$.musicManifestUrl").doesNotExist());
+        mvc.perform(put("/api/v1/admin/site").with(admin()).with(csrf()).contentType("application/json")
+                        .content("{\"version\":0,\"commentsEnabled\":true,\"musicEnabled\":false,\"threeDEnabled\":false}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("SITE_VERSION_CONFLICT"));
     }
 
     @Test

@@ -20,7 +20,13 @@ describe('SafeMarkdown', () => {
   it('renders HTTPS images with lazy loading and keeps non-HTTPS images inert', () => {
     const wrapper = mount(SafeMarkdown, { props: { markdown: '![observatory](https://cdn.example.test/photo.webp)\n\n![bad](data:image/png;base64,boom)' } })
     expect(wrapper.findAll('img')).toHaveLength(1)
-    expect(wrapper.find('img').attributes()).toMatchObject({ src: 'https://cdn.example.test/photo.webp', alt: 'observatory', loading: 'lazy' })
+    expect(wrapper.find('img').attributes()).toMatchObject({
+      src: 'https://cdn.example.test/photo.webp',
+      alt: 'observatory',
+      width: '1200',
+      height: '630',
+      loading: 'lazy',
+    })
     expect(wrapper.text()).toContain('data:image/png;base64,boom')
   })
 

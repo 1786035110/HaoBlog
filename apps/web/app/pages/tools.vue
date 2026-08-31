@@ -19,18 +19,24 @@ const { data, error } = await usePublicApi<PublicTools>('/api/v1/public/tools', 
   default: () => emptyTools,
 })
 
+const route = useRoute()
+const selectedToolSlug = computed(() => typeof route.query.tool === 'string' ? route.query.tool : '')
 const category = ref('')
 const type = ref('')
 const keyword = ref('')
 const sortMode = ref<SortMode>('stable')
 const favorites = ref(new Set<string>())
 const usage = ref<Record<string, { count: number; lastUsed: string }>>({})
-const expanded = ref(new Set<string>())
 const embeddedWorker = useEmbeddedWorker()
 provide(embeddedWorkerKey, embeddedWorker)
+const runtimeConfig = useRuntimeConfig()
+const offlineStage = ref<'idle' | 'confirm' | 'preparing' | 'ready' | 'error'>('idle')
+const offlineMessage = ref('')
+const offlineEnabled = computed(() => Boolean(runtimeConfig.public.pwaEnabled))
 
 const tools = computed(() => data.value?.items || [])
 const categories = computed(() => data.value?.categories || [])
+const expanded = ref(new Set<string>(tools.value.filter(tool => tool.slug === selectedToolSlug.value).map(tool => tool.id)))
 const filteredTools = computed(() => {
   const query = keyword.value.trim().toLocaleLowerCase()
   const result = tools.value.filter((tool) => {
@@ -51,6 +57,18 @@ onMounted(() => {
   favorites.value = readFavorites()
   usage.value = readUsage()
 })
+
+watch([selectedToolSlug, tools], async () => {
+  if (!import.meta.client) return
+  const slug = selectedToolSlug.value
+  if (!slug) return
+  const tool = tools.value.find(item => item.slug === slug)
+  if (!tool) return
+  expanded.value = new Set([...expanded.value, tool.id])
+  await nextTick()
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  document.getElementById(`tool-${tool.slug}`)?.scrollIntoView({ block: 'center', behavior: reducedMotion ? 'auto' : 'smooth' })
+}, { immediate: true })
 
 function compareTools(left: PublicTool, right: PublicTool, mode: Exclude<SortMode, 'stable'>) {
   const leftUsage = usage.value[left.id] || { count: 0, lastUsed: '' }
@@ -118,6 +136,23 @@ function safeExternalUrl(url: string | null) {
     return value.protocol === 'https:' && !value.username && !value.password ? value.toString() : null
   } catch { return null }
 }
+
+async function prepareOfflineTools() {
+  if (offlineStage.value === 'preparing') return
+  offlineStage.value = 'preparing'
+  offlineMessage.value = ''
+  try {
+    const { embeddedWorkerAssetUrl, preloadEmbeddedToolChunks } = await import('../utils/embeddedTools')
+    await preloadEmbeddedToolChunks()
+    const { prepareOfflineTools: prepare, sameOriginResourceUrls } = await import('../utils/pwaClient')
+    await prepare([...sameOriginResourceUrls(), embeddedWorkerAssetUrl()])
+    offlineStage.value = 'ready'
+    offlineMessage.value = '五个内嵌工具及当前工具目录已准备；断网后可从最近目录快照打开。'
+  } catch (cause) {
+    offlineStage.value = 'error'
+    offlineMessage.value = cause instanceof Error ? cause.message : '离线工具准备失败，请保持网络连接后重试。'
+  }
+}
 </script>
 
 <template>
@@ -130,6 +165,22 @@ function safeExternalUrl(url: string | null) {
       </div>
       <p class="console-readout" aria-label="工具目录状态"><span class="status-light" aria-hidden="true" /> {{ filteredTools.length }} SIGNALS / ACTIVE ONLY</p>
     </header>
+
+    <section v-if="offlineEnabled" class="offline-preparation" aria-labelledby="offline-tools-title">
+      <div>
+        <p class="instrument-label">LOCAL CACHE / EXPLICIT PREPARATION</p>
+        <h2 id="offline-tools-title">工具箱离线准备</h2>
+        <p class="offline-copy">只缓存当前公开工具目录和五个内嵌工具的同源静态资源，不缓存 API、文章、评论、Studio、图谱、音乐或用户输入。</p>
+      </div>
+      <button v-if="offlineStage === 'idle' || offlineStage === 'error'" class="offline-button" type="button" @click="offlineStage = 'confirm'">准备离线工具</button>
+      <div v-else-if="offlineStage === 'confirm'" class="offline-confirm" role="group" aria-label="确认离线准备">
+        <span>确认后将加载五个工具 chunk 并写入浏览器 Cache Storage。</span>
+        <button class="offline-button" type="button" @click="prepareOfflineTools">确认准备</button>
+        <button class="offline-cancel" type="button" @click="offlineStage = 'idle'">取消</button>
+      </div>
+      <p v-if="offlineStage === 'preparing'" class="offline-status" role="status">正在加载工具并准备离线缓存，请保持网络连接…</p>
+      <p v-else-if="offlineMessage" class="offline-status" :class="{ 'offline-status--error': offlineStage === 'error' }" role="status">{{ offlineMessage }}</p>
+    </section>
 
     <form class="tool-filters" aria-label="工具目录筛选" @submit.prevent>
       <label>分类<select v-model="category"><option value="">全部分类</option><option v-for="item in categories" :key="item.id" :value="item.slug">{{ item.name }}</option></select></label>
@@ -155,7 +206,7 @@ function safeExternalUrl(url: string | null) {
       <span>尝试清除一个筛选条件。</span>
     </div>
     <ol v-else class="tool-console" aria-label="公共工具目录">
-      <li v-for="(tool, index) in filteredTools" :key="tool.id" class="tool-entry" :data-expanded="expanded.has(tool.id)">
+      <li v-for="(tool, index) in filteredTools" :id="`tool-${tool.slug}`" :key="tool.id" class="tool-entry" :data-expanded="expanded.has(tool.id)">
         <div class="tool-row">
           <span class="tool-index" aria-hidden="true">{{ String(index + 1).padStart(2, '0') }}</span>
           <span class="tool-signal" aria-hidden="true" />
@@ -196,6 +247,15 @@ function safeExternalUrl(url: string | null) {
 
 <style scoped>
 .tools-scene { max-width: 74rem; margin: 8vh auto 4rem; }
+.offline-preparation { display: flex; align-items: end; justify-content: space-between; gap: 1rem; margin: 1rem 0 2rem; padding: .9rem 0; border-top: 1px solid var(--color-border); border-bottom: 1px solid var(--color-border); }
+.offline-preparation h2 { margin: .35rem 0; font: 700 clamp(1.25rem, 3vw, 1.8rem)/1.1 var(--font-display); }
+.offline-copy { max-width: 48rem; margin: 0; color: var(--color-text-muted); font-size: var(--text-sm); }
+.offline-button, .offline-cancel { padding: .55rem .7rem; border: 1px solid var(--color-accent); background: transparent; color: var(--color-accent); cursor: pointer; white-space: nowrap; font: var(--text-xs)/1.2 var(--font-mono); }
+.offline-button:hover, .offline-button:focus-visible { background: var(--color-accent); color: var(--color-accent-ink); }
+.offline-cancel { border-color: var(--color-border); color: var(--color-text-muted); }
+.offline-confirm { display: flex; align-items: center; flex-wrap: wrap; justify-content: end; gap: .5rem; color: var(--color-text-muted); font: var(--text-xs)/1.4 var(--font-mono); }
+.offline-status { flex-basis: 100%; margin: 0; color: var(--color-accent); font: var(--text-xs)/1.5 var(--font-mono); }
+.offline-status--error { color: var(--color-warn); }
 .tools-heading { display: flex; align-items: end; justify-content: space-between; gap: var(--space-8); margin-bottom: clamp(2rem, 7vw, 5rem); }
 .tools-heading h1 { max-width: none; margin-bottom: 1.4rem; }
 .signal-copy { max-width: 42rem; }
@@ -238,7 +298,7 @@ function safeExternalUrl(url: string | null) {
 .tool-empty strong { color: var(--color-text-main); font: 700 var(--text-lg)/1.2 var(--font-display); }
 .empty-code { color: var(--color-warn); }
 @media (max-width: 960px) { .tool-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); } .keyword-filter { grid-column: span 2; } .sort-controls { justify-content: end; } .tool-row { grid-template-columns: 2.25rem .5rem minmax(8rem, 1fr) auto auto; } .tool-metadata { grid-column: 3 / -1; grid-row: 2; } }
-@media (max-width: 640px) { .tools-scene { margin-top: 5vh; } .tools-heading { align-items: start; flex-direction: column; gap: 1rem; margin-bottom: 2.5rem; } .tools-heading h1 { font-size: clamp(3rem, 18vw, 5rem); } .tool-filters { grid-template-columns: 1fr; } .keyword-filter { grid-column: auto; } .sort-controls { justify-content: start; flex-wrap: wrap; } .tool-row { grid-template-columns: 1.8rem .45rem minmax(0, 1fr) auto; gap: .55rem; padding-inline: .55rem; } .tool-metadata { grid-column: 3 / -1; grid-row: 2; } .tool-favorite { grid-column: 3; grid-row: 3; justify-self: start; } .tool-unfold { grid-column: 4; grid-row: 3; } .tool-summary { padding-left: 2.7rem; padding-right: .55rem; } .tool-panel { grid-template-columns: 1fr; padding-left: 2.7rem; padding-right: .55rem; } .external-link { justify-self: start; } }
+@media (max-width: 640px) { .tools-scene { margin-top: 5vh; } .tools-heading { align-items: start; flex-direction: column; gap: 1rem; margin-bottom: 2.5rem; } .offline-preparation { align-items: start; flex-direction: column; } .offline-confirm { justify-content: start; } .tools-heading h1 { font-size: clamp(3rem, 18vw, 5rem); } .tool-filters { grid-template-columns: 1fr; } .keyword-filter { grid-column: auto; } .sort-controls { justify-content: start; flex-wrap: wrap; } .tool-row { grid-template-columns: 1.8rem .45rem minmax(0, 1fr) auto; gap: .55rem; padding-inline: .55rem; } .tool-metadata { grid-column: 3 / -1; grid-row: 2; } .tool-favorite { grid-column: 3; grid-row: 3; justify-self: start; } .tool-unfold { grid-column: 4; grid-row: 3; } .tool-summary { padding-left: 2.7rem; padding-right: .55rem; } .tool-panel { grid-template-columns: 1fr; padding-left: 2.7rem; padding-right: .55rem; } .external-link { justify-self: start; } }
 @media (max-width: 360px) { .tools-scene { margin-top: 2rem; } .tool-row { grid-template-columns: 1.6rem .4rem minmax(0, 1fr); } .tool-favorite, .tool-unfold { grid-column: 3; grid-row: auto; justify-self: start; } .tool-unfold { margin-top: .2rem; } .tool-metadata { grid-column: 3; grid-row: auto; } .tool-summary { padding-left: 2.2rem; } .tool-panel { padding-left: 2.2rem; } }
 @media (prefers-reduced-motion: reduce) { .tools-scene *, .tools-scene *::before, .tools-scene *::after { transition: none !important; animation: none !important; } }
 </style>

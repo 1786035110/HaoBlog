@@ -58,7 +58,14 @@ function inlineNodes(value: string): VNode[] {
     const image = match[1] === '!'
     const label = match[2] ?? ''
     const href = match[3] ?? ''
-    if (image && /^https:\/\//i.test(href)) nodes.push(h('img', { src: href, alt: label, loading: 'lazy', decoding: 'async' }))
+    if (image && /^https:\/\//i.test(href)) nodes.push(h('img', {
+      src: href,
+      alt: label,
+      width: 1200,
+      height: 630,
+      loading: 'lazy',
+      decoding: 'async',
+    }))
     else if (!image && /^(https?:\/\/|mailto:)/i.test(href)) nodes.push(h('a', { href, rel: 'noopener noreferrer', target: '_blank' }, label))
     else nodes.push(h('span', `${image ? '!' : ''}[${label}](${href})`))
     cursor = start + match[0].length

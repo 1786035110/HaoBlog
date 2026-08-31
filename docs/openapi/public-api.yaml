@@ -79,6 +79,28 @@ paths:
             Cache-Control: { schema: { type: string } }
         '500':
           $ref: '#/components/responses/InternalError'
+  /api/v1/public/garden:
+    get:
+      operationId: getPublicGarden
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/IfNoneMatch'
+      responses:
+        '200':
+          description: Public knowledge garden graph derived from published article snapshots and active tools
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            Cache-Control: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GardenGraphResponse' }
+        '304':
+          description: Garden graph has not changed
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+            Cache-Control: { schema: { type: string } }
+        '500':
+          $ref: '#/components/responses/InternalError'
   /api/v1/public/tools:
     get:
       operationId: listPublicTools
@@ -1032,13 +1054,15 @@ components:
   schemas:
     SiteResponse:
       type: object
-      required: [title, description, siteUrl, authorName, commentsEnabled]
+      required: [title, description, siteUrl, authorName, commentsEnabled, musicEnabled, threeDEnabled]
       properties:
         title: { type: string }
         description: { type: string }
         siteUrl: { type: string, format: uri }
         authorName: { type: string }
         commentsEnabled: { type: boolean }
+        musicEnabled: { type: boolean }
+        threeDEnabled: { type: boolean }
     ArticleSummary:
       type: object
       required: [id, slug, title, excerpt, publishedAt, coverImageUrl, commentsEnabled]
@@ -1375,16 +1399,46 @@ components:
       properties:
         version: { type: integer, format: int64, minimum: 0 }
         commentsEnabled: { type: boolean }
+        musicEnabled: { type: boolean }
+        threeDEnabled: { type: boolean }
     AdminSiteResponse:
       type: object
-      required: [title, description, siteUrl, authorName, commentsEnabled, version]
+      required: [title, description, siteUrl, authorName, commentsEnabled, musicEnabled, threeDEnabled, version]
       properties:
         title: { type: string }
         description: { type: string }
         siteUrl: { type: string, format: uri }
         authorName: { type: string }
         commentsEnabled: { type: boolean }
+        musicEnabled: { type: boolean }
+        threeDEnabled: { type: boolean }
         version: { type: integer, format: int64, minimum: 0 }
+    GardenGraphResponse:
+      type: object
+      required: [nodes, edges, truncated]
+      properties:
+        nodes: { type: array, maxItems: 200, items: { $ref: '#/components/schemas/GardenNode' } }
+        edges: { type: array, maxItems: 600, items: { $ref: '#/components/schemas/GardenEdge' } }
+        truncated: { type: boolean }
+    GardenNode:
+      type: object
+      required: [id, type, label, href, degree]
+      properties:
+        id: { type: string, maxLength: 240 }
+        type: { type: string, enum: [ARTICLE, TAG, CATEGORY, TOOL] }
+        label: { type: string, maxLength: 240 }
+        href: { type: string, pattern: '^/' }
+        summary: { type: [string, 'null'], maxLength: 600 }
+        publishedAt: { type: [string, 'null'], format: date-time }
+        degree: { type: integer, minimum: 0 }
+    GardenEdge:
+      type: object
+      required: [source, target, kind, weight]
+      properties:
+        source: { type: string, maxLength: 240 }
+        target: { type: string, maxLength: 240 }
+        kind: { type: string, enum: [MEMBERSHIP, CO_OCCURRENCE] }
+        weight: { type: integer, minimum: 1 }
     MediaUploadRequest:
       type: object
       required: [mimeType, sizeBytes, width, height, sha256]

@@ -55,7 +55,7 @@ class PublicFeedServiceTest {
 
         Document xml = parse(new PublicFeedService(siteService, articleService).sitemap().body());
 
-        assertEquals(506, xml.getElementsByTagNameNS("http://www.sitemaps.org/schemas/sitemap/0.9", "url").getLength());
+        assertEquals(507, xml.getElementsByTagNameNS("http://www.sitemaps.org/schemas/sitemap/0.9", "url").getLength());
         verify(articleService).listPublishedBatch(eq(0), eq(500));
         verify(articleService).listPublishedBatch(eq(1), eq(500));
     }

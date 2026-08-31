@@ -36,7 +36,7 @@ test.describe('S4-03 article comment signal', () => {
     await page.getByRole('button', { name: '展开评论入口' }).click()
     await expect(page.getByLabel('昵称')).toBeVisible()
     await page.getByLabel('昵称').fill('Playwright 观测员')
-    await page.getByLabel('正文').fill('这是一条待审核回波。')
+    await page.getByRole('textbox', { name: '正文' }).fill('这是一条待审核回波。')
     await page.waitForTimeout(3200)
     await page.getByRole('button', { name: '发送回波' }).click()
     await expect(page.locator('[data-status="pending"]')).toContainText('待审核')

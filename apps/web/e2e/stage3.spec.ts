@@ -49,8 +49,8 @@ test.describe.serial('S3-08 public reading acceptance', () => {
     const homepage = await page.request.get('/')
     expect(homepage.status()).toBe(200)
     const homepageHtml = await homepage.text()
-    expect(homepageHtml).toContain('OBSERVATION / INITIAL FRAME')
-    expect(homepageHtml).toContain('<h1 id="site-title">HaoBlog</h1>')
+    expect(homepageHtml).toContain('FIRST FRAME / 夜空校准 / CALIBRATION')
+    expect(homepageHtml).toContain('<h1 id="site-title"><button class="home-title-button"')
     expect(homepageHtml).toContain('class="recent-list"')
 
     const canonicalPageOne = await page.request.get('/articles?page=1', { maxRedirects: 0 })

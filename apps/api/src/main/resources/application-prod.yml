@@ -8,5 +8,6 @@ server:
 haoblog:
   site:
     public-base-url: ${HAOBLOG_PUBLIC_BASE_URL}
+    music-manifest-url: ${HAOBLOG_MUSIC_MANIFEST_URL:}
   security:
     session-cookie-secure: true

@@ -4,6 +4,8 @@
     <div class="phosphor-hairline" aria-hidden="true" />
     <main id="main-content" class="content-stage"><slot /></main>
     <ReadingProgress />
+    <component :is="musicComponent" v-if="musicComponent" />
+    <button v-else-if="site?.musicEnabled" class="signal-tape-launcher" type="button" @click="openMusic">SIGNAL TAPE / OPEN</button>
     <nav class="instrument-dock" aria-label="站点仪表板">
       <details class="dock-index">
         <summary class="dock-control dock-index-trigger" aria-label="INDEX：打开站点索引">
@@ -14,19 +16,30 @@
         </div>
       </details>
       <div class="dock-status">
-        <button class="dock-control dock-control--disabled" type="button" disabled aria-disabled="true" aria-describedby="command-help">⌘K</button>
-        <span id="command-help" class="dock-help">命令入口即将开放</span>
+        <button ref="terminalTrigger" class="dock-control" type="button" aria-keyshortcuts="Control+K Meta+K" aria-describedby="command-help" @click="openTerminal">⌘K</button>
+        <span id="command-help" class="dock-help">打开安全终端</span>
       </div>
       <div class="dock-status">
         <button class="dock-control dock-control--disabled" type="button" disabled aria-disabled="true" aria-describedby="ai-help">AI</button>
         <span id="ai-help" class="dock-help">AI 入口即将开放</span>
       </div>
     </nav>
+    <component :is="terminalComponent" v-if="terminalComponent" :open="terminalOpen" @close="closeTerminal" />
   </div>
 </template>
 
 <script setup lang="ts">
+import type { Component } from 'vue'
+import { usePublicSite } from '../utils/publicSite'
+
 const route = useRoute()
+const { data: site } = usePublicSite()
+const terminalTrigger = ref<HTMLButtonElement | null>(null)
+const terminalComponent = ref<Component | null>(null)
+const musicComponent = ref<Component | null>(null)
+const terminalOpen = ref(false)
+let terminalLoad: Promise<void> | null = null
+let musicLoad: Promise<void> | null = null
 const routeItems = [
   { to: '/', label: '01 / 首页' },
   { to: '/articles', label: '02 / 文章' },
@@ -34,4 +47,46 @@ const routeItems = [
   { to: '/tools', label: '04 / 工具' },
   { to: '/about', label: '05 / 关于' },
 ]
+
+async function openTerminal() {
+  terminalOpen.value = true
+  if (terminalComponent.value || terminalLoad) return terminalLoad
+  terminalLoad = import('../components/terminal/CommandTerminal.client.vue').then(module => {
+    terminalComponent.value = module.default
+  }).finally(() => {
+    terminalLoad = null
+  })
+  return terminalLoad
+}
+
+function closeTerminal() {
+  terminalOpen.value = false
+  nextTick(() => terminalTrigger.value?.focus())
+}
+
+async function openMusic() {
+  if (musicComponent.value || musicLoad) return musicLoad
+  musicLoad = import('../components/music/SignalTape.client.vue').then(module => {
+    musicComponent.value = module.default
+  }).finally(() => {
+    musicLoad = null
+  })
+  return musicLoad
+}
+
+function handleGlobalShortcut(event: KeyboardEvent) {
+  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+    event.preventDefault()
+    void openTerminal()
+  }
+}
+
+onMounted(() => window.addEventListener('keydown', handleGlobalShortcut))
+onBeforeUnmount(() => window.removeEventListener('keydown', handleGlobalShortcut))
 </script>
+
+<style scoped>
+.signal-tape-launcher { position: relative; z-index: var(--z-stage); display: block; width: min(58rem, calc(100% - 2 * var(--space-shell))); margin: 0 auto 1rem; padding: .65rem .8rem; border: 1px solid var(--color-border); background: var(--color-bg-sub); color: var(--color-accent); text-align: left; cursor: pointer; font: var(--text-xs)/1.4 var(--font-mono); letter-spacing: .12em; }
+.signal-tape-launcher:hover, .signal-tape-launcher:focus-visible { border-color: var(--color-accent); background: color-mix(in srgb, var(--color-accent) 8%, var(--color-bg-sub)); }
+@media (max-width: 640px) { .signal-tape-launcher { width: calc(100% - 1.5rem); } }
+</style>

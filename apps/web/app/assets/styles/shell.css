@@ -2,6 +2,8 @@
 html { min-width: 320px; background: var(--color-bg-base); }
 html, body, #__nuxt { min-height: 100%; margin: 0; }
 body { overflow-x: clip; background: var(--color-bg-base); color: var(--color-text-main); font-family: var(--font-body); }
+html[data-theme='blueprint'] body { background-image: linear-gradient(var(--color-grid) 1px, transparent 1px), linear-gradient(90deg, var(--color-grid) 1px, transparent 1px); background-size: 48px 48px; }
+html[data-theme-transition='on'] body::after { position: fixed; z-index: 100; top: 0; left: 0; width: 100%; height: 1px; pointer-events: none; background: var(--color-accent); content: ''; animation: theme-sweep 420ms ease-out both; }
 main, section, article, aside, nav, div { min-width: 0; }
 button, a { color: inherit; }
 a:focus-visible, button:focus-visible, summary:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 4px; }
@@ -18,6 +20,7 @@ h1 { max-width: 10ch; margin: 1rem 0; font-family: var(--font-display); font-siz
 .dock-progress { position: fixed; z-index: var(--z-dock); inset: auto 0 48px; height: 4px; background: var(--color-accent); transform: scaleX(0); transform-origin: left; }
 .instrument-dock { position: fixed; z-index: var(--z-dock); inset: auto 0 0; display: grid; grid-template-columns: 1fr 1fr 1fr; height: 48px; align-items: center; padding: 0 var(--space-shell); background: var(--color-bg-sub); border-top: 1px solid var(--color-border); }
 .dock-control { border: 0; background: transparent; text-decoration: none; cursor: pointer; }
+.dock-control:hover, .dock-control:focus-visible { color: var(--color-text-main); }
 .dock-control--disabled { cursor: not-allowed; opacity: .52; }
 .dock-status { display: grid; justify-items: center; gap: 0.1rem; text-align: center; }
 .dock-help { color: var(--color-text-muted); font: 0.625rem/1 var(--font-mono); letter-spacing: .04em; }
@@ -43,3 +46,5 @@ h1 { max-width: 10ch; margin: 1rem 0; font-family: var(--font-display); font-siz
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; } }
 @media (prefers-reduced-motion: no-preference) { .observation-scene { animation: scene-in var(--motion-slow) ease-out both; } }
 @keyframes scene-in { from { opacity: 0; transform: translateY(0.75rem); } to { opacity: 1; transform: translateY(0); } }
+@keyframes theme-sweep { from { opacity: 0; transform: translateX(-100%); } 18% { opacity: 1; } to { opacity: 0; transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) { html[data-theme-transition='on'] body::after { display: none; animation: none; } }

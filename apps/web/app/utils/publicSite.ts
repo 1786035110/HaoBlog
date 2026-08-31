@@ -8,6 +8,8 @@ export const defaultPublicSite: PublicSite = {
   siteUrl: 'http://localhost:3000',
   authorName: 'Hao',
   commentsEnabled: true,
+  musicEnabled: false,
+  threeDEnabled: false,
 }
 
 export function usePublicSite() {

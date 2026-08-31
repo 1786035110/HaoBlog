@@ -5,15 +5,24 @@
     <p v-if="loading" class="signal-note" role="status">正在读取站点控制面板…</p>
     <p v-else-if="error" class="form-error" role="alert">{{ error }}</p>
     <form v-else-if="site" class="settings-console" @submit.prevent="save">
-      <p class="console-label">GLOBAL / COMMENT SIGNAL</p>
+      <p class="console-label">GLOBAL / EXPERIENCE SIGNALS</p>
       <label class="switch-line" for="global-comments-enabled">
-        <input id="global-comments-enabled" v-model="draft" type="checkbox">
+        <input id="global-comments-enabled" v-model="commentsDraft" type="checkbox">
         <span>允许公开评论</span>
       </label>
+      <label class="switch-line" for="global-music-enabled">
+        <input id="global-music-enabled" v-model="musicDraft" type="checkbox">
+        <span>允许公共音乐信号</span>
+      </label>
+      <label class="switch-line" for="global-three-d-enabled">
+        <input id="global-three-d-enabled" v-model="threeDDraft" type="checkbox">
+        <span>允许首页 3D 信号</span>
+      </label>
       <p class="signal-note">关闭后，公共文章与评论表单会在下一次请求中反映状态；公共缓存策略最长 60 秒。</p>
+      <p class="signal-note">音乐开启前必须配置服务端清单地址；音乐与首页 3D 是独立开关。</p>
       <p class="signal-note">当前版本：<span class="mono">{{ site.version }}</span></p>
       <p v-if="saved" class="success-note" role="status">站点开关已写入，公共信号已刷新。</p>
-      <button class="instrument-button" type="submit" :disabled="saving || draft === site.commentsEnabled">
+      <button class="instrument-button" type="submit" :disabled="saving || !changed">
         {{ saving ? 'WRITING…' : '保存全局开关' }}
       </button>
     </form>
@@ -28,16 +37,25 @@ definePageMeta({ layout: 'studio' })
 
 const { getSite, updateSite } = useAdminSite()
 const site = ref<Site | null>(null)
-const draft = ref(true)
+const commentsDraft = ref(true)
+const musicDraft = ref(false)
+const threeDDraft = ref(false)
 const loading = ref(true)
 const saving = ref(false)
 const saved = ref(false)
 const error = ref('')
+const changed = computed(() => Boolean(site.value && (
+  commentsDraft.value !== site.value.commentsEnabled
+  || musicDraft.value !== site.value.musicEnabled
+  || threeDDraft.value !== site.value.threeDEnabled
+)))
 
 async function load() {
   try {
     site.value = await getSite()
-    draft.value = site.value.commentsEnabled
+    commentsDraft.value = site.value.commentsEnabled
+    musicDraft.value = site.value.musicEnabled
+    threeDDraft.value = site.value.threeDEnabled
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : '站点设置暂时不可用。'
   } finally {
@@ -46,12 +64,17 @@ async function load() {
 }
 
 async function save() {
-  if (!site.value || saving.value || draft.value === site.value.commentsEnabled) return
+  if (!site.value || saving.value || !changed.value) return
   saving.value = true
   saved.value = false
   error.value = ''
   try {
-    site.value = await updateSite({ version: site.value.version, commentsEnabled: draft.value })
+    site.value = await updateSite({
+      version: site.value.version,
+      commentsEnabled: commentsDraft.value,
+      musicEnabled: musicDraft.value,
+      threeDEnabled: threeDDraft.value,
+    })
     saved.value = true
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : '站点开关写入失败。'

@@ -53,6 +53,21 @@ public class ToolManagementService {
         return queryPublicTools(normalizedCategory, type, normalizedKeyword);
     }
 
+    @Transactional(readOnly = true)
+    public List<GardenTool> listPublicGardenTools() {
+        List<Tool> activeTools = tools.findAllByStatus(ToolStatus.ACTIVE,
+                Sort.by(Sort.Direction.ASC, "sortOrder", "title", "id"));
+        Map<UUID, ToolCategory> categoryById = categories.findAllById(
+                activeTools.stream().map(Tool::getCategoryId).distinct().toList()).stream()
+                .collect(Collectors.toMap(ToolCategory::getId, categoryValue -> categoryValue));
+        return activeTools.stream().map(tool -> {
+            ToolCategory category = categoryById.get(tool.getCategoryId());
+            if (category == null) return null;
+            return new GardenTool(tool.getId(), tool.getTitle(), tool.getSlug(), tool.getDescription(),
+                    category.getName(), category.getSlug(), tool.getTags(), tool.getSortOrder());
+        }).filter(java.util.Objects::nonNull).toList();
+    }
+
     private PublicTools queryPublicTools(String normalizedCategory, ToolType type, String normalizedKeyword) {
 
         List<Tool> activeTools = tools.findAllByStatus(ToolStatus.ACTIVE,
@@ -235,4 +250,7 @@ public class ToolManagementService {
                     tool.getTags(), tool.getSortOrder());
         }
     }
+
+    public record GardenTool(UUID id, String title, String slug, String description,
+                             String categoryName, String categorySlug, List<String> tags, int sortOrder) {}
 }

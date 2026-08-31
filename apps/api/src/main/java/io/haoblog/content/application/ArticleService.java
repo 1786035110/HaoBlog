@@ -13,7 +13,10 @@ import org.springframework.stereotype.Service;
 import java.time.Clock;
 import java.text.Normalizer;
 import java.util.Collection;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -59,6 +62,20 @@ public class ArticleService implements ArticleCommentLookup {
         if (page < 0 || size < 1 || size > 500) throw new IllegalArgumentException("page/size out of range");
         var result = repository.findPublished(ArticleStatus.PUBLISHED, java.time.Instant.now(clock), PageRequest.of(page, size));
         return new PublishedBatch(result.getContent().stream().map(this::toPublicFeedArticle).toList(), result.hasNext());
+    }
+
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public List<GardenArticle> listPublicGardenArticles() {
+        Map<UUID, GardenArticleBuilder> grouped = new LinkedHashMap<>();
+        for (var row : repository.findPublicGardenRows(java.time.Instant.now(clock))) {
+            var article = grouped.computeIfAbsent(row.getArticleId(), ignored -> new GardenArticleBuilder(
+                    row.getArticleId(), row.getSlug(), row.getTitle(), row.getExcerpt(), row.getPublishedAt(),
+                    taxonomy(row.getCategoryName(), row.getCategorySlug())));
+            if (row.getTagSlug() != null && !row.getTagSlug().isBlank()) {
+                article.tags.add(taxonomy(row.getTagName(), row.getTagSlug()));
+            }
+        }
+        return grouped.values().stream().map(GardenArticleBuilder::build).toList();
     }
 
     public SearchPage search(String query, int page, int size) {
@@ -111,7 +128,39 @@ public class ArticleService implements ArticleCommentLookup {
     public record PageResult(Page<PublicArticle> page) {}
     public record PublishedBatch(List<PublicFeedArticle> items, boolean hasNext) {}
     public record PublicFeedArticle(UUID id, String slug, String title, String excerpt, java.time.Instant publishedAt) {}
+    public record GardenTaxonomy(String name, String slug) {}
+    public record GardenArticle(UUID id, String slug, String title, String excerpt, java.time.Instant publishedAt,
+                                GardenTaxonomy category, List<GardenTaxonomy> tags) {}
     public record SearchPage(String query, Page<PublicSearchArticle> page) {}
     public record PublicSearchArticle(UUID id, String slug, String title, String excerpt,
                                       java.time.Instant publishedAt, UUID coverMediaId, boolean commentsEnabled) {}
+
+    private static GardenTaxonomy taxonomy(String name, String slug) {
+        if (slug == null || slug.isBlank()) return null;
+        return new GardenTaxonomy(name == null || name.isBlank() ? slug : name.trim(), slug.trim().toLowerCase(Locale.ROOT));
+    }
+
+    private static final class GardenArticleBuilder {
+        private final UUID id;
+        private final String slug;
+        private final String title;
+        private final String excerpt;
+        private final java.time.Instant publishedAt;
+        private final GardenTaxonomy category;
+        private final java.util.Set<GardenTaxonomy> tags = new LinkedHashSet<>();
+
+        private GardenArticleBuilder(UUID id, String slug, String title, String excerpt,
+                                     java.time.Instant publishedAt, GardenTaxonomy category) {
+            this.id = id;
+            this.slug = slug;
+            this.title = title;
+            this.excerpt = excerpt;
+            this.publishedAt = publishedAt;
+            this.category = category;
+        }
+
+        private GardenArticle build() {
+            return new GardenArticle(id, slug, title, excerpt, publishedAt, category, List.copyOf(tags));
+        }
+    }
 }

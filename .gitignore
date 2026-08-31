@@ -1,5 +1,6 @@
 # Java / Maven
 target/
+docs/target/
 .mvn/wrapper/maven-wrapper.jar
 
 # Node / Nuxt

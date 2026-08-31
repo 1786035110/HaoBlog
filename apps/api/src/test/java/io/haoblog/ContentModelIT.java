@@ -57,7 +57,7 @@ class ContentModelIT {
 
     @Test
     void migratesAllVersionsAndCreatesContentTables() {
-        assertEquals(15, jdbc.queryForObject("SELECT count(*) FROM flyway_schema_history", Integer.class));
+        assertEquals(16, jdbc.queryForObject("SELECT count(*) FROM flyway_schema_history", Integer.class));
         for (String table : List.of("article", "category", "tag", "article_tag", "article_revision",
                 "article_preview_token", "media_asset", "media_upload", "outbox_event", "comment")) {
             assertEquals(1, jdbc.queryForObject(
