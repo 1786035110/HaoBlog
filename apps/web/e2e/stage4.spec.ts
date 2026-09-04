@@ -26,9 +26,9 @@ test.describe('S4-03 article comment signal', () => {
       if (route.request().method() !== 'POST') return route.continue()
       submitHeaders = route.request().headers()
       await route.fulfill({
-        status: 202,
+        status: 201,
         contentType: 'application/json',
-        body: JSON.stringify({ id: '00000000-0000-7000-8000-000000000099', status: 'PENDING', createdAt: new Date().toISOString(), deleteToken: 'e2e-delete-token' }),
+        body: JSON.stringify({ id: '00000000-0000-7000-8000-000000000099', status: 'APPROVED', createdAt: new Date().toISOString(), deleteToken: 'e2e-delete-token' }),
       })
     })
     await page.goto(articlePath)
@@ -36,10 +36,10 @@ test.describe('S4-03 article comment signal', () => {
     await page.getByRole('button', { name: '展开评论入口' }).click()
     await expect(page.getByLabel('昵称')).toBeVisible()
     await page.getByLabel('昵称').fill('Playwright 观测员')
-    await page.getByRole('textbox', { name: '正文' }).fill('这是一条待审核回波。')
+    await page.getByRole('textbox', { name: '正文' }).fill('这是一条即时发布的回波。')
     await page.waitForTimeout(3200)
     await page.getByRole('button', { name: '发送回波' }).click()
-    await expect(page.locator('[data-status="pending"]')).toContainText('待审核')
+    await expect(page.locator('[data-status="published"]')).toContainText('评论已发布')
     expect(submitHeaders?.['x-csrf-token']).toBe('e2e-csrf')
     expect(await page.evaluate(() => localStorage.getItem('haoblog-comment-delete:00000000-0000-7000-8000-000000000099'))).toBe('e2e-delete-token')
   })
@@ -306,7 +306,7 @@ async function moderateAcceptanceComment(request: APIRequestContext, token: stri
 }
 
 test.describe.serial('S4-10 full live contracts', () => {
-  test('establishes comment states, flags, security signals and Studio moderation', async ({ page, browser }) => {
+  test('publishes comments immediately and keeps flags, security signals and Studio management', async ({ page, browser }) => {
     test.setTimeout(120_000)
     const batch = Date.now()
     const token = await loginAcceptanceAdmin(page.request)
@@ -326,9 +326,9 @@ test.describe.serial('S4-10 full live contracts', () => {
       commentsEnabled: false,
     })
 
-    const pending = await submitAcceptanceComment(browser, openSlug, { nickname: `S4-10 待审 ${batch}`, content: '待审核评论信号。', email: `s410-${batch}@example.test` })
-    expect(pending.response.status()).toBe(202)
-    expect(pending.payload.status).toBe('PENDING')
+    const published = await submitAcceptanceComment(browser, openSlug, { nickname: `S4-10 即时发布 ${batch}`, content: '即时发布评论信号。', email: `s410-${batch}@example.test` })
+    expect(published.response.status()).toBe(201)
+    expect(published.payload.status).toBe('APPROVED')
 
     const replayContext = await browser.newContext({ baseURL: baseURL() })
     const replayForm = await getCommentForm(replayContext.request, openSlug)
@@ -337,7 +337,7 @@ test.describe.serial('S4-10 full live contracts', () => {
       headers: { 'X-CSRF-TOKEN': replayForm.csrfToken },
       data: { nickname: `S4-10 重放 ${batch}`, content: '第一次挑战提交。', challenge: replayForm.challenge },
     })
-    expect(firstReplay.status()).toBe(202)
+    expect(firstReplay.status()).toBe(201)
     const replay = await replayContext.request.post(`/api/v1/public/articles/${openSlug}/comments`, {
       headers: { 'X-CSRF-TOKEN': replayForm.csrfToken },
       data: { nickname: `S4-10 重放 ${batch}`, content: '重复使用挑战。', challenge: replayForm.challenge },
@@ -355,21 +355,22 @@ test.describe.serial('S4-10 full live contracts', () => {
     await maliciousContext.close()
 
     const approved = await submitAcceptanceComment(browser, openSlug, { nickname: `S4-10 通过 ${batch}`, content: '将被审核通过。' })
-    expect(approved.response.status()).toBe(202)
+    expect(approved.response.status()).toBe(201)
     await page.goto('/studio/comments')
-    await expect(page.getByRole('heading', { name: '评论审核' })).toBeVisible()
-    await expect(page.getByRole('button', { name: new RegExp(`S4-10 待审 ${batch}`) })).toBeVisible()
-    await page.getByRole('button', { name: new RegExp(`S4-10 待审 ${batch}`) }).click()
-    await page.locator('#moderation-status').selectOption('APPROVED')
+    await expect(page.getByRole('heading', { name: '评论管理' })).toBeVisible()
+    await expect(page.getByRole('button', { name: new RegExp(`S4-10 即时发布 ${batch}`) })).toBeVisible()
+    await page.getByRole('button', { name: new RegExp(`S4-10 即时发布 ${batch}`) }).click()
+    await page.locator('#moderation-status').selectOption('SPAM')
     await page.getByRole('button', { name: '写入审核结果' }).click()
-    await expect(page.locator('[data-status="APPROVED"]').first()).toBeVisible()
+    await expect(page.locator('[data-status="SPAM"]').first()).toBeVisible()
+    await moderateAcceptanceComment(page.request, token, published.payload.id, 'APPROVED')
     await moderateAcceptanceComment(page.request, token, approved.payload.id, 'APPROVED')
 
     const spam = await submitAcceptanceComment(browser, openSlug, { nickname: `S4-10 垃圾 ${batch}`, content: '垃圾评论状态。' })
     const rejected = await submitAcceptanceComment(browser, openSlug, { nickname: `S4-10 拒绝 ${batch}`, content: '拒绝评论状态。' })
-    const reply = await submitAcceptanceComment(browser, openSlug, { nickname: `S4-10 回复 ${batch}`, content: '一级回复评论状态。', parentId: pending.payload.id })
+    const reply = await submitAcceptanceComment(browser, openSlug, { nickname: `S4-10 回复 ${batch}`, content: '一级回复评论状态。', parentId: published.payload.id })
     const deleted = await submitAcceptanceComment(browser, openSlug, { nickname: `S4-10 删除 ${batch}`, content: '用户将删除此评论。' })
-    for (const result of [spam, rejected, reply, deleted]) expect(result.response.status()).toBe(202)
+    for (const result of [spam, rejected, reply, deleted]) expect(result.response.status()).toBe(201)
     await moderateAcceptanceComment(page.request, token, spam.payload.id, 'SPAM')
     await moderateAcceptanceComment(page.request, token, rejected.payload.id, 'REJECTED')
     await moderateAcceptanceComment(page.request, token, reply.payload.id, 'APPROVED')
@@ -378,23 +379,24 @@ test.describe.serial('S4-10 full live contracts', () => {
     })
     expect(deletedResponse.status()).toBe(204)
     await deleted.context.close()
-    await pending.context.close(); await approved.context.close(); await spam.context.close(); await rejected.context.close(); await reply.context.close()
+    await published.context.close(); await approved.context.close(); await spam.context.close(); await rejected.context.close(); await reply.context.close()
 
     const publicComments = await page.request.get(`/api/v1/public/articles/${openSlug}/comments`)
     expect(publicComments.ok()).toBe(true)
     const publicPayload = await publicComments.json() as { items: Array<{ nickname: string; replies: Array<{ nickname: string }> }> }
-    expect(publicPayload.items.some(item => item.nickname.includes(`S4-10 待审 ${batch}`))).toBe(true)
+    expect(publicPayload.items.some(item => item.nickname.includes(`S4-10 即时发布 ${batch}`))).toBe(true)
     expect(publicPayload.items.some(item => item.replies.some(replyItem => replyItem.nickname.includes(`S4-10 回复 ${batch}`)))).toBe(true)
     expect(JSON.stringify(publicPayload)).not.toContain(`S4-10 删除 ${batch}`)
 
     const closedForm = await getCommentForm(page.request, closedSlug)
     expect(closedForm.commentsEnabled).toBe(false)
     const site = await page.request.get('/api/v1/admin/site')
-    const siteSettings = await site.json() as { version: number }
-    const disabled = await page.request.put('/api/v1/admin/site', { headers: { 'X-CSRF-TOKEN': token }, data: { version: siteSettings.version, commentsEnabled: false } })
+    const siteSettings = await site.json() as { version: number; musicEnabled: boolean; musicManifestUrl: string | null; threeDEnabled: boolean }
+    const disabled = await page.request.put('/api/v1/admin/site', { headers: { 'X-CSRF-TOKEN': token }, data: { ...siteSettings, commentsEnabled: false } })
     expect(disabled.ok()).toBe(true)
     expect((await getCommentForm(page.request, openSlug)).commentsEnabled).toBe(false)
-    const restored = await page.request.put('/api/v1/admin/site', { headers: { 'X-CSRF-TOKEN': token }, data: { version: (await disabled.json() as { version: number }).version, commentsEnabled: true } })
+    const disabledSettings = await disabled.json() as { version: number; musicEnabled: boolean; musicManifestUrl: string | null; threeDEnabled: boolean }
+    const restored = await page.request.put('/api/v1/admin/site', { headers: { 'X-CSRF-TOKEN': token }, data: { ...disabledSettings, commentsEnabled: true } })
     expect(restored.ok()).toBe(true)
 
     const rateContext = await browser.newContext({ baseURL: baseURL() })
@@ -408,7 +410,7 @@ test.describe.serial('S4-10 full live contracts', () => {
       })
       rateStatuses.push(response.status())
     }
-    expect(rateStatuses.slice(0, 3)).toEqual([202, 202, 202])
+    expect(rateStatuses.slice(0, 3)).toEqual([201, 201, 201])
     expect(rateStatuses[3]).toBe(429)
     await rateContext.close()
   })

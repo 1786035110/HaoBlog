@@ -678,6 +678,8 @@ export interface components {
             authorName: string;
             commentsEnabled: boolean;
             musicEnabled: boolean;
+            /** Format: uri */
+            musicManifestUrl: string | null;
             threeDEnabled: boolean;
         };
         ArticleSummary: {
@@ -754,7 +756,7 @@ export interface components {
             /** Format: uuid */
             id: string | null;
             /** @enum {string} */
-            status: "PENDING";
+            status: "APPROVED";
             /** Format: date-time */
             createdAt: string;
             deleteToken?: string | null;
@@ -1036,6 +1038,8 @@ export interface components {
             version: number;
             commentsEnabled: boolean;
             musicEnabled?: boolean;
+            /** Format: uri */
+            musicManifestUrl: string | null;
             threeDEnabled?: boolean;
         };
         AdminSiteResponse: {
@@ -1046,6 +1050,8 @@ export interface components {
             authorName: string;
             commentsEnabled: boolean;
             musicEnabled: boolean;
+            /** Format: uri */
+            musicManifestUrl: string | null;
             threeDEnabled: boolean;
             /** Format: int64 */
             version: number;
@@ -1744,8 +1750,8 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Comment accepted for moderation */
-            202: {
+            /** @description Comment created and published when the submission is genuine */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1950,7 +1956,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Administrator comment moderation log; email is masked and security material is omitted */
+            /** @description Administrator comment management log; email is masked and security material is omitted */
             200: {
                 headers: {
                     [name: string]: unknown;

@@ -55,7 +55,7 @@ class CommentNotificationMailerTest {
         assertFalse(message.getText().contains("email"));
         assertEquals(true, message.getText().contains("昵称：Hao"));
         assertEquals(true, message.getText().contains("文章：文章标题"));
-        assertEquals(true, message.getText().contains("Studio 审核链接：https://blog.example.invalid/studio/comments?commentId=" + COMMENT_ID));
+        assertEquals(true, message.getText().contains("Studio 管理链接：https://blog.example.invalid/studio/comments?commentId=" + COMMENT_ID));
     }
 
     @Test

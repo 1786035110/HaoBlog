@@ -9,10 +9,10 @@ describe('phase five static boundaries', () => {
   it('keeps music and PWA bodies out of the article route and music behind interaction', () => {
     const layout = readFileSync(resolve(app, 'layouts/default.vue'), 'utf8')
     const article = readFileSync(resolve(app, 'pages/articles/[slug].vue'), 'utf8')
-    expect(layout).toContain("import('../components/music/SignalTape.client.vue')")
-    expect(article).not.toContain('SignalTape')
+    expect(layout).toContain("import('../components/music/MusicConsole.client.vue')")
+    expect(article).not.toContain('MusicConsole')
     expect(article).not.toContain('preloadEmbeddedToolChunks')
-    expect(readFileSync(resolve(app, 'components/music/SignalTape.client.vue'), 'utf8')).toContain('preload="none"')
+    expect(readFileSync(resolve(app, 'components/music/MusicConsole.client.vue'), 'utf8')).toContain('preload="none"')
   })
 
   it('releases every stage five heavyweight owner on unmount', () => {
@@ -36,7 +36,7 @@ describe('phase five static boundaries', () => {
     expect(draw).not.toContain('measure()')
     expect(draw).not.toContain('getComputedStyle(')
 
-    const music = readFileSync(resolve(app, 'components/music/SignalTape.client.vue'), 'utf8')
+    const music = readFileSync(resolve(app, 'components/music/MusicConsole.client.vue'), 'utf8')
     expect(music).toContain('stopSpectrumLoop()')
     expect(music).toContain('source?.disconnect()')
     expect(music).toContain('analyser.value?.disconnect()')
@@ -59,12 +59,11 @@ describe('phase five static boundaries', () => {
 
   it('keeps 404 enhancement dynamic and preserves generic error recovery', () => {
     const error = readFileSync(resolve(app, 'error.vue'), 'utf8')
-    expect(error).toContain("import('./components/error/SignalRepair.client.vue')")
-    expect(error).toContain("window.innerWidth <= 360")
-    expect(error).toContain("pointer: coarse")
-    expect(error).toContain('prefers-reduced-motion')
+    expect(error).toContain("import('./components/error/ErrorGameCenter.client.vue')")
+    expect(error).toContain('game-launcher')
+    expect(error).toContain('gamesAvailable')
     expect(error).toContain('retry-button')
-    expect(error).toContain('!isNotFound')
+    expect(error).toContain('v-else class="retry-button"')
     expect(error).toContain('当前请求没有得到可用的观测响应，请稍后重试。')
     expect(error).toContain('noindex,nofollow')
   })

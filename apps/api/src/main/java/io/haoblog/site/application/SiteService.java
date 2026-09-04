@@ -15,7 +15,8 @@ public class SiteService {
     private final SiteSettingRepository repository;
     private final String publicBaseUrl;
     private final String authorName;
-    private final String musicManifestUrl;
+    private final String fallbackMusicManifestUrl;
+    private final String activeProfiles;
 
     @Autowired
     public SiteService(SiteSettingRepository repository,
@@ -23,37 +24,34 @@ public class SiteService {
                        @Value("${haoblog.site.author-name}") String authorName,
                        @Value("${haoblog.site.music-manifest-url:}") String musicManifestUrl,
                        @Value("${spring.profiles.active:local}") String activeProfiles) {
-        this(repository, publicBaseUrl, authorName, musicManifestUrl, activeProfiles, true);
-    }
-
-    public SiteService(SiteSettingRepository repository, String publicBaseUrl, String authorName) {
-        this(repository, publicBaseUrl, authorName, null, "local", false);
-    }
-
-    private SiteService(SiteSettingRepository repository, String publicBaseUrl, String authorName,
-                        String musicManifestUrl, String activeProfiles, boolean validateManifest) {
         this.repository = repository;
         this.publicBaseUrl = normalizePublicBaseUrl(publicBaseUrl);
         if (authorName == null || authorName.isBlank()) {
             throw new IllegalArgumentException("HAOBLOG_AUTHOR_NAME must not be blank");
         }
         this.authorName = authorName.trim();
-        this.musicManifestUrl = validateManifest
-                ? normalizeMusicManifestUrl(musicManifestUrl, activeProfiles)
-                : null;
+        this.activeProfiles = activeProfiles == null ? "" : activeProfiles;
+        this.fallbackMusicManifestUrl = normalizeMusicManifestUrl(musicManifestUrl, this.activeProfiles);
+    }
+
+    public SiteService(SiteSettingRepository repository, String publicBaseUrl, String authorName) {
+        this(repository, publicBaseUrl, authorName, null, "local");
     }
 
     public SiteResult get() {
         var setting = repository.findBySiteKey("default").orElseThrow();
+        String manifestUrl = effectiveMusicManifestUrl(setting);
         return new SiteResult(setting.getTitle(), setting.getDescription(), publicBaseUrl, authorName,
-                setting.isCommentsEnabled(), setting.isMusicEnabled() && musicManifestUrl != null,
+                setting.isCommentsEnabled(), setting.isMusicEnabled() && manifestUrl != null,
+                setting.isMusicEnabled() ? manifestUrl : null,
                 setting.isThreeDEnabled());
     }
 
     public AdminSiteResult getAdmin() {
         var setting = repository.findBySiteKey("default").orElseThrow();
         return new AdminSiteResult(setting.getTitle(), setting.getDescription(), publicBaseUrl, authorName,
-                setting.isCommentsEnabled(), setting.isMusicEnabled(), setting.isThreeDEnabled(), setting.getVersion());
+                setting.isCommentsEnabled(), setting.isMusicEnabled(), effectiveMusicManifestUrl(setting),
+                setting.isThreeDEnabled(), setting.getVersion());
     }
 
     @org.springframework.transaction.annotation.Transactional
@@ -64,22 +62,43 @@ public class SiteService {
     @org.springframework.transaction.annotation.Transactional
     public AdminSiteResult updateSettings(long expectedVersion, Boolean commentsEnabled,
                                           Boolean musicEnabled, Boolean threeDEnabled) {
+        return updateSettings(expectedVersion, commentsEnabled, musicEnabled, threeDEnabled, null, false);
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public AdminSiteResult updateSettings(long expectedVersion, Boolean commentsEnabled,
+                                          Boolean musicEnabled, Boolean threeDEnabled, String musicManifestUrl) {
+        return updateSettings(expectedVersion, commentsEnabled, musicEnabled, threeDEnabled, musicManifestUrl, true);
+    }
+
+    private AdminSiteResult updateSettings(long expectedVersion, Boolean commentsEnabled,
+                                           Boolean musicEnabled, Boolean threeDEnabled,
+                                           String musicManifestUrl, boolean updateManifest) {
         var setting = repository.findBySiteKey("default").orElseThrow();
         if (setting.getVersion() != expectedVersion) {
             throw new io.haoblog.shared.web.ProblemException("SITE_VERSION_CONFLICT", "Site setting version conflict",
                     "Reload the latest site settings before saving", setting.getVersion());
         }
+        if (updateManifest) {
+            try {
+                setting.setMusicManifestUrl(normalizeMusicManifestUrl(musicManifestUrl, activeProfiles));
+            } catch (IllegalArgumentException exception) {
+                throw new io.haoblog.shared.web.ProblemException("MUSIC_MANIFEST_URL_INVALID",
+                        "Invalid music manifest URL", exception.getMessage());
+            }
+        }
         boolean nextMusicEnabled = musicEnabled == null ? setting.isMusicEnabled() : musicEnabled;
-        if (nextMusicEnabled && musicManifestUrl == null) {
+        if (nextMusicEnabled && effectiveMusicManifestUrl(setting) == null) {
             throw new io.haoblog.shared.web.ProblemException("MUSIC_MANIFEST_NOT_CONFIGURED",
-                    "Music manifest is not configured", "Configure HAOBLOG_MUSIC_MANIFEST_URL before enabling music");
+                    "Music manifest is not configured", "Configure a music manifest URL before enabling music");
         }
         if (commentsEnabled != null) setting.setCommentsEnabled(commentsEnabled);
         setting.setMusicEnabled(nextMusicEnabled);
         if (threeDEnabled != null) setting.setThreeDEnabled(threeDEnabled);
         var saved = repository.saveAndFlush(setting);
         return new AdminSiteResult(saved.getTitle(), saved.getDescription(), publicBaseUrl, authorName,
-                saved.isCommentsEnabled(), saved.isMusicEnabled(), saved.isThreeDEnabled(), saved.getVersion());
+                saved.isCommentsEnabled(), saved.isMusicEnabled(), effectiveMusicManifestUrl(saved),
+                saved.isThreeDEnabled(), saved.getVersion());
     }
 
     public long currentVersion() {
@@ -130,23 +149,29 @@ public class SiteService {
 
     private static final java.util.Set<String> SetOfLocalHosts = java.util.Set.of("localhost", "127.0.0.1", "::1");
 
+    private String effectiveMusicManifestUrl(io.haoblog.site.domain.SiteSetting setting) {
+        return setting.getMusicManifestUrl() == null ? fallbackMusicManifestUrl : setting.getMusicManifestUrl();
+    }
+
     public record SiteResult(String title, String description, String siteUrl, String authorName,
-                             boolean commentsEnabled, boolean musicEnabled, boolean threeDEnabled) {
+                             boolean commentsEnabled, boolean musicEnabled, String musicManifestUrl,
+                             boolean threeDEnabled) {
         public SiteResult(String title, String description, String siteUrl, String authorName) {
-            this(title, description, siteUrl, authorName, true, false, false);
+            this(title, description, siteUrl, authorName, true, false, null, false);
         }
         public SiteResult(String title, String description, String siteUrl, String authorName,
                           boolean commentsEnabled) {
-            this(title, description, siteUrl, authorName, commentsEnabled, false, false);
+            this(title, description, siteUrl, authorName, commentsEnabled, false, null, false);
         }
     }
 
     public record AdminSiteResult(String title, String description, String siteUrl, String authorName,
-                                  boolean commentsEnabled, boolean musicEnabled, boolean threeDEnabled,
+                                  boolean commentsEnabled, boolean musicEnabled, String musicManifestUrl,
+                                  boolean threeDEnabled,
                                   long version) {
         public AdminSiteResult(String title, String description, String siteUrl, String authorName,
                                boolean commentsEnabled, long version) {
-            this(title, description, siteUrl, authorName, commentsEnabled, false, false, version);
+            this(title, description, siteUrl, authorName, commentsEnabled, false, null, false, version);
         }
     }
 }

@@ -9,6 +9,7 @@ export const defaultPublicSite: PublicSite = {
   authorName: 'Hao',
   commentsEnabled: true,
   musicEnabled: false,
+  musicManifestUrl: null,
   threeDEnabled: false,
 }
 

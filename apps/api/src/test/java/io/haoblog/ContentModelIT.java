@@ -57,7 +57,7 @@ class ContentModelIT {
 
     @Test
     void migratesAllVersionsAndCreatesContentTables() {
-        assertEquals(16, jdbc.queryForObject("SELECT count(*) FROM flyway_schema_history", Integer.class));
+        assertEquals(17, jdbc.queryForObject("SELECT count(*) FROM flyway_schema_history", Integer.class));
         for (String table : List.of("article", "category", "tag", "article_tag", "article_revision",
                 "article_preview_token", "media_asset", "media_upload", "outbox_event", "comment")) {
             assertEquals(1, jdbc.queryForObject(
@@ -243,7 +243,7 @@ class ContentModelIT {
         jdbc.update("INSERT INTO comment(id, article_id, nickname, content, ip_hmac, ip_hmac_date, content_fingerprint, delete_token_digest, created_at, updated_at) "
                         + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 parentId, articleId, "Hao", "parent", digest, now.atZone(ZoneOffset.UTC).toLocalDate(), digest, digest, timestamp, timestamp);
-        assertEquals("PENDING", jdbc.queryForObject("SELECT status FROM comment WHERE id=?", String.class, parentId));
+        assertEquals("APPROVED", jdbc.queryForObject("SELECT status FROM comment WHERE id=?", String.class, parentId));
         assertThrows(DataAccessException.class, () -> jdbc.update(
                 "INSERT INTO comment(id, article_id, nickname, content, status, ip_hmac, ip_hmac_date, content_fingerprint, delete_token_digest, created_at, updated_at) "
                         + "VALUES (?, ?, ?, ?, 'UNKNOWN', ?, ?, ?, ?, ?, ?)",
@@ -274,7 +274,7 @@ class ContentModelIT {
         Comment saved = comments.saveAndFlush(new Comment(article.getId(), null, "Hao", null, null, null,
                 "body", new byte[32], now.atZone(ZoneOffset.UTC).toLocalDate(), new byte[32], deleteTokenDigest, now));
         assertEquals(7, saved.getId().version());
-        assertEquals(CommentStatus.PENDING, saved.getStatus());
+        assertEquals(CommentStatus.APPROVED, saved.getStatus());
         EntityManager firstManager = entityManagerFactory.createEntityManager();
         EntityManager secondManager = entityManagerFactory.createEntityManager();
         var firstTransaction = firstManager.getTransaction();

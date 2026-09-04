@@ -4,8 +4,8 @@
     <div class="phosphor-hairline" aria-hidden="true" />
     <main id="main-content" class="content-stage"><slot /></main>
     <ReadingProgress />
-    <component :is="musicComponent" v-if="musicComponent" />
-    <button v-else-if="site?.musicEnabled" class="signal-tape-launcher" type="button" @click="openMusic">SIGNAL TAPE / OPEN</button>
+    <component :is="musicComponent" v-if="musicComponent" :open="musicOpen" :manifest-url="site?.musicManifestUrl || ''" @open="musicOpen = true" @close="musicOpen = false" />
+    <button v-else-if="site?.musicEnabled && site.musicManifestUrl" class="music-launcher" type="button" @click="openMusic">MUSIC / OPEN CONSOLE</button>
     <nav class="instrument-dock" aria-label="站点仪表板">
       <details class="dock-index">
         <summary class="dock-control dock-index-trigger" aria-label="INDEX：打开站点索引">
@@ -37,6 +37,7 @@ const { data: site } = usePublicSite()
 const terminalTrigger = ref<HTMLButtonElement | null>(null)
 const terminalComponent = ref<Component | null>(null)
 const musicComponent = ref<Component | null>(null)
+const musicOpen = ref(false)
 const terminalOpen = ref(false)
 let terminalLoad: Promise<void> | null = null
 let musicLoad: Promise<void> | null = null
@@ -65,8 +66,9 @@ function closeTerminal() {
 }
 
 async function openMusic() {
+  musicOpen.value = true
   if (musicComponent.value || musicLoad) return musicLoad
-  musicLoad = import('../components/music/SignalTape.client.vue').then(module => {
+  musicLoad = import('../components/music/MusicConsole.client.vue').then(module => {
     musicComponent.value = module.default
   }).finally(() => {
     musicLoad = null
@@ -86,7 +88,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', handleGlobalShortcut
 </script>
 
 <style scoped>
-.signal-tape-launcher { position: relative; z-index: var(--z-stage); display: block; width: min(58rem, calc(100% - 2 * var(--space-shell))); margin: 0 auto 1rem; padding: .65rem .8rem; border: 1px solid var(--color-border); background: var(--color-bg-sub); color: var(--color-accent); text-align: left; cursor: pointer; font: var(--text-xs)/1.4 var(--font-mono); letter-spacing: .12em; }
-.signal-tape-launcher:hover, .signal-tape-launcher:focus-visible { border-color: var(--color-accent); background: color-mix(in srgb, var(--color-accent) 8%, var(--color-bg-sub)); }
-@media (max-width: 640px) { .signal-tape-launcher { width: calc(100% - 1.5rem); } }
+.music-launcher { position: fixed; z-index: var(--z-dock); right: var(--space-shell); bottom: 60px; padding: .6rem .75rem; border: 1px solid var(--color-border); background: var(--color-bg-sub); color: var(--color-accent); cursor: pointer; font: var(--text-xs)/1.2 var(--font-mono); letter-spacing: .1em; }
+.music-launcher:hover, .music-launcher:focus-visible { border-color: var(--color-accent); }
+@media (max-width: 640px) { .music-launcher { right: .75rem; } }
 </style>

@@ -35,7 +35,7 @@ public class Comment {
     private String content;
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
-    private CommentStatus status = CommentStatus.PENDING;
+    private CommentStatus status = CommentStatus.APPROVED;
     @Column(name = "ip_hmac", nullable = false)
     private byte[] ipHmac;
     @Column(name = "ip_hmac_date", nullable = false)

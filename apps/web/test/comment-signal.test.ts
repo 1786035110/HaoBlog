@@ -58,7 +58,7 @@ describe('comment signal', () => {
     vi.setSystemTime(new Date('2026-08-22T00:00:00Z'))
     const fetcher = vi.fn()
       .mockResolvedValueOnce({ csrfToken: 'csrf-1', challenge: 'challenge-1', expiresAt: '2026-08-22T00:10:00Z', commentsEnabled: true })
-      .mockResolvedValueOnce({ id: comments.items[0]!.id, status: 'PENDING', createdAt: '2026-08-22T00:00:04Z', deleteToken: 'delete-1' })
+      .mockResolvedValueOnce({ id: comments.items[0]!.id, status: 'APPROVED', createdAt: '2026-08-22T00:00:04Z', deleteToken: 'delete-1' })
     vi.stubGlobal('$fetch', fetcher)
     const wrapper = mount(CommentSignalSection, {
       props: { slug: 'signal', comments, siteCommentsEnabled: true, articleCommentsEnabled: true },
@@ -80,7 +80,7 @@ describe('comment signal', () => {
       method: 'POST',
       headers: { 'X-CSRF-TOKEN': 'csrf-1' },
     })
-    expect(wrapper.get('[data-status="pending"]').text()).toContain('待审核')
+    expect(wrapper.get('[data-status="published"]').text()).toContain('已发布')
     expect(localStorage.getItem(`haoblog-comment-delete:${comments.items[0]!.id}`)).toBe('delete-1')
     vi.useRealTimers()
   })

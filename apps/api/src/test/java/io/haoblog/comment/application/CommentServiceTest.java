@@ -58,12 +58,12 @@ class CommentServiceTest {
     }
 
     @Test
-    void createsPendingCommentAndOutboxInOneApplicationFlow() {
+    void publishesCommentAndOutboxInOneApplicationFlow() {
         var challenge = challenges.issue(ARTICLE_ID);
         clock.advance(Duration.ofSeconds(3));
         var result = service.create("post", command(challenge.token(), "hello"), "A".repeat(43), "192.0.2.1");
 
-        assertEquals(CommentStatus.PENDING, result.status());
+        assertEquals(CommentStatus.APPROVED, result.status());
         assertNotNull(result.id());
         assertNotNull(result.deleteToken());
         verify(comments).save(any(Comment.class));
@@ -100,7 +100,7 @@ class CommentServiceTest {
         clock.advance(Duration.ofSeconds(3));
         var accepted = service.create("post", new CommentService.CreateCommand(
                 "Hao", null, "normal text", null, honeypotChallenge.token(), "filled", null), null, "192.0.2.1");
-        assertEquals(CommentStatus.PENDING, accepted.status());
+        assertEquals(CommentStatus.APPROVED, accepted.status());
         assertNull(accepted.id());
         verifyNoInteractions(comments, outbox);
 

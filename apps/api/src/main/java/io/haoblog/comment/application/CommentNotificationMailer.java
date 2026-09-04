@@ -44,13 +44,13 @@ public class CommentNotificationMailer {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setTo(recipient);
         message.setFrom(from);
-        message.setSubject("HaoBlog 新评论待审核");
-        message.setText("有一条评论待审核\n\n"
+        message.setSubject("HaoBlog 新评论已发布");
+        message.setText("有一条评论已即时发布，请按需管理\n\n"
                 + "昵称：" + comment.getNickname() + "\n"
                 + "文章：" + article.title() + "\n"
                 + "时间：" + comment.getCreatedAt() + "\n"
                 + "正文摘要：" + summarize(comment.getContent()) + "\n"
-                + "Studio 审核链接：" + studioUrl + "\n");
+                + "Studio 管理链接：" + studioUrl + "\n");
         try {
             mailSender.send(message);
         } catch (Exception ignored) {

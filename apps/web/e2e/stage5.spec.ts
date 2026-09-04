@@ -107,10 +107,10 @@ async function setThreeDFlag(request: APIRequestContext, enabled: boolean) {
   const token = (await csrf.json() as { token: string }).token
   const current = await request.get('/api/v1/admin/site')
   expect(current.ok()).toBe(true)
-  const site = await current.json() as { version: number; commentsEnabled: boolean; musicEnabled: boolean }
+  const site = await current.json() as { version: number; commentsEnabled: boolean; musicEnabled: boolean; musicManifestUrl: string | null }
   const updated = await request.put('/api/v1/admin/site', {
     headers: { 'X-CSRF-TOKEN': token },
-    data: { version: site.version, commentsEnabled: site.commentsEnabled, musicEnabled: site.musicEnabled, threeDEnabled: enabled },
+    data: { version: site.version, commentsEnabled: site.commentsEnabled, musicEnabled: site.musicEnabled, musicManifestUrl: site.musicManifestUrl, threeDEnabled: enabled },
   })
   expect(updated.ok()).toBe(true)
 }
@@ -128,10 +128,10 @@ async function setMusicFlag(request: APIRequestContext, enabled: boolean) {
   const token = (await csrf.json() as { token: string }).token
   const current = await request.get('/api/v1/admin/site')
   expect(current.ok()).toBe(true)
-  const site = await current.json() as { version: number; commentsEnabled: boolean; musicEnabled: boolean; threeDEnabled: boolean }
+  const site = await current.json() as { version: number; commentsEnabled: boolean; musicEnabled: boolean; musicManifestUrl: string | null; threeDEnabled: boolean }
   const updated = await request.put('/api/v1/admin/site', {
     headers: { 'X-CSRF-TOKEN': token },
-    data: { version: site.version, commentsEnabled: site.commentsEnabled, musicEnabled: enabled, threeDEnabled: site.threeDEnabled },
+    data: { version: site.version, commentsEnabled: site.commentsEnabled, musicEnabled: enabled, musicManifestUrl: site.musicManifestUrl, threeDEnabled: site.threeDEnabled },
   })
   expect(updated.ok()).toBe(true)
 }
@@ -257,18 +257,19 @@ test.describe('S5-05 music and S5-06 signal repair', () => {
     })
     const site = await page.request.get('/api/v1/public/site')
     expect(site.ok()).toBe(true)
-    const sitePayload = await site.json() as { musicEnabled: boolean }
+    const sitePayload = await site.json() as { musicEnabled: boolean; musicManifestUrl: string | null }
     await page.goto('/')
     if (!sitePayload.musicEnabled) {
-      await expect(page.getByRole('button', { name: /SIGNAL TAPE/ })).toHaveCount(0)
+      await expect(page.getByRole('button', { name: 'MUSIC / OPEN CONSOLE' })).toHaveCount(0)
       expect(musicRequests).toEqual([])
     } else {
-      await expect(page.getByRole('button', { name: /SIGNAL TAPE/ })).toBeVisible()
+      expect(sitePayload.musicManifestUrl).toBeTruthy()
+      await expect(page.getByRole('button', { name: 'MUSIC / OPEN CONSOLE' })).toBeVisible()
       await expect(page.locator('audio')).toHaveCount(0)
-      await page.getByRole('button', { name: /SIGNAL TAPE/ }).click()
+      await page.getByRole('button', { name: 'MUSIC / OPEN CONSOLE' }).click()
       await expect(page.locator('audio')).toBeAttached()
       await expect(page.locator('audio')).toHaveAttribute('crossorigin', 'anonymous')
-      await expect.poll(() => musicRequests.filter(url => /music-manifest/.test(url)).length).toBeGreaterThan(0)
+      await expect.poll(() => musicRequests.filter(url => url === sitePayload.musicManifestUrl).length).toBeGreaterThan(0)
       expect(musicRequests.filter(url => /\.mp3(?:\?|$)/i.test(url))).toEqual([])
       await expect(page.locator('audio')).toHaveJSProperty('paused', true)
     }
@@ -292,7 +293,11 @@ test.describe('S5-05 music and S5-06 signal repair', () => {
     await mobilePage.setViewportSize({ width: 360, height: 800 })
     await mobilePage.goto('/s5-06-mobile-signal')
     await expect(mobilePage.getByRole('searchbox', { name: '搜索文章' })).toBeVisible()
-    await expect(mobilePage.locator('.repair-game')).toHaveCount(0)
+    const mobileLauncher = mobilePage.getByRole('button', { name: '玩个小游戏' })
+    if (await mobileLauncher.count()) {
+      await mobileLauncher.click()
+      await expect(mobilePage.getByRole('heading', { name: '选一个小游戏' })).toBeVisible()
+    }
     await mobile.close()
 
     const noJs = await browser.newContext({
@@ -309,16 +314,15 @@ test.describe('S5-05 music and S5-06 signal repair', () => {
     }
   })
 
-  test('allows keyboard repair on a normal desktop 404 when the enhancement is enabled', async ({ page }) => {
+  test('offers keyboard-accessible games on a normal desktop 404 when enabled', async ({ page }) => {
     await page.goto('/s5-06-keyboard-signal')
-    const game = page.locator('.repair-game')
-    if (await game.count() === 0) return
-    const segments = game.locator('.repair-segment')
-    for (let index = 0; index < 3; index += 1) {
-      await segments.nth(index).focus()
-      await page.keyboard.press('Enter')
-    }
-    await expect(page.getByText('信号已修复。可以返回首页继续观测。')).toBeVisible()
+    const launcher = page.getByRole('button', { name: '玩个小游戏' })
+    if (await launcher.count() === 0) return
+    await launcher.click()
+    await page.getByRole('button', { name: /贪吃蛇/ }).click()
+    await expect(page.locator('.mini-game').filter({ hasText: '贪吃蛇' })).toBeVisible()
+    await page.getByRole('button', { name: '开始', exact: true }).click()
+    await page.keyboard.press('ArrowRight')
   })
 })
 
@@ -473,7 +477,9 @@ test.describe('S5-08 performance and lifecycle closure', () => {
       }],
     }
     try {
-      await page.route('**/music-manifest.json', route => route.fulfill({ json: manifest }))
+      const site = await page.request.get('/api/v1/public/site')
+      const { musicManifestUrl } = await site.json() as { musicManifestUrl: string }
+      await page.route(musicManifestUrl, route => route.fulfill({ json: manifest }))
       await page.route('https://media.example.test/**', route => route.fulfill({ contentType: 'audio/mpeg', body: '' }))
       await page.addInitScript(() => {
         const state = { created: 0, closed: 0 }
@@ -501,7 +507,7 @@ test.describe('S5-08 performance and lifecycle closure', () => {
         HTMLMediaElement.prototype.pause = function () { this.dispatchEvent(new Event('pause')) }
       })
       await page.goto('/')
-      await page.getByRole('button', { name: /SIGNAL TAPE/ }).click()
+      await page.getByRole('button', { name: 'MUSIC / OPEN CONSOLE' }).click()
       await page.getByRole('button', { name: '开始播放' }).click()
       await expect.poll(() => page.evaluate(() => (window as typeof window & { __s5Audio: { created: number } }).__s5Audio.created)).toBe(1)
       await navigateInApp(page, '/studio')
@@ -516,10 +522,10 @@ test.describe('S5-08 performance and lifecycle closure', () => {
         HTMLMediaElement.prototype.pause = function () { this.dispatchEvent(new Event('pause')) }
       })
       const audioFailurePage = await audioFailure.newPage()
-      await audioFailurePage.route('**/music-manifest.json', route => route.fulfill({ json: manifest }))
+      await audioFailurePage.route(musicManifestUrl, route => route.fulfill({ json: manifest }))
       await audioFailurePage.route('https://media.example.test/**', route => route.fulfill({ contentType: 'audio/mpeg', body: '' }))
       await audioFailurePage.goto('/')
-      await audioFailurePage.getByRole('button', { name: /SIGNAL TAPE/ }).click()
+      await audioFailurePage.getByRole('button', { name: 'MUSIC / OPEN CONSOLE' }).click()
       await audioFailurePage.getByRole('button', { name: '开始播放' }).click()
       await expect(audioFailurePage.getByText('频谱接入失败，已保留普通播放。')).toBeVisible()
       await expect(audioFailurePage.getByRole('button', { name: '暂停播放' })).toBeVisible()

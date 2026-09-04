@@ -266,8 +266,8 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/CommentCreateRequest' }
       responses:
-        '202':
-          description: Comment accepted for moderation
+        '201':
+          description: Comment created and published when the submission is genuine
           content:
             application/json:
               schema: { $ref: '#/components/schemas/CommentSubmissionResponse' }
@@ -385,7 +385,7 @@ paths:
         - { name: direction, in: query, schema: { type: string, enum: [asc, desc], default: desc } }
       responses:
         '200':
-          description: Administrator comment moderation log; email is masked and security material is omitted
+          description: Administrator comment management log; email is masked and security material is omitted
           content: { application/json: { schema: { $ref: '#/components/schemas/AdminCommentListResponse' } } }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
@@ -1054,7 +1054,7 @@ components:
   schemas:
     SiteResponse:
       type: object
-      required: [title, description, siteUrl, authorName, commentsEnabled, musicEnabled, threeDEnabled]
+      required: [title, description, siteUrl, authorName, commentsEnabled, musicEnabled, musicManifestUrl, threeDEnabled]
       properties:
         title: { type: string }
         description: { type: string }
@@ -1062,6 +1062,7 @@ components:
         authorName: { type: string }
         commentsEnabled: { type: boolean }
         musicEnabled: { type: boolean }
+        musicManifestUrl: { type: [string, 'null'], format: uri, maxLength: 2048 }
         threeDEnabled: { type: boolean }
     ArticleSummary:
       type: object
@@ -1138,7 +1139,7 @@ components:
       required: [id, status, createdAt]
       properties:
         id: { type: [string, 'null'], format: uuid }
-        status: { type: string, enum: [PENDING] }
+        status: { type: string, enum: [APPROVED] }
         createdAt: { type: string, format: date-time }
         deleteToken: { type: [string, 'null'], minLength: 43, maxLength: 43 }
     CommentStatus:
@@ -1395,15 +1396,16 @@ components:
         commentsEnabled: { type: boolean }
     AdminSiteUpdateRequest:
       type: object
-      required: [version, commentsEnabled]
+      required: [version, commentsEnabled, musicManifestUrl]
       properties:
         version: { type: integer, format: int64, minimum: 0 }
         commentsEnabled: { type: boolean }
         musicEnabled: { type: boolean }
+        musicManifestUrl: { type: [string, 'null'], format: uri, maxLength: 2048 }
         threeDEnabled: { type: boolean }
     AdminSiteResponse:
       type: object
-      required: [title, description, siteUrl, authorName, commentsEnabled, musicEnabled, threeDEnabled, version]
+      required: [title, description, siteUrl, authorName, commentsEnabled, musicEnabled, musicManifestUrl, threeDEnabled, version]
       properties:
         title: { type: string }
         description: { type: string }
@@ -1411,6 +1413,7 @@ components:
         authorName: { type: string }
         commentsEnabled: { type: boolean }
         musicEnabled: { type: boolean }
+        musicManifestUrl: { type: [string, 'null'], format: uri, maxLength: 2048 }
         threeDEnabled: { type: boolean }
         version: { type: integer, format: int64, minimum: 0 }
     GardenGraphResponse:

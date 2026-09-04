@@ -53,7 +53,7 @@ public class PublicCommentController {
                 new CommentService.CreateCommand(request.nickname(), request.email(), request.content(), request.parentId(),
                         request.challenge(), request.honeypot(), request.website()),
                 visitorCookie(httpRequest), httpRequest.getRemoteAddr());
-        return ResponseEntity.status(HttpStatus.ACCEPTED)
+        return ResponseEntity.status(HttpStatus.CREATED)
                 .body(new SubmissionResponse(result.id(), result.status().name(), result.createdAt(), result.deleteToken()));
     }
 

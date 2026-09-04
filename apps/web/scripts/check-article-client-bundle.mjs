@@ -17,7 +17,7 @@ const routeMarkers = {
 const heavyBodies = {
   Three: /(?:THREE \/ INSTANCED SIGNAL FIELD|WebGLRenderer|InstancedMesh)/,
   'd3-force': /forceSimulation[\s\S]{0,800}alphaMin[\s\S]{0,800}velocityDecay/,
-  播放器: /SIGNAL TAPE \/ MUSIC|频谱待用户播放后接入/,
+  播放器: /GLOBAL \/ MUSIC CONSOLE|频谱会在播放后接入/,
   终端: /安全信号终端|命令不能超过 200 个字符/,
 }
 

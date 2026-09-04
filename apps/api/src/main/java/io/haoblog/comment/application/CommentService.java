@@ -212,7 +212,7 @@ public class CommentService {
         if ((honeypot != null && !honeypot.isBlank()) || (command.website() != null && !command.website().isBlank())) {
             RateDecision rate = rate(visitorCookie, remoteAddress);
             if (!rate.allowed()) throw new CommentRateLimitException(rate.retryAfterSeconds());
-            return new CreateResult(null, CommentStatus.PENDING, clock.instant(), null);
+            return new CreateResult(null, CommentStatus.APPROVED, clock.instant(), null);
         }
 
         UUID parentId = command.parentId();
@@ -246,7 +246,7 @@ public class CommentService {
                 "articleId", target.articleId().toString(),
                 "eventType", "COMMENT_CREATED",
                 "occurredAt", now.toString()), now, now));
-        return new CreateResult(commentId, CommentStatus.PENDING, now, deleteToken);
+        return new CreateResult(commentId, comment.getStatus(), now, deleteToken);
     }
 
     @Transactional
