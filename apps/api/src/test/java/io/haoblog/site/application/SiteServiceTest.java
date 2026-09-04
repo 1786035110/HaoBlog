@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
 
 class SiteServiceTest {
     @Test
@@ -42,6 +43,10 @@ class SiteServiceTest {
 
         assertEquals("http://localhost:8080/music.json",
                 SiteService.normalizeMusicManifestUrl(" http://localhost:8080/music.json ", "local"));
+        assertEquals("http://[::1]:8080/music.json",
+                SiteService.normalizeMusicManifestUrl("http://[::1]:8080/music.json", "local"));
+        assertThrows(IllegalArgumentException.class,
+                () -> SiteService.normalizeMusicManifestUrl("http://[::1]:8080/music.json", "prod"));
         assertEquals("https://cdn.example.test/music.json",
                 SiteService.normalizeMusicManifestUrl("https://cdn.example.test/music.json", "prod"));
         assertThrows(IllegalArgumentException.class,
@@ -68,5 +73,24 @@ class SiteServiceTest {
 
         assertEquals(false, result.musicEnabled());
         assertEquals(true, result.threeDEnabled());
+    }
+
+    @Test
+    void storesAdminManifestAndPrefersItOverEnvironmentFallback() {
+        var repository = mock(SiteSettingRepository.class);
+        var setting = new SiteSetting("default", "HaoBlog", "Night station");
+        when(repository.findBySiteKey("default")).thenReturn(Optional.of(setting));
+        when(repository.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        var service = new SiteService(repository, "https://blog.example.test", "Hao",
+                "https://fallback.example.test/music.json", "prod");
+
+        var updated = service.updateSettings(0, true, true, false,
+                "https://cdn.example.test/music.json");
+
+        assertEquals("https://cdn.example.test/music.json", updated.musicManifestUrl());
+        assertEquals("https://cdn.example.test/music.json", service.get().musicManifestUrl());
+        var invalid = assertThrows(io.haoblog.shared.web.ProblemException.class,
+                () -> service.updateSettings(0, true, true, false, "http://cdn.example.test/music.json"));
+        assertEquals("MUSIC_MANIFEST_URL_INVALID", invalid.getCode());
     }
 }

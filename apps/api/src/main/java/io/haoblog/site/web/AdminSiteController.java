@@ -29,7 +29,7 @@ public class AdminSiteController {
     public Response update(@RequestBody @Valid UpdateRequest request) {
         try {
             return Response.from(service.updateSettings(request.version(), request.commentsEnabled(),
-                    request.musicEnabled(), request.threeDEnabled()));
+                    request.musicEnabled(), request.threeDEnabled(), request.musicManifestUrl()));
         } catch (OptimisticLockingFailureException exception) {
             throw new ProblemException("SITE_VERSION_CONFLICT", "Site setting version conflict",
                     "Reload the latest site settings before saving", service.currentVersion());
@@ -37,13 +37,15 @@ public class AdminSiteController {
     }
 
     public record UpdateRequest(@NotNull Long version, @NotNull Boolean commentsEnabled,
-                                Boolean musicEnabled, Boolean threeDEnabled) {}
+                                Boolean musicEnabled, Boolean threeDEnabled, String musicManifestUrl) {}
 
     public record Response(String title, String description, String siteUrl, String authorName,
-                           boolean commentsEnabled, boolean musicEnabled, boolean threeDEnabled, long version) {
+                           boolean commentsEnabled, boolean musicEnabled, String musicManifestUrl,
+                           boolean threeDEnabled, long version) {
         static Response from(SiteService.AdminSiteResult result) {
             return new Response(result.title(), result.description(), result.siteUrl(), result.authorName(),
-                    result.commentsEnabled(), result.musicEnabled(), result.threeDEnabled(), result.version());
+                    result.commentsEnabled(), result.musicEnabled(), result.musicManifestUrl(),
+                    result.threeDEnabled(), result.version());
         }
     }
 }

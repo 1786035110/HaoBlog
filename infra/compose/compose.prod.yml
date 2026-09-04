@@ -17,6 +17,8 @@ services:
       api:
         condition: service_healthy
     mem_limit: 64m
+    memswap_limit: 64m
+    stop_grace_period: 30s
     cpus: 0.20
     pids_limit: 64
     security_opt: [no-new-privileges:true]
@@ -36,10 +38,16 @@ services:
       NUXT_API_BASE_URL: http://api:8080
       HAOBLOG_MUSIC_MANIFEST_URL: ${HAOBLOG_MUSIC_MANIFEST_URL:-}
       NODE_OPTIONS: --max-old-space-size=192
+      NITRO_SHUTDOWN_TIMEOUT: "20000"
     depends_on:
       api:
         condition: service_healthy
     mem_limit: 320m
+    memswap_limit: 320m
+    stop_grace_period: 30s
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=16777216,mode=1777
     cpus: 0.60
     pids_limit: 128
     security_opt: [no-new-privileges:true]
@@ -88,6 +96,11 @@ services:
       postgres-pgvector:
         condition: service_healthy
     mem_limit: 640m
+    memswap_limit: 640m
+    stop_grace_period: 60s
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=33554432,mode=1777
     cpus: 1.25
     pids_limit: 256
     security_opt: [no-new-privileges:true]
@@ -113,6 +126,8 @@ services:
     volumes:
       - haoblog-postgres-prod-data:/var/lib/postgresql/data
     mem_limit: 480m
+    memswap_limit: 480m
+    stop_grace_period: 60s
     cpus: 0.80
     pids_limit: 128
     security_opt: [no-new-privileges:true]

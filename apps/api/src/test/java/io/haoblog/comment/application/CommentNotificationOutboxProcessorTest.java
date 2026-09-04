@@ -42,7 +42,7 @@ class CommentNotificationOutboxProcessorTest {
     void successMarksProcessed() {
         OutboxEvent event = event();
         when(repository.findAvailable(any(), any(), any(), any())).thenReturn(List.of(event));
-        when(repository.findById(event.getId())).thenReturn(Optional.of(event));
+        when(repository.findByIdForUpdate(event.getId())).thenReturn(Optional.of(event));
 
         processor(true).processDueBatch();
 
@@ -56,8 +56,8 @@ class CommentNotificationOutboxProcessorTest {
         OutboxEvent failed = event();
         OutboxEvent successful = new OutboxEvent(UUID.randomUUID(), "COMMENT_CREATED", payload(), NOW, NOW);
         when(repository.findAvailable(any(), any(), any(), any())).thenReturn(List.of(failed, successful));
-        when(repository.findById(failed.getId())).thenReturn(Optional.of(failed));
-        when(repository.findById(successful.getId())).thenReturn(Optional.of(successful));
+        when(repository.findByIdForUpdate(failed.getId())).thenReturn(Optional.of(failed));
+        when(repository.findByIdForUpdate(successful.getId())).thenReturn(Optional.of(successful));
         doThrow(new CommentNotificationException()).when(mailer).send(failed.getAggregateId());
 
         processor(true).processDueBatch();
@@ -72,7 +72,7 @@ class CommentNotificationOutboxProcessorTest {
     void fifthFailureIsTerminal() {
         OutboxEvent event = event();
         when(repository.findAvailable(any(), any(), any(), any())).thenReturn(List.of(event));
-        when(repository.findById(event.getId())).thenReturn(Optional.of(event));
+        when(repository.findByIdForUpdate(event.getId())).thenReturn(Optional.of(event));
         doThrow(new CommentNotificationException()).when(mailer).send(event.getAggregateId());
 
         for (int attempt = 0; attempt < OutboxEventStateService.MAX_ATTEMPTS; attempt++) {
@@ -88,7 +88,7 @@ class CommentNotificationOutboxProcessorTest {
     void disabledNotificationDrainsWithoutSending() {
         OutboxEvent event = event();
         when(repository.findAvailable(any(), any(), any(), any())).thenReturn(List.of(event));
-        when(repository.findById(event.getId())).thenReturn(Optional.of(event));
+        when(repository.findByIdForUpdate(event.getId())).thenReturn(Optional.of(event));
 
         processor(false).processDueBatch();
 
@@ -106,21 +106,21 @@ class CommentNotificationOutboxProcessorTest {
     }
 
     @Test
-    void claimsOnlyACommentBatchOfTen() {
+    void claimsOnlyOneCommentAtATime() {
         when(repository.findAvailable(any(), any(), any(), any())).thenReturn(List.of());
 
         processor(true).processDueBatch();
 
         var captor = org.mockito.ArgumentCaptor.forClass(Pageable.class);
         verify(repository).findAvailable(org.mockito.ArgumentMatchers.eq("COMMENT_CREATED"), any(), any(), captor.capture());
-        assertEquals(10, captor.getValue().getPageSize());
+        assertEquals(1, captor.getValue().getPageSize());
     }
 
     @Test
     void failureLogsDoNotContainSensitiveExceptionDetails() {
         OutboxEvent event = event();
         when(repository.findAvailable(any(), any(), any(), any())).thenReturn(List.of(event));
-        when(repository.findById(event.getId())).thenReturn(Optional.of(event));
+        when(repository.findByIdForUpdate(event.getId())).thenReturn(Optional.of(event));
         doThrow(new IllegalStateException("smtp-password owner@example.invalid comment body"))
                 .when(mailer).send(event.getAggregateId());
 

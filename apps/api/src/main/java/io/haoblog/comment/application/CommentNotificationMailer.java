@@ -8,6 +8,9 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.UUID;
 
@@ -20,19 +23,31 @@ public class CommentNotificationMailer {
     private final SiteService site;
     private final CommentNotificationProperties properties;
     private final JavaMailSender mailSender;
+    private final TransactionTemplate transaction;
 
     public CommentNotificationMailer(CommentRepository comments, ArticleCommentLookup articles,
                                      SiteService site, CommentNotificationProperties properties,
-                                     JavaMailSender mailSender) {
+                                     JavaMailSender mailSender, PlatformTransactionManager transactionManager) {
         this.comments = comments;
         this.articles = articles;
         this.site = site;
         this.properties = properties;
         this.mailSender = mailSender;
+        this.transaction = new TransactionTemplate(transactionManager);
+        this.transaction.setReadOnly(true);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(propagation = Propagation.NEVER)
     public void send(UUID commentId) {
+        SimpleMailMessage message = transaction.execute(status -> prepare(commentId));
+        try {
+            mailSender.send(message);
+        } catch (Exception ignored) {
+            throw new CommentNotificationException();
+        }
+    }
+
+    private SimpleMailMessage prepare(UUID commentId) {
         Comment comment = comments.findById(commentId).orElseThrow(CommentNotificationException::new);
         ArticleCommentLookup.NotificationArticle article = articles
                 .findCommentNotificationArticle(comment.getArticleId())
@@ -44,18 +59,14 @@ public class CommentNotificationMailer {
         SimpleMailMessage message = new SimpleMailMessage();
         message.setTo(recipient);
         message.setFrom(from);
-        message.setSubject("HaoBlog 新评论待审核");
-        message.setText("有一条评论待审核\n\n"
+        message.setSubject("HaoBlog 新评论已发布");
+        message.setText("有一条评论已即时发布，请按需管理\n\n"
                 + "昵称：" + comment.getNickname() + "\n"
                 + "文章：" + article.title() + "\n"
                 + "时间：" + comment.getCreatedAt() + "\n"
                 + "正文摘要：" + summarize(comment.getContent()) + "\n"
-                + "Studio 审核链接：" + studioUrl + "\n");
-        try {
-            mailSender.send(message);
-        } catch (Exception ignored) {
-            throw new CommentNotificationException();
-        }
+                + "Studio 管理链接：" + studioUrl + "\n");
+        return message;
     }
 
     private static String required(String value) {

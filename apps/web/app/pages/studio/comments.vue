@@ -3,7 +3,7 @@
     <div class="page-heading">
       <div>
         <p class="instrument-label">STUDIO / COMMENT SIGNAL</p>
-        <h1 id="comments-title">评论审核</h1>
+        <h1 id="comments-title">评论管理</h1>
       </div>
       <p class="signal-note">{{ list?.total ?? 0 }} 条记录 · {{ page + 1 }} / {{ pageCount }}</p>
     </div>
@@ -12,7 +12,7 @@
       <label>状态
         <select v-model="filters.status" aria-label="按状态筛选">
           <option value="">全部</option>
-          <option value="PENDING">待审核</option>
+          <option value="PENDING">历史待处理</option>
           <option value="APPROVED">已通过</option>
           <option value="SPAM">垃圾</option>
           <option value="REJECTED">已拒绝</option>
@@ -38,11 +38,11 @@
     </form>
 
     <p v-if="error" class="form-error" role="alert">{{ error }}</p>
-    <p v-if="loading" class="signal-note" role="status">正在读取审核日志…</p>
+    <p v-if="loading" class="signal-note" role="status">正在读取评论记录…</p>
     <div v-else class="log-layout">
       <div class="log-table-wrap">
         <table class="log-table">
-          <caption class="sr-only">评论审核日志</caption>
+          <caption class="sr-only">评论管理记录</caption>
           <thead><tr><th>时间</th><th>状态</th><th>信号</th><th>文章 ID</th><th>邮箱</th><th>操作</th></tr></thead>
           <tbody>
             <tr v-for="item in list?.items || []" :key="item.id" :data-active="selected?.id === item.id">

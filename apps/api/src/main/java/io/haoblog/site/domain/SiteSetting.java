@@ -13,6 +13,7 @@ public class SiteSetting {
     @Column(nullable = false, length = 600) private String description;
     @Column(name = "comments_enabled", nullable = false) private boolean commentsEnabled = true;
     @Column(name = "music_enabled", nullable = false) private boolean musicEnabled = false;
+    @Column(name = "music_manifest_url", length = 2048) private String musicManifestUrl;
     @Column(name = "three_d_enabled", nullable = false) private boolean threeDEnabled = false;
     @Version @Column(nullable = false) private long version;
     protected SiteSetting() {}
@@ -23,9 +24,11 @@ public class SiteSetting {
     public String getDescription() { return description; }
     public boolean isCommentsEnabled() { return commentsEnabled; }
     public boolean isMusicEnabled() { return musicEnabled; }
+    public String getMusicManifestUrl() { return musicManifestUrl; }
     public boolean isThreeDEnabled() { return threeDEnabled; }
     public long getVersion() { return version; }
     public void setCommentsEnabled(boolean commentsEnabled) { this.commentsEnabled = commentsEnabled; }
     public void setMusicEnabled(boolean musicEnabled) { this.musicEnabled = musicEnabled; }
+    public void setMusicManifestUrl(String musicManifestUrl) { this.musicManifestUrl = musicManifestUrl; }
     public void setThreeDEnabled(boolean threeDEnabled) { this.threeDEnabled = threeDEnabled; }
 }

@@ -7,7 +7,9 @@ type CommentPage = components['schemas']['CommentPageResponse']
 type CommentView = components['schemas']['CommentView']
 type CommentFormContext = components['schemas']['CommentFormContext']
 type Submission = components['schemas']['CommentSubmissionResponse']
-type FormStatus = 'idle' | 'loading' | 'submitting' | 'pending' | 'rate-limited' | 'error'
+type FormStatus = 'idle' | 'loading' | 'submitting' | 'published' | 'rate-limited' | 'error'
+
+const emit = defineEmits<{ published: [] }>()
 
 const props = defineProps<{
   slug: string
@@ -148,12 +150,13 @@ async function submitComment() {
       },
     })
     rememberToken(result.id, result.deleteToken)
-    formStatus.value = 'pending'
-    formMessage.value = '评论已接收，待审核通过后会回到这条回波信号。'
+    formStatus.value = 'published'
+    formMessage.value = '评论已发布。'
     form.content = ''
     replyTo.value = null
     formContext.value = null
     formReadyAt.value = 0
+    emit('published')
   } catch (error) {
     const status = responseStatus(error)
     retryAfter.value = status === 429 ? responseRetryAfter(error) : null

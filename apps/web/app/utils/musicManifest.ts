@@ -17,7 +17,9 @@ export interface MusicManifest {
   tracks: MusicTrack[]
 }
 
-const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1'])
+export function isLocalMusicHost(hostname: string) {
+  return ['localhost', '127.0.0.1', '::1', '[::1]'].includes(hostname.toLowerCase())
+}
 
 function text(value: unknown, maxLength: number) {
   return typeof value === 'string' && value.trim().length > 0 && value.length <= maxLength
@@ -27,7 +29,7 @@ function safeUrl(value: unknown, allowLocalhost: boolean) {
   if (typeof value !== 'string' || value.length > 2048) return null
   try {
     const url = new URL(value)
-    const localHttp = allowLocalhost && url.protocol === 'http:' && LOCAL_HOSTS.has(url.hostname.toLowerCase())
+    const localHttp = allowLocalhost && url.protocol === 'http:' && isLocalMusicHost(url.hostname)
     if (!(url.protocol === 'https:' || localHttp) || url.username || url.password || url.hash) return null
     return url.toString()
   } catch {

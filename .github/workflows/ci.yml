@@ -62,28 +62,8 @@ jobs:
         run: |
           compose=(docker compose --env-file infra/compose/.env.ci.example -f infra/compose/compose.prod.yml)
           "${compose[@]}" ps
-          for service in caddy web api postgres-pgvector; do
-            container=$("${compose[@]}" ps -q "$service")
-            test -n "$container"
-            test "$(docker inspect -f '{{.State.Health.Status}}' "$container")" = healthy
-          done
-          test "$(docker inspect -f '{{.HostConfig.Memory}}' $("${compose[@]}" ps -q caddy))" = 67108864
-          test "$(docker inspect -f '{{.HostConfig.Memory}}' $("${compose[@]}" ps -q web))" = 335544320
-          test "$(docker inspect -f '{{.HostConfig.Memory}}' $("${compose[@]}" ps -q api))" = 671088640
-          test "$(docker inspect -f '{{.HostConfig.Memory}}' $("${compose[@]}" ps -q postgres-pgvector))" = 503316480
-          test "$(docker inspect -f '{{.HostConfig.NanoCpus}}' $("${compose[@]}" ps -q caddy))" = 200000000
-          test "$(docker inspect -f '{{.HostConfig.NanoCpus}}' $("${compose[@]}" ps -q web))" = 600000000
-          test "$(docker inspect -f '{{.HostConfig.NanoCpus}}' $("${compose[@]}" ps -q api))" = 1250000000
-          test "$(docker inspect -f '{{.HostConfig.NanoCpus}}' $("${compose[@]}" ps -q postgres-pgvector))" = 800000000
-          test "$(docker inspect -f '{{.HostConfig.PidsLimit}}' $("${compose[@]}" ps -q caddy))" = 64
-          test "$(docker inspect -f '{{.HostConfig.PidsLimit}}' $("${compose[@]}" ps -q web))" = 128
-          test "$(docker inspect -f '{{.HostConfig.PidsLimit}}' $("${compose[@]}" ps -q api))" = 256
-          test "$(docker inspect -f '{{.HostConfig.PidsLimit}}' $("${compose[@]}" ps -q postgres-pgvector))" = 128
-          test -n "$(docker port $("${compose[@]}" ps -q caddy) 80/tcp)"
-          test -n "$(docker port $("${compose[@]}" ps -q caddy) 443/tcp)"
-          test -z "$(docker port $("${compose[@]}" ps -q web))"
-          test -z "$(docker port $("${compose[@]}" ps -q api))"
-          test -z "$(docker port $("${compose[@]}" ps -q postgres-pgvector))"
+          project=$("${compose[@]}" config --format json | node -e 'let s="";process.stdin.on("data",c=>s+=c).on("end",()=>console.log(JSON.parse(s).name))')
+          "${compose[@]}" config --format json | node scripts/verify-compose-resources.mjs - "$project"
       - name: Smoke test
         env:
           HAOBLOG_BASE_URL: http://localhost

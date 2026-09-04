@@ -12,6 +12,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/IfNoneMatch'
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200':
           description: RSS 2.0 feed of the latest public articles
           headers:
@@ -38,6 +39,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/IfNoneMatch'
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200':
           description: Sitemap of public site pages and articles
           headers:
@@ -63,6 +65,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/IfNoneMatch'
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200':
           description: Site settings
           headers:
@@ -86,6 +89,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/IfNoneMatch'
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200':
           description: Public knowledge garden graph derived from published article snapshots and active tools
           headers:
@@ -118,6 +122,7 @@ paths:
           schema: { type: string, maxLength: 240 }
         - $ref: '#/components/parameters/IfNoneMatch'
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200':
           description: Active public tools and their valid categories
           headers:
@@ -148,6 +153,7 @@ paths:
           schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
         - $ref: '#/components/parameters/IfNoneMatch'
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200':
           description: Published articles
           headers:
@@ -176,6 +182,7 @@ paths:
           schema: { type: string, minLength: 1, maxLength: 160 }
         - $ref: '#/components/parameters/IfNoneMatch'
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200':
           description: Published article detail
           headers:
@@ -212,6 +219,7 @@ paths:
           schema: { type: integer, minimum: 1, maximum: 20, default: 20 }
         - $ref: '#/components/parameters/IfNoneMatch'
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200':
           description: Public article summaries matching the query
           headers:
@@ -244,6 +252,7 @@ paths:
           in: query
           schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200':
           description: Approved top-level comments and first-level replies
           content:
@@ -266,8 +275,9 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/CommentCreateRequest' }
       responses:
-        '202':
-          description: Comment accepted for moderation
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
+        '201':
+          description: Comment created and published when the submission is genuine
           content:
             application/json:
               schema: { $ref: '#/components/schemas/CommentSubmissionResponse' }
@@ -287,6 +297,7 @@ paths:
           required: true
           schema: { type: string, minLength: 1, maxLength: 160 }
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200':
           description: CSRF token and one-time comment form challenge
           content:
@@ -302,6 +313,7 @@ paths:
         - $ref: '#/components/parameters/CsrfHeader'
         - $ref: '#/components/parameters/CommentDeleteToken'
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '204': { description: Comment content deleted }
         '403': { $ref: '#/components/responses/CsrfInvalid' }
         '404': { $ref: '#/components/responses/ResourceNotFound' }
@@ -312,6 +324,7 @@ paths:
       parameters:
         - { name: token, in: path, required: true, schema: { type: string, minLength: 43, maxLength: 43 } }
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200':
           description: Uncached article working-copy preview
           headers:
@@ -331,6 +344,7 @@ paths:
         - { name: keyword, in: query, schema: { type: string, maxLength: 240 } }
         - { name: direction, in: query, schema: { type: string, enum: [asc, desc], default: desc } }
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200':
           description: Administrator article list
           content:
@@ -347,6 +361,7 @@ paths:
         content:
           application/json: { schema: { $ref: '#/components/schemas/AdminArticleCreateRequest' } }
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '201':
           description: Draft created
           headers: { Location: { schema: { type: string, format: uri } } }
@@ -384,8 +399,9 @@ paths:
         - { name: keyword, in: query, schema: { type: string, maxLength: 240 } }
         - { name: direction, in: query, schema: { type: string, enum: [asc, desc], default: desc } }
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200':
-          description: Administrator comment moderation log; email is masked and security material is omitted
+          description: Administrator comment management log; email is masked and security material is omitted
           content: { application/json: { schema: { $ref: '#/components/schemas/AdminCommentListResponse' } } }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
@@ -397,6 +413,7 @@ paths:
       operationId: getAdminComment
       security: [{ sessionCookie: [] }]
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200':
           description: Comment detail with decrypted optional email, content, and moderation audit
           content: { application/json: { schema: { $ref: '#/components/schemas/AdminCommentDetail' } } }
@@ -412,6 +429,7 @@ paths:
       parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CommentModerationRequest' } } } }
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200': { description: Moderated comment, content: { application/json: { schema: { $ref: '#/components/schemas/AdminCommentDetail' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
@@ -423,6 +441,7 @@ paths:
       operationId: getAdminSite
       security: [{ sessionCookie: [] }]
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200': { description: Administrator site settings, content: { application/json: { schema: { $ref: '#/components/schemas/AdminSiteResponse' } } } }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
@@ -432,6 +451,7 @@ paths:
       parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AdminSiteUpdateRequest' } } } }
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200': { description: Site settings updated, content: { application/json: { schema: { $ref: '#/components/schemas/AdminSiteResponse' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
@@ -462,6 +482,7 @@ paths:
         - { $ref: '#/components/parameters/CsrfHeader' }
         - { name: mediaId, in: path, required: true, schema: { type: string, format: uuid } }
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '204': { description: Media asset marked as deleted }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/CsrfInvalid' }
@@ -477,6 +498,7 @@ paths:
       operationId: getAdminArticle
       security: [{ sessionCookie: [] }]
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200': { description: Administrator article, content: { application/json: { schema: { $ref: '#/components/schemas/AdminArticleResponse' } } } }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
@@ -489,6 +511,7 @@ paths:
         required: true
         content: { application/json: { schema: { $ref: '#/components/schemas/AdminArticleUpdateRequest' } } }
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200': { description: Article updated, content: { application/json: { schema: { $ref: '#/components/schemas/AdminArticleResponse' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
@@ -500,6 +523,7 @@ paths:
       security: [{ sessionCookie: [] }]
       parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '204': { description: Draft physically deleted }
         '200': { description: Article archived, content: { application/json: { schema: { $ref: '#/components/schemas/AdminArticleResponse' } } } }
         '401': { $ref: '#/components/responses/Unauthenticated' }
@@ -518,6 +542,7 @@ paths:
         - { name: page, in: query, schema: { type: integer, minimum: 0, default: 0 } }
         - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 20 } }
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200':
           description: Administrator article version summaries without Markdown
           content: { application/json: { schema: { $ref: '#/components/schemas/AdminArticleVersionListResponse' } } }
@@ -539,6 +564,7 @@ paths:
       operationId: getAdminArticleVersion
       security: [{ sessionCookie: [] }]
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200':
           description: Administrator article version detail
           content: { application/json: { schema: { $ref: '#/components/schemas/AdminArticleVersionResponse' } } }
@@ -561,6 +587,7 @@ paths:
       parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ArticleVersionRequest' } } } }
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200':
           description: Restored editable working copy; public revision is unchanged
           content: { application/json: { schema: { $ref: '#/components/schemas/AdminArticleResponse' } } }
@@ -578,6 +605,7 @@ paths:
         - { $ref: '#/components/parameters/CsrfHeader' }
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ArticleVersionRequest' } } } }
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200': { description: Published article, content: { application/json: { schema: { $ref: '#/components/schemas/ArticleActionResponse' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
@@ -593,6 +621,7 @@ paths:
         - { $ref: '#/components/parameters/CsrfHeader' }
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ScheduleArticleRequest' } } } }
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200': { description: Scheduled article, content: { application/json: { schema: { $ref: '#/components/schemas/ArticleActionResponse' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
@@ -608,6 +637,7 @@ paths:
         - { $ref: '#/components/parameters/CsrfHeader' }
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ArticleVersionRequest' } } } }
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200': { description: Archived article, content: { application/json: { schema: { $ref: '#/components/schemas/ArticleActionResponse' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
@@ -623,6 +653,7 @@ paths:
         - { $ref: '#/components/parameters/CsrfHeader' }
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ArticleVersionRequest' } } } }
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200': { description: Editable draft, content: { application/json: { schema: { $ref: '#/components/schemas/ArticleActionResponse' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
@@ -638,6 +669,7 @@ paths:
         - { $ref: '#/components/parameters/CsrfHeader' }
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ArticleVersionRequest' } } } }
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '201': { description: One-time preview token, content: { application/json: { schema: { $ref: '#/components/schemas/PreviewTokenResponse' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
@@ -653,6 +685,7 @@ paths:
         - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
         - { name: tokenId, in: path, required: true, schema: { type: string, format: uuid } }
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '204': { description: Preview token revoked }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/CsrfInvalid' }
@@ -662,6 +695,7 @@ paths:
       operationId: listAdminCategories
       security: [{ sessionCookie: [] }]
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200': { description: Categories, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/CategoryResponse' } } } } }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
@@ -671,6 +705,7 @@ paths:
       parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CategoryRequest' } } } }
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '201': { description: Category created, content: { application/json: { schema: { $ref: '#/components/schemas/CategoryResponse' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
@@ -682,6 +717,7 @@ paths:
       operationId: getAdminCategory
       security: [{ sessionCookie: [] }]
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200': { description: Category, content: { application/json: { schema: { $ref: '#/components/schemas/CategoryResponse' } } } }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
@@ -692,6 +728,7 @@ paths:
       parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CategoryRequest' } } } }
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200': { description: Category updated, content: { application/json: { schema: { $ref: '#/components/schemas/CategoryResponse' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
@@ -703,6 +740,7 @@ paths:
       security: [{ sessionCookie: [] }]
       parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '204': { description: Category deleted }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/CsrfInvalid' }
@@ -713,6 +751,7 @@ paths:
       operationId: listAdminTags
       security: [{ sessionCookie: [] }]
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200': { description: Tags, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/TagResponse' } } } } }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
@@ -722,6 +761,7 @@ paths:
       parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/TagRequest' } } } }
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '201': { description: Tag created, content: { application/json: { schema: { $ref: '#/components/schemas/TagResponse' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
@@ -733,6 +773,7 @@ paths:
       operationId: getAdminTag
       security: [{ sessionCookie: [] }]
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200': { description: Tag, content: { application/json: { schema: { $ref: '#/components/schemas/TagResponse' } } } }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
@@ -743,6 +784,7 @@ paths:
       parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/TagRequest' } } } }
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200': { description: Tag updated, content: { application/json: { schema: { $ref: '#/components/schemas/TagResponse' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
@@ -754,6 +796,7 @@ paths:
       security: [{ sessionCookie: [] }]
       parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '204': { description: Tag deleted }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/CsrfInvalid' }
@@ -764,6 +807,7 @@ paths:
       operationId: listAdminToolCategories
       security: [{ sessionCookie: [] }]
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200': { description: Tool categories, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/ToolCategoryResponse' } } } } }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
@@ -773,6 +817,7 @@ paths:
       parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ToolCategoryCreateRequest' } } } }
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '201': { description: Tool category created, content: { application/json: { schema: { $ref: '#/components/schemas/ToolCategoryResponse' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
@@ -784,6 +829,7 @@ paths:
       operationId: getAdminToolCategory
       security: [{ sessionCookie: [] }]
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200': { description: Tool category, content: { application/json: { schema: { $ref: '#/components/schemas/ToolCategoryResponse' } } } }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
@@ -794,6 +840,7 @@ paths:
       parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ToolCategoryUpdateRequest' } } } }
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200': { description: Tool category updated, content: { application/json: { schema: { $ref: '#/components/schemas/ToolCategoryResponse' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
@@ -807,6 +854,7 @@ paths:
         - { $ref: '#/components/parameters/CsrfHeader' }
         - { name: version, in: query, required: true, schema: { type: integer, format: int64, minimum: 0 } }
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '204': { description: Tool category deleted }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/CsrfInvalid' }
@@ -826,6 +874,7 @@ paths:
         - { name: sort, in: query, schema: { type: string, enum: [sortOrder, createdAt, updatedAt, title], default: sortOrder } }
         - { name: direction, in: query, schema: { type: string, enum: [asc, desc], default: asc } }
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200': { description: Tools, content: { application/json: { schema: { $ref: '#/components/schemas/AdminToolListResponse' } } } }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
@@ -835,6 +884,7 @@ paths:
       parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ToolCreateRequest' } } } }
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '201': { description: Tool created, content: { application/json: { schema: { $ref: '#/components/schemas/ToolResponse' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
@@ -846,6 +896,7 @@ paths:
       operationId: getAdminTool
       security: [{ sessionCookie: [] }]
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200': { description: Tool, content: { application/json: { schema: { $ref: '#/components/schemas/ToolResponse' } } } }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/Forbidden' }
@@ -856,6 +907,7 @@ paths:
       parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ToolUpdateRequest' } } } }
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200': { description: Tool updated, content: { application/json: { schema: { $ref: '#/components/schemas/ToolResponse' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthenticated' }
@@ -869,6 +921,7 @@ paths:
         - { $ref: '#/components/parameters/CsrfHeader' }
         - { name: version, in: query, required: true, schema: { type: integer, format: int64, minimum: 0 } }
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '204': { description: Tool deleted }
         '401': { $ref: '#/components/responses/Unauthenticated' }
         '403': { $ref: '#/components/responses/CsrfInvalid' }
@@ -887,6 +940,7 @@ paths:
             schema:
               $ref: '#/components/schemas/AdminLoginRequest'
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200':
           description: Administrator session created
           content:
@@ -906,6 +960,7 @@ paths:
       security:
         - sessionCookie: []
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200':
           description: Current administrator session
           content:
@@ -923,6 +978,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/CsrfHeader'
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '204':
           description: Administrator session deleted
         '401':
@@ -934,6 +990,7 @@ paths:
       operationId: getAdminCsrfToken
       security: []
       responses:
+        '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200':
           description: CSRF token for administrator write requests
           content:
@@ -963,6 +1020,16 @@ components:
       required: false
       schema: { type: string }
   responses:
+    DatabaseBusy:
+      description: DATABASE_BUSY — database connection, statement or lock wait timed out. Check saved state before retrying writes. Filter and Session failure mapping is handled separately.
+      headers:
+        Retry-After:
+          schema: { type: integer, const: 2 }
+        Cache-Control:
+          schema: { type: string, const: no-store }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemResponse' }
     BadRequest:
       description: Invalid request
       content:
@@ -1047,14 +1114,14 @@ components:
         application/problem+json:
           schema: { $ref: '#/components/schemas/ProblemResponse' }
     MediaStorageUnavailable:
-      description: Object storage metadata service unavailable
+      description: MEDIA_STORAGE_UNAVAILABLE or DATABASE_BUSY. Database timeouts include Retry-After 2 and Cache-Control no-store; check saved state before retrying writes.
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/ProblemResponse' }
   schemas:
     SiteResponse:
       type: object
-      required: [title, description, siteUrl, authorName, commentsEnabled, musicEnabled, threeDEnabled]
+      required: [title, description, siteUrl, authorName, commentsEnabled, musicEnabled, musicManifestUrl, threeDEnabled]
       properties:
         title: { type: string }
         description: { type: string }
@@ -1062,6 +1129,7 @@ components:
         authorName: { type: string }
         commentsEnabled: { type: boolean }
         musicEnabled: { type: boolean }
+        musicManifestUrl: { type: [string, 'null'], format: uri, maxLength: 2048 }
         threeDEnabled: { type: boolean }
     ArticleSummary:
       type: object
@@ -1138,7 +1206,7 @@ components:
       required: [id, status, createdAt]
       properties:
         id: { type: [string, 'null'], format: uuid }
-        status: { type: string, enum: [PENDING] }
+        status: { type: string, enum: [APPROVED] }
         createdAt: { type: string, format: date-time }
         deleteToken: { type: [string, 'null'], minLength: 43, maxLength: 43 }
     CommentStatus:
@@ -1395,15 +1463,16 @@ components:
         commentsEnabled: { type: boolean }
     AdminSiteUpdateRequest:
       type: object
-      required: [version, commentsEnabled]
+      required: [version, commentsEnabled, musicManifestUrl]
       properties:
         version: { type: integer, format: int64, minimum: 0 }
         commentsEnabled: { type: boolean }
         musicEnabled: { type: boolean }
+        musicManifestUrl: { type: [string, 'null'], format: uri, maxLength: 2048 }
         threeDEnabled: { type: boolean }
     AdminSiteResponse:
       type: object
-      required: [title, description, siteUrl, authorName, commentsEnabled, musicEnabled, threeDEnabled, version]
+      required: [title, description, siteUrl, authorName, commentsEnabled, musicEnabled, musicManifestUrl, threeDEnabled, version]
       properties:
         title: { type: string }
         description: { type: string }
@@ -1411,6 +1480,7 @@ components:
         authorName: { type: string }
         commentsEnabled: { type: boolean }
         musicEnabled: { type: boolean }
+        musicManifestUrl: { type: [string, 'null'], format: uri, maxLength: 2048 }
         threeDEnabled: { type: boolean }
         version: { type: integer, format: int64, minimum: 0 }
     GardenGraphResponse:

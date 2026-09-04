@@ -13,6 +13,10 @@ import java.util.UUID;
 
 public interface OutboxEventRepository extends JpaRepository<OutboxEvent, UUID> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select e from OutboxEvent e where e.id = :id")
+    java.util.Optional<OutboxEvent> findByIdForUpdate(@Param("id") UUID id);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
             select e from OutboxEvent e
             where e.eventType = :eventType

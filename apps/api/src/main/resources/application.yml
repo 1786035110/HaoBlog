@@ -1,4 +1,6 @@
 spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
   application:
     name: haoblog-api
   datasource:
@@ -8,6 +10,13 @@ spring:
     hikari:
       maximum-pool-size: ${DB_POOL_MAXIMUM_SIZE:6}
       minimum-idle: ${DB_POOL_MINIMUM_IDLE:1}
+      connection-timeout: 2000
+      validation-timeout: 1000
+      connection-init-sql: SET statement_timeout = '3s'; SET lock_timeout = '1s'
+      data-source-properties:
+        connectTimeout: 2
+        socketTimeout: 5
+        cancelSignalTimeout: 1
   mail:
     host: ${HAOBLOG_COMMENT_NOTIFICATION_SMTP_HOST:}
     port: ${HAOBLOG_COMMENT_NOTIFICATION_SMTP_PORT:25}
@@ -19,6 +28,9 @@ spring:
       mail.smtp.connectiontimeout: 5000
       mail.smtp.timeout: 3000
       mail.smtp.writetimeout: 5000
+      mail.smtp.quitwait: false
+      mail.smtp.socketFactory.class: io.haoblog.comment.infrastructure.DeadlineSmtpSocketFactory
+      mail.smtp.socketFactory.fallback: false
   jpa:
     open-in-view: false
     hibernate:
@@ -29,6 +41,10 @@ spring:
         size: 1
   flyway:
     enabled: true
+    # 使用独立迁移连接，不能继承业务连接的短 SQL 超时。
+    url: ${spring.datasource.url}
+    user: ${spring.datasource.username}
+    password: ${spring.datasource.password}
     placeholders:
       admin_username: ${HAOBLOG_ADMIN_USERNAME}
       admin_password_hash: ${HAOBLOG_ADMIN_PASSWORD_HASH}
@@ -54,6 +70,7 @@ management:
     mail:
       enabled: ${HAOBLOG_COMMENT_NOTIFICATION_ENABLED:false}
 server:
+  shutdown: graceful
   port: ${API_PORT:8080}
   tomcat:
     threads:
