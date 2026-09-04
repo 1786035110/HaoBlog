@@ -37,7 +37,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import type { Site } from '../../composables/useAdminSite'
-import { decodeMusicManifest } from '../../utils/musicManifest'
+import { decodeMusicManifest, isLocalMusicHost } from '../../utils/musicManifest'
 
 definePageMeta({ layout: 'studio' })
 
@@ -107,7 +107,7 @@ async function validateManifest() {
   })
   if (!response.ok) throw new Error(`音乐清单请求失败（HTTP ${response.status}）。`)
   const manifest = decodeMusicManifest(await response.arrayBuffer(), {
-    allowLocalhost: location.hostname === 'localhost' || location.hostname === '127.0.0.1',
+    allowLocalhost: isLocalMusicHost(location.hostname),
   })
   if (!manifest.tracks.length) throw new Error('音乐清单中没有可播放曲目。')
   manifestStatus.value = `已验证 ${manifest.tracks.length} 首曲目。`

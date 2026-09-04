@@ -147,7 +147,7 @@ public class SiteService {
         return value;
     }
 
-    private static final java.util.Set<String> SetOfLocalHosts = java.util.Set.of("localhost", "127.0.0.1", "::1");
+    private static final java.util.Set<String> SetOfLocalHosts = java.util.Set.of("localhost", "127.0.0.1", "::1", "[::1]");
 
     private String effectiveMusicManifestUrl(io.haoblog.site.domain.SiteSetting setting) {
         return setting.getMusicManifestUrl() == null ? fallbackMusicManifestUrl : setting.getMusicManifestUrl();

@@ -36,7 +36,7 @@ for (const [service, [memory, cpus, pids]] of Object.entries(expected)) {
       : [['/var/lib/postgresql/data', 'volume', false]]).sort())
   }
   if (!project) continue
-  const ids = docker('ps', '-aq', '--filter', `label=com.docker.compose.project=${project}`, '--filter', `label=com.docker.compose.service=${service}`).split(/\s+/)
+  const ids = docker('ps', '-aq', '--filter', `label=com.docker.compose.project=${project}`, '--filter', `label=com.docker.compose.service=${service}`).split(/\s+/).filter(Boolean)
   assert.equal(ids.length, 1, `${service}: exactly one container required`)
   // 仅输出白名单；不能把包含密码的 Config.Env 写入证据。
   const format = '{"memory":{{.HostConfig.Memory}},"swap":{{.HostConfig.MemorySwap}},"cpus":{{.HostConfig.NanoCpus}},"pids":{{.HostConfig.PidsLimit}},"readonly":{{.HostConfig.ReadonlyRootfs}},"tmpfs":{{json (index .HostConfig "Tmpfs")}},"security":{{json .HostConfig.SecurityOpt}},"logging":{{json .HostConfig.LogConfig}},"restart":{{json .HostConfig.RestartPolicy.Name}},"ports":{{json .HostConfig.PortBindings}},"grace":{{.Config.StopTimeout}},"user":{{json .Config.User}},"mounts":{{json .Mounts}},"running":{{.State.Running}},"oom":{{.State.OOMKilled}}}'

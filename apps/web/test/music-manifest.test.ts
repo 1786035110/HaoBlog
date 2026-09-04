@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { decodeMusicManifest, MUSIC_MANIFEST_MAX_BYTES, validateMusicManifest } from '../app/utils/musicManifest'
+import { decodeMusicManifest, isLocalMusicHost, MUSIC_MANIFEST_MAX_BYTES, validateMusicManifest } from '../app/utils/musicManifest'
 
 const track = {
   id: 'night-01',
@@ -35,5 +35,13 @@ describe('music manifest protocol', () => {
   it('rejects manifests larger than 64 KiB before parsing', () => {
     const bytes = new Uint8Array(MUSIC_MANIFEST_MAX_BYTES + 1)
     expect(() => decodeMusicManifest(bytes.buffer)).toThrow('64 KiB')
+  })
+
+  it('allows IPv6 loopback only from a local page', () => {
+    const input = { version: 1, tracks: [{ ...track, audioUrl: 'http://[::1]:4173/audio.mp3' }] }
+    expect(validateMusicManifest(input, { allowLocalhost: isLocalMusicHost(new URL('http://[::1]:3000').hostname) }).tracks[0]?.audioUrl).toBe(input.tracks[0]!.audioUrl)
+    for (const host of ['example.test', 'localhost.example.test', '[::2]']) {
+      expect(() => validateMusicManifest(input, { allowLocalhost: isLocalMusicHost(host) })).toThrow('HTTPS')
+    }
   })
 })

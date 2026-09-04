@@ -43,6 +43,10 @@ class SiteServiceTest {
 
         assertEquals("http://localhost:8080/music.json",
                 SiteService.normalizeMusicManifestUrl(" http://localhost:8080/music.json ", "local"));
+        assertEquals("http://[::1]:8080/music.json",
+                SiteService.normalizeMusicManifestUrl("http://[::1]:8080/music.json", "local"));
+        assertThrows(IllegalArgumentException.class,
+                () -> SiteService.normalizeMusicManifestUrl("http://[::1]:8080/music.json", "prod"));
         assertEquals("https://cdn.example.test/music.json",
                 SiteService.normalizeMusicManifestUrl("https://cdn.example.test/music.json", "prod"));
         assertThrows(IllegalArgumentException.class,

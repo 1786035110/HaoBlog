@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
-import { decodeMusicManifest, type MusicManifest, type MusicTrack } from '../../utils/musicManifest'
+import { decodeMusicManifest, isLocalMusicHost, type MusicManifest, type MusicTrack } from '../../utils/musicManifest'
 import { useDataSaver } from '../../composables/useDataSaver'
 import { useMotionPreference } from '../../composables/useMotionPreference'
 
@@ -72,7 +72,7 @@ async function loadManifest() {
     })
     if (!response.ok) throw new Error(`音乐清单请求失败（HTTP ${response.status}）。`)
     manifest.value = decodeMusicManifest(await response.arrayBuffer(), {
-      allowLocalhost: location.hostname === 'localhost' || location.hostname === '127.0.0.1',
+      allowLocalhost: isLocalMusicHost(location.hostname),
     })
     if (!tracks.value.length) throw new Error('当前没有可播放的授权曲目。')
     if (!tracks.value.some(track => track.id === selectedTrackId.value)) selectedTrackId.value = tracks.value[0]!.id
