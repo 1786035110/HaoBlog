@@ -55,6 +55,17 @@ public class GlobalExceptionHandler {
         return problemResponseWriter.response(HttpStatus.CONFLICT, "ARTICLE_VERSION_CONFLICT", "Article version conflict", "Reload the latest article before saving");
     }
 
+    @ExceptionHandler({org.springframework.dao.QueryTimeoutException.class,
+            org.springframework.dao.PessimisticLockingFailureException.class,
+            org.springframework.dao.DataAccessResourceFailureException.class,
+            org.springframework.transaction.CannotCreateTransactionException.class})
+    ResponseEntity<ProblemResponse> databaseUnavailable(Exception exception) {
+        var response = problemResponseWriter.response(HttpStatus.SERVICE_UNAVAILABLE,
+                "DATABASE_BUSY", "Database temporarily unavailable", "Retry later; check saved state before repeating a write");
+        return ResponseEntity.status(response.getStatusCode()).headers(response.getHeaders())
+                .header("Retry-After", "2").header("Cache-Control", "no-store").body(response.getBody());
+    }
+
     @ExceptionHandler({NoResourceFoundException.class, NoHandlerFoundException.class})
     ResponseEntity<ProblemResponse> notFound(NoResourceFoundException exception) {
         return problemResponseWriter.response(HttpStatus.NOT_FOUND, "NOT_FOUND", "Resource not found", null);

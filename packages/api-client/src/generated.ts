@@ -1249,6 +1249,17 @@ export interface components {
         };
     };
     responses: {
+        /** @description DATABASE_BUSY — database connection, statement or lock wait timed out. Check saved state before retrying writes. Filter and Session failure mapping is handled separately. */
+        DatabaseBusy: {
+            headers: {
+                "Retry-After"?: 2;
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemResponse"];
+            };
+        };
         /** @description Invalid request */
         BadRequest: {
             headers: {
@@ -1388,7 +1399,7 @@ export interface components {
                 "application/problem+json": components["schemas"]["ProblemResponse"];
             };
         };
-        /** @description Object storage metadata service unavailable */
+        /** @description MEDIA_STORAGE_UNAVAILABLE or DATABASE_BUSY. Database timeouts include Retry-After 2 and Cache-Control no-store; check saved state before retrying writes. */
         MediaStorageUnavailable: {
             headers: {
                 [name: string]: unknown;
@@ -1445,6 +1456,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     getSitemap: {
@@ -1480,6 +1492,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     getPublicSite: {
@@ -1514,6 +1527,7 @@ export interface operations {
                 content?: never;
             };
             500: components["responses"]["InternalError"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     getPublicGarden: {
@@ -1548,6 +1562,7 @@ export interface operations {
                 content?: never;
             };
             500: components["responses"]["InternalError"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     listPublicTools: {
@@ -1588,6 +1603,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             500: components["responses"]["InternalError"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     listPublicArticles: {
@@ -1626,6 +1642,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             500: components["responses"]["InternalError"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     getPublicArticle: {
@@ -1663,6 +1680,7 @@ export interface operations {
             };
             404: components["responses"]["ArticleNotFound"];
             500: components["responses"]["InternalError"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     searchPublicArticles: {
@@ -1703,6 +1721,7 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             500: components["responses"]["InternalError"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     listPublicArticleComments: {
@@ -1731,6 +1750,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             404: components["responses"]["ArticleNotFound"];
             500: components["responses"]["InternalError"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     createPublicArticleComment: {
@@ -1772,6 +1792,7 @@ export interface operations {
             404: components["responses"]["ArticleNotFound"];
             409: components["responses"]["CommentConflict"];
             429: components["responses"]["CommentRateLimited"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     getPublicCommentFormContext: {
@@ -1795,6 +1816,7 @@ export interface operations {
                 };
             };
             404: components["responses"]["ArticleNotFound"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     deletePublicComment: {
@@ -1821,6 +1843,7 @@ export interface operations {
             403: components["responses"]["CsrfInvalid"];
             404: components["responses"]["ResourceNotFound"];
             409: components["responses"]["CommentConflict"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     getPublicArticlePreview: {
@@ -1847,6 +1870,7 @@ export interface operations {
             };
             404: components["responses"]["ResourceNotFound"];
             410: components["responses"]["ArticlePreviewGone"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     listAdminArticles: {
@@ -1876,6 +1900,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     createAdminArticle: {
@@ -1908,6 +1933,7 @@ export interface operations {
             403: components["responses"]["CsrfInvalid"];
             404: components["responses"]["ResourceNotFound"];
             409: components["responses"]["Conflict"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     createAdminMediaUpload: {
@@ -1968,6 +1994,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     getAdminComment: {
@@ -1993,6 +2020,7 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["ResourceNotFound"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     moderateAdminComment: {
@@ -2026,6 +2054,7 @@ export interface operations {
             403: components["responses"]["CsrfInvalid"];
             404: components["responses"]["ResourceNotFound"];
             409: components["responses"]["Conflict"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     getAdminSite: {
@@ -2048,6 +2077,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     updateAdminSite: {
@@ -2078,6 +2108,7 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["CsrfInvalid"];
             409: components["responses"]["Conflict"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     completeAdminMediaUpload: {
@@ -2134,6 +2165,7 @@ export interface operations {
             403: components["responses"]["CsrfInvalid"];
             404: components["responses"]["ResourceNotFound"];
             409: components["responses"]["Conflict"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     getAdminArticle: {
@@ -2159,6 +2191,7 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["ResourceNotFound"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     updateAdminArticle: {
@@ -2192,6 +2225,7 @@ export interface operations {
             403: components["responses"]["CsrfInvalid"];
             404: components["responses"]["ResourceNotFound"];
             409: components["responses"]["ArticleVersionConflict"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     deleteAdminArticle: {
@@ -2226,6 +2260,7 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["CsrfInvalid"];
             404: components["responses"]["ResourceNotFound"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     listAdminArticleVersions: {
@@ -2255,6 +2290,7 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["ResourceNotFound"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     getAdminArticleVersion: {
@@ -2281,6 +2317,7 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["ResourceNotFound"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     restoreAdminArticleVersion: {
@@ -2315,6 +2352,7 @@ export interface operations {
             403: components["responses"]["CsrfInvalid"];
             404: components["responses"]["ResourceNotFound"];
             409: components["responses"]["Conflict"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     publishAdminArticle: {
@@ -2348,6 +2386,7 @@ export interface operations {
             403: components["responses"]["CsrfInvalid"];
             404: components["responses"]["ResourceNotFound"];
             409: components["responses"]["Conflict"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     scheduleAdminArticle: {
@@ -2381,6 +2420,7 @@ export interface operations {
             403: components["responses"]["CsrfInvalid"];
             404: components["responses"]["ResourceNotFound"];
             409: components["responses"]["Conflict"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     archiveAdminArticle: {
@@ -2414,6 +2454,7 @@ export interface operations {
             403: components["responses"]["CsrfInvalid"];
             404: components["responses"]["ResourceNotFound"];
             409: components["responses"]["Conflict"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     returnAdminArticleToDraft: {
@@ -2447,6 +2488,7 @@ export interface operations {
             403: components["responses"]["CsrfInvalid"];
             404: components["responses"]["ResourceNotFound"];
             409: components["responses"]["Conflict"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     createAdminArticlePreviewToken: {
@@ -2480,6 +2522,7 @@ export interface operations {
             403: components["responses"]["CsrfInvalid"];
             404: components["responses"]["ResourceNotFound"];
             409: components["responses"]["Conflict"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     revokeAdminArticlePreviewToken: {
@@ -2506,6 +2549,7 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["CsrfInvalid"];
             404: components["responses"]["ResourceNotFound"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     listAdminCategories: {
@@ -2528,6 +2572,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     createAdminCategory: {
@@ -2558,6 +2603,7 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["CsrfInvalid"];
             409: components["responses"]["Conflict"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     getAdminCategory: {
@@ -2583,6 +2629,7 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["ResourceNotFound"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     updateAdminCategory: {
@@ -2616,6 +2663,7 @@ export interface operations {
             403: components["responses"]["CsrfInvalid"];
             404: components["responses"]["ResourceNotFound"];
             409: components["responses"]["Conflict"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     deleteAdminCategory: {
@@ -2642,6 +2690,7 @@ export interface operations {
             403: components["responses"]["CsrfInvalid"];
             404: components["responses"]["ResourceNotFound"];
             409: components["responses"]["Conflict"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     listAdminTags: {
@@ -2664,6 +2713,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     createAdminTag: {
@@ -2694,6 +2744,7 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["CsrfInvalid"];
             409: components["responses"]["Conflict"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     getAdminTag: {
@@ -2719,6 +2770,7 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["ResourceNotFound"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     updateAdminTag: {
@@ -2752,6 +2804,7 @@ export interface operations {
             403: components["responses"]["CsrfInvalid"];
             404: components["responses"]["ResourceNotFound"];
             409: components["responses"]["Conflict"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     deleteAdminTag: {
@@ -2778,6 +2831,7 @@ export interface operations {
             403: components["responses"]["CsrfInvalid"];
             404: components["responses"]["ResourceNotFound"];
             409: components["responses"]["Conflict"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     listAdminToolCategories: {
@@ -2800,6 +2854,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     createAdminToolCategory: {
@@ -2830,6 +2885,7 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["CsrfInvalid"];
             409: components["responses"]["Conflict"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     getAdminToolCategory: {
@@ -2855,6 +2911,7 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["ResourceNotFound"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     updateAdminToolCategory: {
@@ -2888,6 +2945,7 @@ export interface operations {
             403: components["responses"]["CsrfInvalid"];
             404: components["responses"]["ResourceNotFound"];
             409: components["responses"]["Conflict"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     deleteAdminToolCategory: {
@@ -2916,6 +2974,7 @@ export interface operations {
             403: components["responses"]["CsrfInvalid"];
             404: components["responses"]["ResourceNotFound"];
             409: components["responses"]["Conflict"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     listAdminTools: {
@@ -2947,6 +3006,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     createAdminTool: {
@@ -2977,6 +3037,7 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["CsrfInvalid"];
             409: components["responses"]["Conflict"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     getAdminTool: {
@@ -3002,6 +3063,7 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["ResourceNotFound"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     updateAdminTool: {
@@ -3035,6 +3097,7 @@ export interface operations {
             403: components["responses"]["CsrfInvalid"];
             404: components["responses"]["ResourceNotFound"];
             409: components["responses"]["Conflict"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     deleteAdminTool: {
@@ -3063,6 +3126,7 @@ export interface operations {
             403: components["responses"]["CsrfInvalid"];
             404: components["responses"]["ResourceNotFound"];
             409: components["responses"]["Conflict"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     getAdminSession: {
@@ -3085,6 +3149,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["Forbidden"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     loginAdmin: {
@@ -3115,6 +3180,7 @@ export interface operations {
             401: components["responses"]["AuthenticationFailed"];
             403: components["responses"]["CsrfInvalid"];
             429: components["responses"]["LoginRateLimited"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     logoutAdmin: {
@@ -3137,6 +3203,7 @@ export interface operations {
             };
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["CsrfInvalid"];
+            503: components["responses"]["DatabaseBusy"];
         };
     };
     getAdminCsrfToken: {
@@ -3157,6 +3224,7 @@ export interface operations {
                     "application/json": components["schemas"]["CsrfTokenResponse"];
                 };
             };
+            503: components["responses"]["DatabaseBusy"];
         };
     };
 }

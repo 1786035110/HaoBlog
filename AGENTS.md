@@ -85,6 +85,7 @@ The current repository uses one root pnpm workspace and one Maven application. N
 - Compose validation using placeholder environment values: `docker compose --env-file .env.example -f infra/compose/compose.dev.yml config`
 - Production Compose validation: `docker compose --env-file infra/compose/.env.ci.example -f infra/compose/compose.prod.yml config`
 - Compose resource and health-boundary verification: `pnpm compose:verify`
+- Running project verification (task-only environment/override): pipe `docker compose -p <project> --env-file <test-env> -f infra/compose/compose.prod.yml -f <override> config --format json` to `node scripts/verify-compose-resources.mjs - <project>`; reads allowlisted runtime fields and cgroup v2, never full inspect environment.
 - Local database startup: `docker compose --env-file .env -f infra/compose/compose.dev.yml up -d`
 
 The Maven Wrapper is `apps/api/mvnw` / `apps/api/mvnw.cmd`, with Maven distribution `3.9.11`. The pnpm version is pinned as `pnpm@11.16.0` in the root `package.json`; the workspace also permits the explicitly configured `esbuild` build script.

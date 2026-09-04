@@ -37,7 +37,7 @@ class MediaUploadServiceTest {
         properties.setMaxSizeBytes(5 * 1024 * 1024L);
         properties.setMaxDimension(2560);
         service = new MediaUploadService(uploads, assets, storage, references,
-                properties, Clock.fixed(now, ZoneOffset.UTC));
+                properties, Clock.fixed(now, ZoneOffset.UTC), mock(org.springframework.transaction.PlatformTransactionManager.class));
         when(storage.createUploadGrant(any(), any())).thenAnswer(invocation -> {
             ObjectStorage.UploadSpec spec = invocation.getArgument(0);
             return new ObjectStorage.UploadGrant("https://mock.invalid/", Map.of("key", spec.objectKey()), now.plusSeconds(300));

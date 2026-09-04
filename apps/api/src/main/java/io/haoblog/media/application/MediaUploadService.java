@@ -10,6 +10,9 @@ import io.haoblog.shared.web.ProblemException;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -33,16 +36,18 @@ public class MediaUploadService {
     private final MediaReferenceQuery references;
     private final AliyunOssProperties properties;
     private final Clock clock;
+    private final TransactionTemplate transaction;
 
     public MediaUploadService(MediaUploadRepository uploads, MediaAssetRepository assets,
                               ObjectStorage storage, MediaReferenceQuery references,
-                              AliyunOssProperties properties, Clock clock) {
+                              AliyunOssProperties properties, Clock clock, PlatformTransactionManager transactionManager) {
         this.uploads = uploads;
         this.assets = assets;
         this.storage = storage;
         this.references = references;
         this.properties = properties;
         this.clock = clock;
+        this.transaction = new TransactionTemplate(transactionManager);
     }
 
     @Transactional
@@ -66,24 +71,38 @@ public class MediaUploadService {
         return new UploadStarted(id, objectKey, grant.uploadUrl(), grant.fields(), grant.expiresAt());
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.NEVER)
     public MediaAsset complete(UUID uploadId) {
-        MediaUpload upload = uploads.findByIdForUpdate(uploadId)
-                .orElseThrow(() -> problem("MEDIA_UPLOAD_NOT_FOUND", "Upload intent not found", "The upload intent does not exist"));
-        if (upload.getCompletedMediaId() != null) {
-            return assets.findById(upload.getCompletedMediaId())
-                    .orElseThrow(() -> problem("MEDIA_ASSET_NOT_FOUND", "Media asset not found", "The completed media asset is unavailable"));
-        }
-        Instant now = Instant.now(clock);
-        if (!now.isBefore(upload.getExpiresAt())) {
-            throw problem("MEDIA_UPLOAD_EXPIRED", "Upload intent expired", "Request a new upload intent");
-        }
+        MediaUpload upload = transaction.execute(status -> uploads.findByIdForUpdate(uploadId)
+                .orElseThrow(() -> problem("MEDIA_UPLOAD_NOT_FOUND", "Upload intent not found", "The upload intent does not exist")));
+        if (upload.getCompletedMediaId() != null) return completed(upload);
+        checkExpiry(upload);
         ObjectStorage.StoredObject stored;
         try {
             stored = storage.head(upload.getObjectKey());
         } catch (ObjectStorageException exception) {
             throw storageUnavailable();
         }
+        return transaction.execute(status -> finish(uploadId, stored));
+    }
+
+    private MediaAsset completed(MediaUpload upload) {
+        return assets.findById(upload.getCompletedMediaId())
+                .orElseThrow(() -> problem("MEDIA_ASSET_NOT_FOUND", "Media asset not found", "The completed media asset is unavailable"));
+    }
+
+    private void checkExpiry(MediaUpload upload) {
+        if (!clock.instant().isBefore(upload.getExpiresAt())) {
+            throw problem("MEDIA_UPLOAD_EXPIRED", "Upload intent expired", "Request a new upload intent");
+        }
+    }
+
+    private MediaAsset finish(UUID uploadId, ObjectStorage.StoredObject stored) {
+        MediaUpload upload = uploads.findByIdForUpdate(uploadId)
+                .orElseThrow(() -> problem("MEDIA_UPLOAD_NOT_FOUND", "Upload intent not found", "The upload intent does not exist"));
+        if (upload.getCompletedMediaId() != null) return completed(upload);
+        checkExpiry(upload);
+        Instant now = Instant.now(clock);
         if (stored == null) {
             throw problem("MEDIA_OBJECT_NOT_FOUND", "Uploaded object not found", "Upload the object before confirming it");
         }

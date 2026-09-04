@@ -26,7 +26,7 @@ public class CommentNotificationOutboxProcessor {
     }
 
     @Scheduled(
-            fixedDelayString = "${HAOBLOG_COMMENT_NOTIFICATION_FIXED_DELAY_MS:60000}",
+            fixedDelayString = "${HAOBLOG_COMMENT_NOTIFICATION_FIXED_DELAY_MS:1000}",
             initialDelayString = "${HAOBLOG_COMMENT_NOTIFICATION_INITIAL_DELAY_MS:5000}"
     )
     public void processDueBatch() {
@@ -41,12 +41,12 @@ public class CommentNotificationOutboxProcessor {
             if (properties.isEnabled()) {
                 mailer.send(event.getAggregateId());
             }
-            state.markProcessed(event.getId());
+            state.markProcessed(event.getId(), event.getAttemptCount());
             LOG.info("评论通知已处理 eventId={} commentId={} traceId={}",
                     event.getId(), event.getAggregateId(), traceId);
         } catch (Exception ignored) {
             try {
-                state.markFailedOrRetry(event.getId());
+                state.markFailedOrRetry(event.getId(), event.getAttemptCount());
             } catch (Exception stateFailure) {
                 LOG.warn("评论通知状态更新失败 eventId={} commentId={} traceId={}",
                         event.getId(), event.getAggregateId(), traceId);

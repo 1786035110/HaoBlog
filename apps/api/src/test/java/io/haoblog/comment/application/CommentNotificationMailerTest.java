@@ -45,7 +45,7 @@ class CommentNotificationMailerTest {
                 .thenReturn(Optional.of(new ArticleCommentLookup.NotificationArticle("文章标题")));
         when(site.get()).thenReturn(new SiteService.SiteResult("HaoBlog", "desc", "https://blog.example.invalid", "Hao"));
 
-        new CommentNotificationMailer(comments, articles, site, properties, mailSender).send(COMMENT_ID);
+        new CommentNotificationMailer(comments, articles, site, properties, mailSender, org.mockito.Mockito.mock(org.springframework.transaction.PlatformTransactionManager.class)).send(COMMENT_ID);
 
         ArgumentCaptor<SimpleMailMessage> captor = ArgumentCaptor.forClass(SimpleMailMessage.class);
         verify(mailSender).send(captor.capture());
@@ -69,7 +69,7 @@ class CommentNotificationMailerTest {
                 .when(mailSender).send(any(SimpleMailMessage.class));
 
         CommentNotificationException exception = assertThrows(CommentNotificationException.class,
-                () -> new CommentNotificationMailer(comments, articles, site, properties, mailSender).send(COMMENT_ID));
+                () -> new CommentNotificationMailer(comments, articles, site, properties, mailSender, org.mockito.Mockito.mock(org.springframework.transaction.PlatformTransactionManager.class)).send(COMMENT_ID));
 
         assertEquals("Comment notification could not be sent", exception.getMessage());
     }
