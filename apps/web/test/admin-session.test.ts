@@ -24,7 +24,7 @@ describe('admin session client', () => {
 
     await expect(client.restore()).resolves.toBe(false)
     expect(client.session.value).toBeNull()
-    expect(fetchMock).toHaveBeenCalledWith('/api/v1/admin/session', { credentials: 'include' })
+    expect(fetchMock).toHaveBeenCalledWith('/api/v1/admin/session', expect.objectContaining({ credentials: 'include', signal: expect.any(AbortSignal) }))
   })
 
   it('gets CSRF before login and keeps credentials in the request only', async () => {
@@ -56,18 +56,16 @@ describe('admin session client', () => {
     expect(fetchMock.mock.calls.at(-1)?.[1].headers.get('X-CSRF-TOKEN')).toBe('csrf-2')
   })
 
-  it('refreshes a stale CSRF token and retries the login once', async () => {
+  it('refreshes a stale CSRF token without replaying the write', async () => {
     fetchMock
       .mockResolvedValueOnce(response({ token: 'csrf-old' }))
       .mockResolvedValueOnce(response({ code: 'CSRF_INVALID', detail: 'Invalid CSRF token' }, 403))
       .mockResolvedValueOnce(response({ token: 'csrf-new' }))
-      .mockResolvedValueOnce(response({ username: 'admin', role: 'ADMIN', authenticated: true }))
     const client = useAdminSession()
 
-    await expect(client.login({ username: 'admin', password: 'secret' })).resolves.toBe(true)
-    expect(fetchMock).toHaveBeenCalledTimes(4)
-    expect(fetchMock.mock.calls[3][1].headers).toBeInstanceOf(Headers)
-    expect(fetchMock.mock.calls[3][1].headers.get('X-CSRF-TOKEN')).toBe('csrf-new')
+    await expect(client.login({ username: 'admin', password: 'secret' })).resolves.toBe(false)
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(fetchMock.mock.calls.filter(call => call[0] === '/api/v1/admin/session')).toHaveLength(1)
   })
 
   it('does not retry a normal forbidden response or retry CSRF more than once', async () => {
@@ -84,10 +82,9 @@ describe('admin session client', () => {
       .mockResolvedValueOnce(response({ token: 'csrf-old' }))
       .mockResolvedValueOnce(response({ code: 'CSRF_INVALID', detail: 'Invalid CSRF token' }, 403))
       .mockResolvedValueOnce(response({ token: 'csrf-new' }))
-      .mockResolvedValueOnce(response({ code: 'CSRF_INVALID', detail: 'Invalid CSRF token' }, 403))
     const staleClient = useAdminSession()
     await expect(staleClient.login({ username: 'admin', password: 'secret' })).resolves.toBe(false)
-    expect(fetchMock).toHaveBeenCalledTimes(4)
+    expect(fetchMock).toHaveBeenCalledTimes(3)
   })
 
   it('clears CSRF after a session 401 so the next login fetches a new token', async () => {

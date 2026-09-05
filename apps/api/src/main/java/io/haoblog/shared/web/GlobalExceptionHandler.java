@@ -30,10 +30,21 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler({MethodArgumentNotValidException.class, HandlerMethodValidationException.class,
             MethodArgumentTypeMismatchException.class, MissingServletRequestParameterException.class,
-            HttpMessageNotReadableException.class, HttpMediaTypeNotSupportedException.class,
+            HttpMediaTypeNotSupportedException.class,
             IllegalArgumentException.class})
     ResponseEntity<ProblemResponse> badRequest(Exception exception) {
         return problemResponseWriter.response(HttpStatus.BAD_REQUEST, "BAD_REQUEST", "Invalid request", "Request parameters are invalid");
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    ResponseEntity<ProblemResponse> unreadable(HttpMessageNotReadableException exception) {
+        for (Throwable current = exception; current != null; current = current.getCause()) {
+            if (current instanceof RequestBoundaryFilter.RequestBodyTooLargeException) {
+                return problemResponseWriter.response(HttpStatus.PAYLOAD_TOO_LARGE,
+                        "REQUEST_BODY_TOO_LARGE", "Request body too large", "The request body exceeds the allowed size");
+            }
+        }
+        return badRequest(exception);
     }
 
     @ExceptionHandler(ProblemException.class)
@@ -45,8 +56,11 @@ public class GlobalExceptionHandler {
                                 || exception.getCode().contains("CONFLICT") || exception.getCode().endsWith("_IN_USE")
                                 ? HttpStatus.CONFLICT :
                                 ("COMMENT_DELETE_TOKEN_INVALID".equals(exception.getCode()) ? HttpStatus.FORBIDDEN : HttpStatus.BAD_REQUEST)));
-        return problemResponseWriter.response(status, exception.getCode(), exception.getTitle(), exception.getMessage(),
+        var response = problemResponseWriter.response(status, exception.getCode(), exception.getTitle(), exception.getMessage(),
                 exception.getCurrentVersion());
+        if (!"MEDIA_STORAGE_UNAVAILABLE".equals(exception.getCode())) return response;
+        return ResponseEntity.status(response.getStatusCode()).headers(response.getHeaders())
+                .header("Retry-After", "1").body(response.getBody());
     }
 
 

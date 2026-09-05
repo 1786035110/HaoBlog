@@ -24,12 +24,14 @@ public class PublicFeedService {
     private static final int SITEMAP_BATCH_SIZE = 500;
     private static final int SITEMAP_URL_LIMIT = 50_000;
     private static final int STATIC_URL_COUNT = 5;
+    private static final int CACHE_MAX_BYTES = 8 * 1024 * 1024;
     private static final DateTimeFormatter RSS_DATE_FORMAT = DateTimeFormatter.RFC_1123_DATE_TIME;
     private final SiteService siteService;
     private final ArticleService articleService;
     private final Cache<String, FeedDocument> cache = Caffeine.newBuilder()
-            .maximumSize(2)
-            .expireAfterWrite(Duration.ofSeconds(60))
+            .maximumWeight(CACHE_MAX_BYTES)
+            .weigher((String ignored, FeedDocument document) -> document.bytes())
+            .expireAfterWrite(Duration.ofSeconds(55))
             .build();
 
     public PublicFeedService(SiteService siteService, ArticleService articleService) {
@@ -53,23 +55,34 @@ public class PublicFeedService {
 
     private FeedDocument renderSitemap() {
         var site = siteService.get();
-        var articles = new java.util.ArrayList<PublicFeedArticle>();
-        int page = 0;
-        int articleLimit = SITEMAP_URL_LIMIT - STATIC_URL_COUNT;
-        while (articles.size() < articleLimit && page < (SITEMAP_URL_LIMIT / SITEMAP_BATCH_SIZE)) {
-            var batch = articleService.listPublishedBatch(page++, SITEMAP_BATCH_SIZE);
-            int remaining = articleLimit - articles.size();
-            articles.addAll(batch.items().subList(0, Math.min(remaining, batch.items().size())));
-            if (!batch.hasNext()) break;
-        }
-        return document(writeSitemap(site, articles));
+        return document(write(writer -> {
+            writer.writeStartElement("urlset");
+            writer.writeDefaultNamespace("http://www.sitemaps.org/schemas/sitemap/0.9");
+            for (String path : List.of("/", "/articles", "/garden", "/tools", "/about")) {
+                urlElement(writer, url(site.siteUrl(), path));
+            }
+            int written = 0;
+            int page = 0;
+            int articleLimit = SITEMAP_URL_LIMIT - STATIC_URL_COUNT;
+            while (written < articleLimit && page < (SITEMAP_URL_LIMIT / SITEMAP_BATCH_SIZE)) {
+                var batch = articleService.listPublishedBatch(page++, SITEMAP_BATCH_SIZE);
+                int remaining = articleLimit - written;
+                for (var article : batch.items()) {
+                    if (remaining-- <= 0) break;
+                    urlElement(writer, url(site.siteUrl(), "/articles/" + article.slug()));
+                    written++;
+                }
+                if (!batch.hasNext()) break;
+            }
+            writer.writeEndElement();
+        }));
     }
 
     private static FeedDocument document(String body) {
         try {
             var digest = MessageDigest.getInstance("SHA-256");
             String etag = '"' + HexFormat.of().formatHex(digest.digest(body.getBytes(StandardCharsets.UTF_8))) + '"';
-            return new FeedDocument(body, etag);
+            return new FeedDocument(body, etag, body.getBytes(StandardCharsets.UTF_8).length);
         } catch (Exception exception) {
             throw new IllegalStateException("Unable to create feed ETag", exception);
         }
@@ -96,20 +109,6 @@ public class PublicFeedService {
                 writer.writeEndElement();
             }
             writer.writeEndElement();
-            writer.writeEndElement();
-        });
-    }
-
-    private static String writeSitemap(SiteService.SiteResult site, List<PublicFeedArticle> articles) {
-        return write(writer -> {
-            writer.writeStartElement("urlset");
-            writer.writeDefaultNamespace("http://www.sitemaps.org/schemas/sitemap/0.9");
-            for (String path : List.of("/", "/articles", "/garden", "/tools", "/about")) {
-                urlElement(writer, url(site.siteUrl(), path));
-            }
-            for (var article : articles) {
-                urlElement(writer, url(site.siteUrl(), "/articles/" + article.slug()));
-            }
             writer.writeEndElement();
         });
     }
@@ -149,5 +148,9 @@ public class PublicFeedService {
         void write(XMLStreamWriter writer) throws XMLStreamException;
     }
 
-    public record FeedDocument(String body, String etag) {}
+    public record FeedDocument(String body, String etag, int bytes) {
+        public FeedDocument(String body, String etag) {
+            this(body, etag, body.getBytes(StandardCharsets.UTF_8).length);
+        }
+    }
 }

@@ -54,18 +54,24 @@ public class ToolManagementService {
     }
 
     @Transactional(readOnly = true)
-    public List<GardenTool> listPublicGardenTools() {
+    public GardenToolBatch listPublicGardenTools(int limit, int tagLimit) {
+        if (limit < 0 || limit > 200 || tagLimit < 1 || tagLimit > 12) throw new IllegalArgumentException("garden limit out of range");
+        int querySize = Math.max(1, limit + 1);
         List<Tool> activeTools = tools.findAllByStatus(ToolStatus.ACTIVE,
-                Sort.by(Sort.Direction.ASC, "sortOrder", "title", "id"));
+                PageRequest.of(0, querySize, Sort.by(Sort.Direction.ASC, "sortOrder", "title", "id")));
         Map<UUID, ToolCategory> categoryById = categories.findAllById(
                 activeTools.stream().map(Tool::getCategoryId).distinct().toList()).stream()
                 .collect(Collectors.toMap(ToolCategory::getId, categoryValue -> categoryValue));
-        return activeTools.stream().map(tool -> {
+        boolean tagsTruncated = activeTools.stream().limit(limit)
+                .anyMatch(tool -> tool.getTags() != null && tool.getTags().size() > tagLimit);
+        List<GardenTool> result = activeTools.stream().limit(limit).map(tool -> {
             ToolCategory category = categoryById.get(tool.getCategoryId());
             if (category == null) return null;
             return new GardenTool(tool.getId(), tool.getTitle(), tool.getSlug(), tool.getDescription(),
-                    category.getName(), category.getSlug(), tool.getTags(), tool.getSortOrder());
+                    category.getName(), category.getSlug(), tool.getTags() == null ? List.of() : tool.getTags().stream()
+                    .sorted(String.CASE_INSENSITIVE_ORDER).limit(tagLimit).toList(), tool.getSortOrder());
         }).filter(java.util.Objects::nonNull).toList();
+        return new GardenToolBatch(result, activeTools.size() > limit || tagsTruncated);
     }
 
     private PublicTools queryPublicTools(String normalizedCategory, ToolType type, String normalizedKeyword) {
@@ -253,4 +259,5 @@ public class ToolManagementService {
 
     public record GardenTool(UUID id, String title, String slug, String description,
                              String categoryName, String categorySlug, List<String> tags, int sortOrder) {}
+    public record GardenToolBatch(List<GardenTool> items, boolean truncated) {}
 }

@@ -58,6 +58,7 @@ public class AdminSessionController {
                     "Too many failed login attempts from this source");
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                     .header(HttpHeaders.RETRY_AFTER, Long.toString(decision.retryAfterSeconds()))
+                    .header(HttpHeaders.CACHE_CONTROL, "no-store")
                     .contentType(ProblemResponseWriter.PROBLEM)
                     .body(problem.getBody());
         }

@@ -4,6 +4,7 @@ import io.haoblog.content.domain.ArticleRevision;
 import io.haoblog.content.domain.ArticleStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -68,6 +69,21 @@ public interface ArticleRevisionRepository extends JpaRepository<ArticleRevision
                                                 @Param("now") java.time.Instant now,
                                                 Pageable pageable);
 
+    @Query("""
+            select r.articleId as id, r.slug as slug, r.title as title, r.excerpt as excerpt,
+                   a.publishedAt as publishedAt
+            from ArticleRevision r, Article a
+            where r.id = a.publishedRevisionId
+              and a.status = :published
+              and a.publishedRevisionId is not null
+              and a.publishedAt is not null
+              and a.publishedAt <= :now
+            order by a.publishedAt desc, a.id desc
+            """)
+    Slice<PublicFeedProjection> findPublishedFeed(@Param("published") ArticleStatus published,
+                                                   @Param("now") Instant now,
+                                                   Pageable pageable);
+
     @Query(value = """
             select a.id as id, r.slug as slug, r.title as title, r.excerpt as excerpt,
                    a.published_at as "publishedAt", r.cover_media_id as "coverMediaId",
@@ -102,23 +118,38 @@ public interface ArticleRevisionRepository extends JpaRepository<ArticleRevision
                                          Pageable pageable);
 
     @Query(value = """
-            select r.article_id as "articleId", r.slug as slug, r.title as title, r.excerpt as excerpt,
-                   a.published_at as "publishedAt",
-                   r.category_snapshot ->> 'name' as "categoryName",
-                   r.category_snapshot ->> 'slug' as "categorySlug",
+            with candidates as (
+              select r.article_id, r.slug, r.title, r.excerpt, a.published_at,
+                     r.category_snapshot, r.tag_snapshot
+              from article_revision r
+              join article a on a.published_revision_id = r.id
+              where a.status in ('PUBLISHED', 'SCHEDULED')
+                and a.published_revision_id is not null
+                and a.published_at is not null
+                and a.published_at <= :now
+              order by a.published_at desc, a.id desc
+              limit :articleLimit
+            )
+            select c.article_id as "articleId", c.slug as slug, c.title as title, c.excerpt as excerpt,
+                   c.published_at as "publishedAt",
+                   c.category_snapshot ->> 'name' as "categoryName",
+                   c.category_snapshot ->> 'slug' as "categorySlug",
+                   jsonb_array_length(coalesce(c.tag_snapshot, '[]'::jsonb)) > :tagLimit as "tagsTruncated",
                    tag.value ->> 'name' as "tagName",
                    tag.value ->> 'slug' as "tagSlug"
-            from article_revision r
-            join article a on a.published_revision_id = r.id
-            left join lateral jsonb_array_elements(coalesce(r.tag_snapshot, '[]'::jsonb)) as tag(value) on true
-            where a.status in ('PUBLISHED', 'SCHEDULED')
-              and a.published_revision_id is not null
-              and a.published_at is not null
-              and a.published_at <= :now
-            order by a.published_at desc, a.id desc,
+            from candidates c
+            left join lateral (
+              select value
+              from jsonb_array_elements(coalesce(c.tag_snapshot, '[]'::jsonb)) as source(value)
+              order by value ->> 'slug' asc nulls last
+              limit :tagLimit
+            ) tag on true
+            order by c.published_at desc, c.article_id desc,
                      tag.value ->> 'slug' asc nulls last
             """, nativeQuery = true)
-    List<PublicGardenRow> findPublicGardenRows(@Param("now") Instant now);
+    List<PublicGardenRow> findPublicGardenRows(@Param("now") Instant now,
+                                                @Param("articleLimit") int articleLimit,
+                                                @Param("tagLimit") int tagLimit);
 
     @Query("""
             select r as revision, a.publishedAt as publishedAt, a.commentsEnabled as commentsEnabled
@@ -157,6 +188,14 @@ public interface ArticleRevisionRepository extends JpaRepository<ArticleRevision
         boolean getCommentsEnabled();
     }
 
+    interface PublicFeedProjection {
+        UUID getId();
+        String getSlug();
+        String getTitle();
+        String getExcerpt();
+        Instant getPublishedAt();
+    }
+
     interface SummaryProjection {
         UUID getId();
         long getSourceVersion();
@@ -189,5 +228,6 @@ public interface ArticleRevisionRepository extends JpaRepository<ArticleRevision
         String getCategorySlug();
         String getTagName();
         String getTagSlug();
+        boolean getTagsTruncated();
     }
 }

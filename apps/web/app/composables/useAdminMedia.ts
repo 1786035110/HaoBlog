@@ -26,7 +26,7 @@ export function useAdminMedia() {
     const body = new FormData()
     for (const [key, value] of Object.entries(currentGrant.fields)) body.append(key, value)
     body.append('file', image.blob, 'image')
-    const response = await fetch(currentGrant.uploadUrl, { method: 'POST', body })
+    const response = await fetch(currentGrant.uploadUrl, { method: 'POST', body, signal: AbortSignal.timeout(30_000) })
     if (!response.ok) throw new Error('对象存储上传失败')
   }
 

@@ -36,7 +36,7 @@ public class PublicFeedController {
         var headers = new HttpHeaders();
         headers.setContentType(contentType);
         headers.setETag(document.etag());
-        headers.setCacheControl("public, max-age=0, s-maxage=60, must-revalidate");
+        headers.setCacheControl("public, max-age=0, s-maxage=0, must-revalidate");
         if (document.etag().equals(ifNoneMatch)) {
             return ResponseEntity.status(HttpStatus.NOT_MODIFIED).headers(headers).build();
         }

@@ -1,5 +1,11 @@
-import { describe, expect, it, vi } from 'vitest'
-import { buildPublicArticleContent, fetchPublicArticleContent, renderPublicArticleMarkdown } from '../server/utils/publicArticleContent'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  buildPublicArticleContent,
+  fetchPublicArticleContent,
+  publicArticleRenderCacheStats,
+  renderPublicArticleMarkdown,
+  resetPublicArticleRenderCache,
+} from '../server/utils/publicArticleContent'
 import type { components } from '@haoblog/api-client'
 
 const article: components['schemas']['ArticleResponse'] = {
@@ -9,6 +15,7 @@ const article: components['schemas']['ArticleResponse'] = {
 }
 
 describe('public article content model', () => {
+  beforeEach(() => resetPublicArticleRenderCache())
   it('shifts headings, creates Unicode-safe duplicate ids, and collects final h2/h3 only', () => {
     const result = renderPublicArticleMarkdown('# 中文 标题\n\n# 中文 标题\n\n# !!!\n\n## 子标题\n\n### 深层标题')
     expect(result.toc).toEqual([
@@ -171,27 +178,103 @@ $$`)
   it('keeps long and empty code blocks readable', () => {
     const longCode = Array.from({ length: 2000 }, (_, index) => `const line${index + 1} = ${index + 1}`).join('\n')
     expect(() => renderPublicArticleMarkdown(`\`\`\`typescript\n${longCode}\n\`\`\``)).not.toThrow()
-    expect(renderPublicArticleMarkdown(`\`\`\`typescript\n${longCode}\n\`\`\``).renderedHtml).toContain('data-line="2000"')
+    const rendered = renderPublicArticleMarkdown(`\`\`\`typescript\n${longCode}\n\`\`\``).renderedHtml
+    expect(rendered).toContain('data-line="2000"')
+    expect(rendered).toContain('code-highlight-fallback')
     expect(renderPublicArticleMarkdown('```javascript\n```').renderedHtml).toContain('data-line="1"')
   })
 
-  it('forwards backend 404, cache-control, ETag, and conditional requests', async () => {
+  it('separates upstream and rendered ETags and only returns 304 with a local body', async () => {
     const fetcher = vi.fn<typeof fetch>(async (_input, init) => {
-      expect(new Headers(init?.headers).get('if-none-match')).toBe('"v1"')
+      expect(new Headers(init?.headers).get('if-none-match')).toBeNull()
       return new Response(JSON.stringify(article), { status: 200, headers: { etag: '"v1"', 'cache-control': 'public, max-age=0, s-maxage=60, must-revalidate' } })
     })
     const result = await fetchPublicArticleContent('security', 'http://api:8080', '"v1"', fetcher)
     expect(result.status).toBe(200)
-    expect(result.headers.get('etag')).toBe('"v1"')
-    expect(result.headers.get('cache-control')).toContain('s-maxage=60')
+    expect(result.headers.get('etag')).not.toBe('"v1"')
+    expect(result.headers.get('cache-control')).toContain('s-maxage=0')
     expect(result.body?.article).toEqual(article)
 
-    const notModified = await fetchPublicArticleContent('security', 'http://api:8080', '"v1"', vi.fn(async () => new Response(null, { status: 304, headers: { etag: '"v1"', 'cache-control': 'public, max-age=0, s-maxage=60, must-revalidate' } })))
+    const notModified = await fetchPublicArticleContent('security', 'http://api:8080', result.headers.get('etag')!, fetcher)
     expect(notModified.status).toBe(304)
     expect(notModified.body).toBeUndefined()
+    expect(fetcher).toHaveBeenCalledTimes(1)
 
     const missing = await fetchPublicArticleContent('missing', 'http://api:8080', undefined, vi.fn(async () => new Response(null, { status: 404 })))
     expect(missing.status).toBe(404)
+  })
+
+  it('revalidates expired entries with the raw ETag and coalesces concurrent cold reads', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-01-01T00:00:00Z'))
+    try {
+      const fetcher = vi.fn<typeof fetch>(async (_input, init) => {
+        const conditional = new Headers(init?.headers).get('if-none-match')
+        return conditional === '"raw-v1"'
+          ? new Response(null, { status: 304, headers: { etag: '"raw-v1"' } })
+          : new Response(JSON.stringify(article), { status: 200, headers: { etag: '"raw-v1"' } })
+      })
+      const results = await Promise.all(Array.from({ length: 21 }, () =>
+        fetchPublicArticleContent('security', 'http://api:8080', undefined, fetcher)))
+      expect(results.filter(result => result.status === 200)).toHaveLength(20)
+      expect(results.filter(result => result.status === 503)).toHaveLength(1)
+      expect(fetcher).toHaveBeenCalledTimes(1)
+
+      vi.advanceTimersByTime(55_001)
+      const refreshed = await fetchPublicArticleContent('security', 'http://api:8080', undefined, fetcher)
+      expect(refreshed.status).toBe(200)
+      expect(refreshed.body?.article.slug).toBe('security')
+      expect(fetcher).toHaveBeenCalledTimes(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('isolates Save-Data, bypasses Cookie traffic, and bounds random or oversized entries', async () => {
+    const fetcher = vi.fn<typeof fetch>(async input => {
+      const slug = new URL(String(input)).pathname.split('/').at(-1)!
+      if (slug.startsWith('missing')) return new Response(null, { status: 404 })
+      const markdown = slug === 'oversized' ? 'x'.repeat(200_000) : `# ${slug}`
+      return new Response(JSON.stringify({ ...article, slug, markdown }), { status: 200, headers: { etag: `"${slug}"` } })
+    })
+    const normal = await fetchPublicArticleContent('security', 'http://api:8080', undefined, fetcher)
+    const saveData = await fetchPublicArticleContent('security', 'http://api:8080', undefined, fetcher, true)
+    expect(normal.headers.get('etag')).not.toBe(saveData.headers.get('etag'))
+    await fetchPublicArticleContent('cookie', 'http://api:8080', undefined, fetcher, false, undefined, false)
+    expect(publicArticleRenderCacheStats().entries).toBe(2)
+
+    const randomResults = await Promise.all(Array.from({ length: 70 }, (_, index) =>
+      fetchPublicArticleContent(`missing-${index}`, 'http://api:8080', undefined, fetcher)))
+    expect(randomResults.some(result => result.status === 503)).toBe(true)
+    expect(publicArticleRenderCacheStats().entries).toBe(2)
+    await fetchPublicArticleContent('oversized', 'http://api:8080', undefined, fetcher)
+    expect(publicArticleRenderCacheStats().entries).toBe(2)
+
+    for (let index = 0; index < 70; index++) {
+      await fetchPublicArticleContent(`cached-${index}`, 'http://api:8080', undefined, fetcher)
+    }
+    expect(publicArticleRenderCacheStats().entries).toBeLessThanOrEqual(64)
+    expect(publicArticleRenderCacheStats().bytes).toBeLessThanOrEqual(16 * 1024 * 1024)
+  })
+
+  it('never serves expired content after an upstream failure or archive', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-01-01T00:00:00Z'))
+    try {
+      const fetcher = vi.fn<typeof fetch>()
+        .mockResolvedValueOnce(new Response(JSON.stringify(article), { status: 200, headers: { etag: '"raw-v1"' } }))
+        .mockResolvedValueOnce(new Response(null, { status: 503 }))
+        .mockResolvedValueOnce(new Response(null, { status: 404 }))
+      expect((await fetchPublicArticleContent('security', 'http://api:8080', undefined, fetcher)).status).toBe(200)
+      vi.advanceTimersByTime(55_001)
+      const failed = await fetchPublicArticleContent('security', 'http://api:8080', undefined, fetcher)
+      expect(failed.status).toBe(503)
+      expect(failed.body).toBeUndefined()
+      expect(publicArticleRenderCacheStats().entries).toBe(0)
+      expect((await fetchPublicArticleContent('security', 'http://api:8080', undefined, fetcher)).status).toBe(404)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('renders a readable image placeholder under Save-Data without an image request', () => {

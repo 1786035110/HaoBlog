@@ -1,31 +1,51 @@
 {$HAOBLOG_DOMAIN} {
+	encode gzip
 
-encode gzip
+	handle /actuator {
+		respond 404
+	}
 
-handle /actuator {
-    respond 404
-}
+	handle /actuator/* {
+		respond 404
+	}
 
-handle /actuator/* {
-    respond 404
-}
+	@api path /rss.xml /sitemap.xml /api /api/*
+	handle @api {
+		reverse_proxy api:8080 {
+			lb_retries 0
+			transport http {
+				dial_timeout 2s
+				response_header_timeout 10s
+				max_conns_per_host 64
+			}
+		}
+	}
 
-handle /rss.xml {
-    reverse_proxy api:8080
-}
+	handle {
+		reverse_proxy web:3000 {
+			lb_retries 0
+			transport http {
+				dial_timeout 2s
+				response_header_timeout 10s
+				max_conns_per_host 32
+			}
+		}
+	}
 
-handle /sitemap.xml {
-    reverse_proxy api:8080
-}
+	handle_errors {
+		header Content-Type application/problem+json
+		header Cache-Control no-store
+		header X-Request-ID {err.id}
 
-handle /api {
-    reverse_proxy api:8080
-}
+		@timeout expression `{err.status_code} == 504 || {err.message}.contains("timeout") || {err.message}.contains("deadline exceeded")`
+		handle @timeout {
+			respond <<JSON
+{"code":"GATEWAY_TIMEOUT","title":"Gateway timeout","detail":"The upstream service did not respond in time","traceId":"{err.id}"}
+JSON 504
+		}
 
-handle /api/* {
-    reverse_proxy api:8080
-}
-
-handle {
-    reverse_proxy web:3000
-}
+		header Retry-After 1
+		respond <<JSON
+{"code":"UPSTREAM_UNAVAILABLE","title":"Upstream unavailable","detail":"The upstream service is temporarily unavailable","traceId":"{err.id}"}
+JSON 503
+	}

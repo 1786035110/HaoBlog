@@ -51,4 +51,19 @@ class GardenGraphServiceTest {
         assertEquals(600, clippedEdges.edges().size());
         assertTrue(clippedEdges.truncated());
     }
+
+    @Test
+    void boundsPerContentTagsBeforeBuildingRelationships() {
+        var article = new ArticleService.GardenArticle(UUID.randomUUID(), "bounded", "Bounded", null,
+                Instant.parse("2026-01-01T00:00:00Z"), null,
+                java.util.stream.IntStream.range(0, 20)
+                        .mapToObj(index -> new ArticleService.GardenTaxonomy("Tag " + index, "tag-" + index)).toList());
+
+        var graph = GardenGraphService.build(List.of(article), List.of());
+
+        assertEquals(13, graph.nodes().size());
+        assertEquals(78, graph.edges().size());
+        assertTrue(graph.truncated());
+        assertTrue(graph.nodes().stream().noneMatch(node -> node.id().equals("tag:tag-9")));
+    }
 }

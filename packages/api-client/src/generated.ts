@@ -1059,6 +1059,7 @@ export interface components {
         GardenGraphResponse: {
             nodes: components["schemas"]["GardenNode"][];
             edges: components["schemas"]["GardenEdge"][];
+            /** @description True when content candidates, per-content tags, intermediate relationships, nodes, or edges were clipped */
             truncated: boolean;
         };
         GardenNode: {
@@ -1077,6 +1078,7 @@ export interface components {
             target: string;
             /** @enum {string} */
             kind: "MEMBERSHIP" | "CO_OCCURRENCE";
+            /** @description Weight within the bounded newest-content projection and the first 12 normalized tags per content item, not an all-time corpus total */
             weight: number;
         };
         MediaUploadRequest: {
@@ -1253,6 +1255,38 @@ export interface components {
         DatabaseBusy: {
             headers: {
                 "Retry-After"?: 2;
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemResponse"];
+            };
+        };
+        /** @description Bounded request capacity or a required dependency is temporarily unavailable; inspect ProblemResponse.code */
+        ServiceUnavailable: {
+            headers: {
+                /** @description Present when the caller may retry after a short fixed delay */
+                "Retry-After"?: number;
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemResponse"];
+            };
+        };
+        /** @description GATEWAY_TIMEOUT — an upstream dependency did not respond before the fixed deadline */
+        GatewayTimeout: {
+            headers: {
+                "Cache-Control"?: "no-store";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["ProblemResponse"];
+            };
+        };
+        /** @description REQUEST_BODY_TOO_LARGE — the encoded JSON request exceeds its route limit */
+        RequestTooLarge: {
+            headers: {
                 "Cache-Control"?: "no-store";
                 [name: string]: unknown;
             };
@@ -1457,6 +1491,7 @@ export interface operations {
                 content?: never;
             };
             503: components["responses"]["DatabaseBusy"];
+            504: components["responses"]["GatewayTimeout"];
         };
     };
     getSitemap: {
@@ -1493,6 +1528,7 @@ export interface operations {
                 content?: never;
             };
             503: components["responses"]["DatabaseBusy"];
+            504: components["responses"]["GatewayTimeout"];
         };
     };
     getPublicSite: {
@@ -1562,7 +1598,8 @@ export interface operations {
                 content?: never;
             };
             500: components["responses"]["InternalError"];
-            503: components["responses"]["DatabaseBusy"];
+            503: components["responses"]["ServiceUnavailable"];
+            504: components["responses"]["GatewayTimeout"];
         };
     };
     listPublicTools: {
@@ -1721,7 +1758,8 @@ export interface operations {
             };
             400: components["responses"]["BadRequest"];
             500: components["responses"]["InternalError"];
-            503: components["responses"]["DatabaseBusy"];
+            503: components["responses"]["ServiceUnavailable"];
+            504: components["responses"]["GatewayTimeout"];
         };
     };
     listPublicArticleComments: {
@@ -1791,6 +1829,7 @@ export interface operations {
             };
             404: components["responses"]["ArticleNotFound"];
             409: components["responses"]["CommentConflict"];
+            413: components["responses"]["RequestTooLarge"];
             429: components["responses"]["CommentRateLimited"];
             503: components["responses"]["DatabaseBusy"];
         };
@@ -1933,6 +1972,7 @@ export interface operations {
             403: components["responses"]["CsrfInvalid"];
             404: components["responses"]["ResourceNotFound"];
             409: components["responses"]["Conflict"];
+            413: components["responses"]["RequestTooLarge"];
             503: components["responses"]["DatabaseBusy"];
         };
     };
@@ -1963,6 +2003,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["CsrfInvalid"];
+            413: components["responses"]["RequestTooLarge"];
             503: components["responses"]["MediaStorageUnavailable"];
         };
     };
@@ -2054,6 +2095,7 @@ export interface operations {
             403: components["responses"]["CsrfInvalid"];
             404: components["responses"]["ResourceNotFound"];
             409: components["responses"]["Conflict"];
+            413: components["responses"]["RequestTooLarge"];
             503: components["responses"]["DatabaseBusy"];
         };
     };
@@ -2108,6 +2150,7 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["CsrfInvalid"];
             409: components["responses"]["Conflict"];
+            413: components["responses"]["RequestTooLarge"];
             503: components["responses"]["DatabaseBusy"];
         };
     };
@@ -2225,6 +2268,7 @@ export interface operations {
             403: components["responses"]["CsrfInvalid"];
             404: components["responses"]["ResourceNotFound"];
             409: components["responses"]["ArticleVersionConflict"];
+            413: components["responses"]["RequestTooLarge"];
             503: components["responses"]["DatabaseBusy"];
         };
     };
@@ -2352,6 +2396,7 @@ export interface operations {
             403: components["responses"]["CsrfInvalid"];
             404: components["responses"]["ResourceNotFound"];
             409: components["responses"]["Conflict"];
+            413: components["responses"]["RequestTooLarge"];
             503: components["responses"]["DatabaseBusy"];
         };
     };
@@ -2386,6 +2431,7 @@ export interface operations {
             403: components["responses"]["CsrfInvalid"];
             404: components["responses"]["ResourceNotFound"];
             409: components["responses"]["Conflict"];
+            413: components["responses"]["RequestTooLarge"];
             503: components["responses"]["DatabaseBusy"];
         };
     };
@@ -2420,6 +2466,7 @@ export interface operations {
             403: components["responses"]["CsrfInvalid"];
             404: components["responses"]["ResourceNotFound"];
             409: components["responses"]["Conflict"];
+            413: components["responses"]["RequestTooLarge"];
             503: components["responses"]["DatabaseBusy"];
         };
     };
@@ -2454,6 +2501,7 @@ export interface operations {
             403: components["responses"]["CsrfInvalid"];
             404: components["responses"]["ResourceNotFound"];
             409: components["responses"]["Conflict"];
+            413: components["responses"]["RequestTooLarge"];
             503: components["responses"]["DatabaseBusy"];
         };
     };
@@ -2488,6 +2536,7 @@ export interface operations {
             403: components["responses"]["CsrfInvalid"];
             404: components["responses"]["ResourceNotFound"];
             409: components["responses"]["Conflict"];
+            413: components["responses"]["RequestTooLarge"];
             503: components["responses"]["DatabaseBusy"];
         };
     };
@@ -2522,6 +2571,7 @@ export interface operations {
             403: components["responses"]["CsrfInvalid"];
             404: components["responses"]["ResourceNotFound"];
             409: components["responses"]["Conflict"];
+            413: components["responses"]["RequestTooLarge"];
             503: components["responses"]["DatabaseBusy"];
         };
     };
@@ -2603,6 +2653,7 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["CsrfInvalid"];
             409: components["responses"]["Conflict"];
+            413: components["responses"]["RequestTooLarge"];
             503: components["responses"]["DatabaseBusy"];
         };
     };
@@ -2663,6 +2714,7 @@ export interface operations {
             403: components["responses"]["CsrfInvalid"];
             404: components["responses"]["ResourceNotFound"];
             409: components["responses"]["Conflict"];
+            413: components["responses"]["RequestTooLarge"];
             503: components["responses"]["DatabaseBusy"];
         };
     };
@@ -2744,6 +2796,7 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["CsrfInvalid"];
             409: components["responses"]["Conflict"];
+            413: components["responses"]["RequestTooLarge"];
             503: components["responses"]["DatabaseBusy"];
         };
     };
@@ -2804,6 +2857,7 @@ export interface operations {
             403: components["responses"]["CsrfInvalid"];
             404: components["responses"]["ResourceNotFound"];
             409: components["responses"]["Conflict"];
+            413: components["responses"]["RequestTooLarge"];
             503: components["responses"]["DatabaseBusy"];
         };
     };
@@ -2885,6 +2939,7 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["CsrfInvalid"];
             409: components["responses"]["Conflict"];
+            413: components["responses"]["RequestTooLarge"];
             503: components["responses"]["DatabaseBusy"];
         };
     };
@@ -2945,6 +3000,7 @@ export interface operations {
             403: components["responses"]["CsrfInvalid"];
             404: components["responses"]["ResourceNotFound"];
             409: components["responses"]["Conflict"];
+            413: components["responses"]["RequestTooLarge"];
             503: components["responses"]["DatabaseBusy"];
         };
     };
@@ -3037,6 +3093,7 @@ export interface operations {
             401: components["responses"]["Unauthenticated"];
             403: components["responses"]["CsrfInvalid"];
             409: components["responses"]["Conflict"];
+            413: components["responses"]["RequestTooLarge"];
             503: components["responses"]["DatabaseBusy"];
         };
     };
@@ -3097,6 +3154,7 @@ export interface operations {
             403: components["responses"]["CsrfInvalid"];
             404: components["responses"]["ResourceNotFound"];
             409: components["responses"]["Conflict"];
+            413: components["responses"]["RequestTooLarge"];
             503: components["responses"]["DatabaseBusy"];
         };
     };
@@ -3179,6 +3237,7 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["AuthenticationFailed"];
             403: components["responses"]["CsrfInvalid"];
+            413: components["responses"]["RequestTooLarge"];
             429: components["responses"]["LoginRateLimited"];
             503: components["responses"]["DatabaseBusy"];
         };

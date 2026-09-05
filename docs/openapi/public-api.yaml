@@ -12,6 +12,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/IfNoneMatch'
       responses:
+        '504': { $ref: '#/components/responses/GatewayTimeout' }
         '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200':
           description: RSS 2.0 feed of the latest public articles
@@ -39,6 +40,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/IfNoneMatch'
       responses:
+        '504': { $ref: '#/components/responses/GatewayTimeout' }
         '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200':
           description: Sitemap of public site pages and articles
@@ -89,7 +91,8 @@ paths:
       parameters:
         - $ref: '#/components/parameters/IfNoneMatch'
       responses:
-        '503': { $ref: '#/components/responses/DatabaseBusy' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+        '504': { $ref: '#/components/responses/GatewayTimeout' }
         '200':
           description: Public knowledge garden graph derived from published article snapshots and active tools
           headers:
@@ -219,7 +222,8 @@ paths:
           schema: { type: integer, minimum: 1, maximum: 20, default: 20 }
         - $ref: '#/components/parameters/IfNoneMatch'
       responses:
-        '503': { $ref: '#/components/responses/DatabaseBusy' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+        '504': { $ref: '#/components/responses/GatewayTimeout' }
         '200':
           description: Public article summaries matching the query
           headers:
@@ -275,6 +279,7 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/CommentCreateRequest' }
       responses:
+        '413': { $ref: '#/components/responses/RequestTooLarge' }
         '503': { $ref: '#/components/responses/DatabaseBusy' }
         '201':
           description: Comment created and published when the submission is genuine
@@ -361,6 +366,7 @@ paths:
         content:
           application/json: { schema: { $ref: '#/components/schemas/AdminArticleCreateRequest' } }
       responses:
+        '413': { $ref: '#/components/responses/RequestTooLarge' }
         '503': { $ref: '#/components/responses/DatabaseBusy' }
         '201':
           description: Draft created
@@ -380,6 +386,7 @@ paths:
         required: true
         content: { application/json: { schema: { $ref: '#/components/schemas/MediaUploadRequest' } } }
       responses:
+        '413': { $ref: '#/components/responses/RequestTooLarge' }
         '201':
           description: Short-lived OSS POST policy
           content: { application/json: { schema: { $ref: '#/components/schemas/MediaUploadResponse' } } }
@@ -429,6 +436,7 @@ paths:
       parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CommentModerationRequest' } } } }
       responses:
+        '413': { $ref: '#/components/responses/RequestTooLarge' }
         '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200': { description: Moderated comment, content: { application/json: { schema: { $ref: '#/components/schemas/AdminCommentDetail' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
@@ -451,6 +459,7 @@ paths:
       parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/AdminSiteUpdateRequest' } } } }
       responses:
+        '413': { $ref: '#/components/responses/RequestTooLarge' }
         '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200': { description: Site settings updated, content: { application/json: { schema: { $ref: '#/components/schemas/AdminSiteResponse' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
@@ -511,6 +520,7 @@ paths:
         required: true
         content: { application/json: { schema: { $ref: '#/components/schemas/AdminArticleUpdateRequest' } } }
       responses:
+        '413': { $ref: '#/components/responses/RequestTooLarge' }
         '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200': { description: Article updated, content: { application/json: { schema: { $ref: '#/components/schemas/AdminArticleResponse' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
@@ -587,6 +597,7 @@ paths:
       parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ArticleVersionRequest' } } } }
       responses:
+        '413': { $ref: '#/components/responses/RequestTooLarge' }
         '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200':
           description: Restored editable working copy; public revision is unchanged
@@ -605,6 +616,7 @@ paths:
         - { $ref: '#/components/parameters/CsrfHeader' }
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ArticleVersionRequest' } } } }
       responses:
+        '413': { $ref: '#/components/responses/RequestTooLarge' }
         '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200': { description: Published article, content: { application/json: { schema: { $ref: '#/components/schemas/ArticleActionResponse' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
@@ -621,6 +633,7 @@ paths:
         - { $ref: '#/components/parameters/CsrfHeader' }
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ScheduleArticleRequest' } } } }
       responses:
+        '413': { $ref: '#/components/responses/RequestTooLarge' }
         '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200': { description: Scheduled article, content: { application/json: { schema: { $ref: '#/components/schemas/ArticleActionResponse' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
@@ -637,6 +650,7 @@ paths:
         - { $ref: '#/components/parameters/CsrfHeader' }
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ArticleVersionRequest' } } } }
       responses:
+        '413': { $ref: '#/components/responses/RequestTooLarge' }
         '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200': { description: Archived article, content: { application/json: { schema: { $ref: '#/components/schemas/ArticleActionResponse' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
@@ -653,6 +667,7 @@ paths:
         - { $ref: '#/components/parameters/CsrfHeader' }
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ArticleVersionRequest' } } } }
       responses:
+        '413': { $ref: '#/components/responses/RequestTooLarge' }
         '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200': { description: Editable draft, content: { application/json: { schema: { $ref: '#/components/schemas/ArticleActionResponse' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
@@ -669,6 +684,7 @@ paths:
         - { $ref: '#/components/parameters/CsrfHeader' }
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ArticleVersionRequest' } } } }
       responses:
+        '413': { $ref: '#/components/responses/RequestTooLarge' }
         '503': { $ref: '#/components/responses/DatabaseBusy' }
         '201': { description: One-time preview token, content: { application/json: { schema: { $ref: '#/components/schemas/PreviewTokenResponse' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
@@ -705,6 +721,7 @@ paths:
       parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CategoryRequest' } } } }
       responses:
+        '413': { $ref: '#/components/responses/RequestTooLarge' }
         '503': { $ref: '#/components/responses/DatabaseBusy' }
         '201': { description: Category created, content: { application/json: { schema: { $ref: '#/components/schemas/CategoryResponse' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
@@ -728,6 +745,7 @@ paths:
       parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CategoryRequest' } } } }
       responses:
+        '413': { $ref: '#/components/responses/RequestTooLarge' }
         '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200': { description: Category updated, content: { application/json: { schema: { $ref: '#/components/schemas/CategoryResponse' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
@@ -761,6 +779,7 @@ paths:
       parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/TagRequest' } } } }
       responses:
+        '413': { $ref: '#/components/responses/RequestTooLarge' }
         '503': { $ref: '#/components/responses/DatabaseBusy' }
         '201': { description: Tag created, content: { application/json: { schema: { $ref: '#/components/schemas/TagResponse' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
@@ -784,6 +803,7 @@ paths:
       parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/TagRequest' } } } }
       responses:
+        '413': { $ref: '#/components/responses/RequestTooLarge' }
         '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200': { description: Tag updated, content: { application/json: { schema: { $ref: '#/components/schemas/TagResponse' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
@@ -817,6 +837,7 @@ paths:
       parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ToolCategoryCreateRequest' } } } }
       responses:
+        '413': { $ref: '#/components/responses/RequestTooLarge' }
         '503': { $ref: '#/components/responses/DatabaseBusy' }
         '201': { description: Tool category created, content: { application/json: { schema: { $ref: '#/components/schemas/ToolCategoryResponse' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
@@ -840,6 +861,7 @@ paths:
       parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ToolCategoryUpdateRequest' } } } }
       responses:
+        '413': { $ref: '#/components/responses/RequestTooLarge' }
         '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200': { description: Tool category updated, content: { application/json: { schema: { $ref: '#/components/schemas/ToolCategoryResponse' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
@@ -884,6 +906,7 @@ paths:
       parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ToolCreateRequest' } } } }
       responses:
+        '413': { $ref: '#/components/responses/RequestTooLarge' }
         '503': { $ref: '#/components/responses/DatabaseBusy' }
         '201': { description: Tool created, content: { application/json: { schema: { $ref: '#/components/schemas/ToolResponse' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
@@ -907,6 +930,7 @@ paths:
       parameters: [{ $ref: '#/components/parameters/CsrfHeader' }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ToolUpdateRequest' } } } }
       responses:
+        '413': { $ref: '#/components/responses/RequestTooLarge' }
         '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200': { description: Tool updated, content: { application/json: { schema: { $ref: '#/components/schemas/ToolResponse' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
@@ -940,6 +964,7 @@ paths:
             schema:
               $ref: '#/components/schemas/AdminLoginRequest'
       responses:
+        '413': { $ref: '#/components/responses/RequestTooLarge' }
         '503': { $ref: '#/components/responses/DatabaseBusy' }
         '200':
           description: Administrator session created
@@ -1027,6 +1052,30 @@ components:
           schema: { type: integer, const: 2 }
         Cache-Control:
           schema: { type: string, const: no-store }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemResponse' }
+    ServiceUnavailable:
+      description: Bounded request capacity or a required dependency is temporarily unavailable; inspect ProblemResponse.code
+      headers:
+        Retry-After:
+          description: Present when the caller may retry after a short fixed delay
+          schema: { type: integer, minimum: 1 }
+        Cache-Control: { schema: { type: string, const: no-store } }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemResponse' }
+    GatewayTimeout:
+      description: GATEWAY_TIMEOUT — an upstream dependency did not respond before the fixed deadline
+      headers:
+        Cache-Control: { schema: { type: string, const: no-store } }
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/ProblemResponse' }
+    RequestTooLarge:
+      description: REQUEST_BODY_TOO_LARGE — the encoded JSON request exceeds its route limit
+      headers:
+        Cache-Control: { schema: { type: string, const: no-store } }
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/ProblemResponse' }
@@ -1489,7 +1538,9 @@ components:
       properties:
         nodes: { type: array, maxItems: 200, items: { $ref: '#/components/schemas/GardenNode' } }
         edges: { type: array, maxItems: 600, items: { $ref: '#/components/schemas/GardenEdge' } }
-        truncated: { type: boolean }
+        truncated:
+          type: boolean
+          description: True when content candidates, per-content tags, intermediate relationships, nodes, or edges were clipped
     GardenNode:
       type: object
       required: [id, type, label, href, degree]
@@ -1508,7 +1559,10 @@ components:
         source: { type: string, maxLength: 240 }
         target: { type: string, maxLength: 240 }
         kind: { type: string, enum: [MEMBERSHIP, CO_OCCURRENCE] }
-        weight: { type: integer, minimum: 1 }
+        weight:
+          type: integer
+          minimum: 1
+          description: Weight within the bounded newest-content projection and the first 12 normalized tags per content item, not an all-time corpus total
     MediaUploadRequest:
       type: object
       required: [mimeType, sizeBytes, width, height, sha256]

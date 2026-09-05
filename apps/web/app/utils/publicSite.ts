@@ -16,6 +16,7 @@ export const defaultPublicSite: PublicSite = {
 export function usePublicSite() {
   return usePublicApi<PublicSite>('/api/v1/public/site', {
     key: 'public-site',
+    timeout: 1000,
     default: () => defaultPublicSite,
   })
 }

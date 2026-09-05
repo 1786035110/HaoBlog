@@ -20,6 +20,7 @@ import java.util.Set;
 public class GardenGraphService {
     static final int MAX_NODES = 200;
     static final int MAX_EDGES = 600;
+    static final int MAX_TAGS_PER_CONTENT = 12;
 
     private final ArticleService articles;
     private final ToolManagementService tools;
@@ -31,32 +32,59 @@ public class GardenGraphService {
 
     @Transactional(readOnly = true)
     public Graph get() {
-        return build(articles.listPublicGardenArticles(), tools.listPublicGardenTools());
+        var articleBatch = articles.listPublicGardenArticles(MAX_NODES, MAX_TAGS_PER_CONTENT);
+        int remaining = MAX_NODES - articleBatch.items().size();
+        var toolBatch = tools.listPublicGardenTools(remaining, MAX_TAGS_PER_CONTENT);
+        return build(articleBatch.items(), toolBatch.items(), articleBatch.truncated() || toolBatch.truncated());
     }
 
     public static Graph build(List<ArticleService.GardenArticle> articles,
                               List<ToolManagementService.GardenTool> tools) {
+        return build(articles, tools, false);
+    }
+
+    static Graph build(List<ArticleService.GardenArticle> articles,
+                       List<ToolManagementService.GardenTool> tools,
+                       boolean sourceTruncated) {
         Map<String, CandidateNode> nodes = new LinkedHashMap<>();
         Map<EdgeKey, CandidateEdge> edges = new LinkedHashMap<>();
+        boolean bounded = sourceTruncated;
 
-        for (var article : articles == null ? List.<ArticleService.GardenArticle>of() : articles) {
+        List<ArticleService.GardenArticle> articleItems = articles == null ? List.of() : articles;
+        if (articleItems.size() > MAX_NODES) bounded = true;
+        for (var article : articleItems.stream().sorted((left, right) -> {
+            int published = comparePublishedAt(left.publishedAt(), right.publishedAt());
+            return published != 0 ? published : left.slug().compareTo(right.slug());
+        }).limit(MAX_NODES).toList()) {
             String articleId = nodeId(NodeType.ARTICLE, article.slug());
             if (articleId == null) continue;
+            List<ArticleService.GardenTaxonomy> tags = article.tags() == null ? List.of() : article.tags();
+            if (tags.size() > MAX_TAGS_PER_CONTENT) bounded = true;
+            tags = tags.stream().filter(java.util.Objects::nonNull).sorted(Comparator.comparing(value -> normalizeSlug(value.slug()),
+                    Comparator.nullsLast(String::compareTo))).limit(MAX_TAGS_PER_CONTENT).toList();
             addNode(nodes, new CandidateNode(articleId, NodeType.ARTICLE, cleanLabel(article.title(), article.slug()),
                     "/articles/" + article.slug(), cleanText(article.excerpt()), article.publishedAt(), 0));
-            addMemberships(nodes, edges, articleId, article.category(), article.tags());
-            addCoOccurrences(edges, article.tags());
+            addMemberships(nodes, edges, articleId, article.category(), tags);
+            addCoOccurrences(edges, tags);
         }
-        for (var tool : tools == null ? List.<ToolManagementService.GardenTool>of() : tools) {
+        int toolLimit = Math.max(0, MAX_NODES - Math.min(articleItems.size(), MAX_NODES));
+        List<ToolManagementService.GardenTool> toolItems = tools == null ? List.of() : tools;
+        if (toolItems.size() > toolLimit) bounded = true;
+        for (var tool : toolItems.stream().sorted(Comparator.comparingInt(ToolManagementService.GardenTool::sortOrder)
+                .thenComparing(ToolManagementService.GardenTool::title)
+                .thenComparing(ToolManagementService.GardenTool::id)).limit(toolLimit).toList()) {
             String toolId = nodeId(NodeType.TOOL, tool.slug());
             if (toolId == null) continue;
+            List<String> toolTags = tool.tags() == null ? List.of() : tool.tags();
+            if (toolTags.size() > MAX_TAGS_PER_CONTENT) bounded = true;
+            toolTags = toolTags.stream().sorted(String.CASE_INSENSITIVE_ORDER).limit(MAX_TAGS_PER_CONTENT).toList();
             addNode(nodes, new CandidateNode(toolId, NodeType.TOOL, cleanLabel(tool.title(), tool.slug()),
                     "/tools?tool=" + tool.slug(), cleanText(tool.description()), null, tool.sortOrder()));
             addMemberships(nodes, edges, toolId,
                     taxonomy(tool.categoryName(), tool.categorySlug()),
-                    tool.tags() == null ? List.of() : tool.tags().stream()
+                    toolTags.stream()
                             .map(value -> taxonomy(value, value)).toList());
-            addCoOccurrences(edges, tool.tags() == null ? List.of() : tool.tags().stream()
+            addCoOccurrences(edges, toolTags.stream()
                     .map(value -> taxonomy(value, value)).toList());
         }
 
@@ -87,7 +115,7 @@ public class GardenGraphService {
         List<Edge> resultEdges = selectedEdges.stream()
                 .map(edge -> new Edge(edge.source(), edge.target(), edge.kind(), edge.weight()))
                 .toList();
-        boolean truncated = resultNodes.size() < nodes.size() || resultEdges.size() < orderedEdges.size()
+        boolean truncated = bounded || resultNodes.size() < nodes.size() || resultEdges.size() < orderedEdges.size()
                 || resultEdges.size() < edges.size();
         return new Graph(resultNodes, resultEdges, truncated);
     }

@@ -73,6 +73,12 @@ server:
   shutdown: graceful
   port: ${API_PORT:8080}
   tomcat:
+    max-connections: ${SERVER_TOMCAT_MAX_CONNECTIONS:64}
+    accept-count: ${SERVER_TOMCAT_ACCEPT_COUNT:32}
+    processor-cache: ${SERVER_TOMCAT_PROCESSOR_CACHE:20}
+    connection-timeout: 5s
+    keep-alive-timeout: 15s
+    max-swallow-size: 8MB
     threads:
       max: ${SERVER_TOMCAT_THREADS_MAX:20}
   servlet:

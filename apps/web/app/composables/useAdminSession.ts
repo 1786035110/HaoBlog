@@ -20,7 +20,9 @@ let restorePromise: Promise<boolean> | null = null
 let sessionGeneration = 0
 
 async function request<T>(path: string, init: RequestInit = {}, options: { clearSessionOnUnauthorized?: boolean } = {}) {
-  const response = await fetch(path, { credentials: 'include', ...init })
+  const timeout = AbortSignal.timeout(8000)
+  const signal = init.signal ? AbortSignal.any([init.signal, timeout]) : timeout
+  const response = await fetch(path, { credentials: 'include', ...init, signal })
   if (!response.ok) {
     let problem: ProblemResponse | undefined
     try {
@@ -46,7 +48,7 @@ async function fetchCsrf() {
   return response.token
 }
 
-async function requestWithCsrfRetry<T>(path: string, init: RequestInit) {
+async function requestWithCsrfRefresh<T>(path: string, init: RequestInit) {
   try {
     return await request<T>(path, init)
   } catch (cause) {
@@ -54,10 +56,8 @@ async function requestWithCsrfRetry<T>(path: string, init: RequestInit) {
       throw cause
     }
     csrfToken.value = null
-    const token = await fetchCsrf()
-    const headers = new Headers(init.headers)
-    headers.set('X-CSRF-TOKEN', token)
-    return request<T>(path, { ...init, headers })
+    try { await fetchCsrf() } catch { /* 下一次显式写入会再次获取。 */ }
+    throw cause
   }
 }
 
@@ -71,7 +71,7 @@ export function useAdminSession() {
     const token = csrfToken.value || await fetchCsrf()
     const headers = new Headers(init.headers)
     headers.set('X-CSRF-TOKEN', token)
-    return requestWithCsrfRetry<T>(path, { ...init, headers })
+    return requestWithCsrfRefresh<T>(path, { ...init, headers })
   }
 
   async function restore() {

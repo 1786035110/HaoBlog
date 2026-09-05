@@ -28,7 +28,7 @@ public class ProblemResponseWriter {
 
     public ResponseEntity<ProblemResponse> response(HttpStatus status, String code, String title, String detail,
                                                     Long currentVersion) {
-        return ResponseEntity.status(status).contentType(PROBLEM)
+        return ResponseEntity.status(status).contentType(PROBLEM).header("Cache-Control", "no-store")
                 .body(new ProblemResponse(code, title, detail == null || detail.isBlank() ? title : detail,
                         traceId(), currentVersion));
     }
@@ -37,6 +37,7 @@ public class ProblemResponseWriter {
                       HttpStatus status, String code, String title, String detail) throws IOException {
         response.setStatus(status.value());
         response.setContentType(PROBLEM.toString());
+        response.setHeader("Cache-Control", "no-store");
         String traceId = traceId(request);
         response.setHeader(TraceIdFilter.HEADER, traceId);
         objectMapper.writeValue(response.getOutputStream(),

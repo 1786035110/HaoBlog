@@ -15,11 +15,17 @@ const [{ data, pending, error }, { data: site }, { data: comments, refresh: refr
   usePublicSite(),
   usePublicApi<components['schemas']['CommentPageResponse']>(`/api/v1/public/articles/${encodeURIComponent(String(route.params.slug))}/comments`, {
     query: { size: 20 },
+    timeout: 1000,
     default: () => ({ items: [], page: 0, size: 20, total: 0 }),
   }),
 ])
 if (error.value?.statusCode === 404 || (!pending.value && !data.value)) {
-  throw createError({ statusCode: 404, statusMessage: 'Article not found', fatal: true })
+  if (error.value?.statusCode === 404) throw createError({ statusCode: 404, statusMessage: 'Article not found', fatal: true })
+  throw createError({
+    statusCode: error.value?.statusCode || 503,
+    statusMessage: error.value?.statusMessage || 'Article service unavailable',
+    fatal: true,
+  })
 }
 const articleBody = ref<{ rootElement: HTMLElement | null } | null>(null)
 const activeTocId = ref<string | null>(null)

@@ -138,6 +138,8 @@ async function submitComment() {
   try {
     const result = await $fetch<Submission>(`/api/v1/public/articles/${encodeURIComponent(props.slug)}/comments`, {
       method: 'POST',
+      retry: 0,
+      timeout: 8000,
       credentials: 'include',
       headers: { 'X-CSRF-TOKEN': context.csrfToken },
       body: {
@@ -177,6 +179,8 @@ async function deleteComment(comment: CommentView) {
   try {
     await $fetch(`/api/v1/public/comments/${encodeURIComponent(comment.id)}`, {
       method: 'DELETE',
+      retry: 0,
+      timeout: 8000,
       credentials: 'include',
       headers: {
         'X-CSRF-TOKEN': context.csrfToken,

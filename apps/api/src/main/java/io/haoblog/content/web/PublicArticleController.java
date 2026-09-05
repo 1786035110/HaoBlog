@@ -59,19 +59,24 @@ public class PublicArticleController {
         ArticleService.PublicArticle article = service.findPublicBySlug(slug).orElseThrow(() -> new ArticleNotFoundException(slug));
         String coverImageUrl = article.revision().getCoverMediaId() == null ? null : service.publicCoverUrls(java.util.Set.of(article.revision().getCoverMediaId())).get(article.revision().getCoverMediaId());
         var response = ArticleResponse.from(article, coverImageUrl, globalCommentsEnabled());
-        return withCache(response, representationHash("detail", article.revision().getId(), response), ifNoneMatch);
+        return withCache(response, representationHash("detail", article.revision().getId(), response), ifNoneMatch, 0);
     }
 
     @ExceptionHandler(ArticleNotFoundException.class)
     ResponseEntity<ProblemResponse> articleNotFound(ArticleNotFoundException ignored) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).contentType(PROBLEM)
+                .header(HttpHeaders.CACHE_CONTROL, "no-store")
                 .body(new ProblemResponse("ARTICLE_NOT_FOUND", "Article not found", "The requested public article does not exist", MDC.get("traceId")));
     }
 
     private <T> ResponseEntity<T> withCache(T body, String etag, String ifNoneMatch) {
+        return withCache(body, etag, ifNoneMatch, 60);
+    }
+
+    private <T> ResponseEntity<T> withCache(T body, String etag, String ifNoneMatch, int sharedMaxAge) {
         var headers = new HttpHeaders();
         headers.setETag(etag);
-        headers.setCacheControl("public, max-age=0, s-maxage=60, must-revalidate");
+        headers.setCacheControl("public, max-age=0, s-maxage=" + sharedMaxAge + ", must-revalidate");
         if (etag.equals(ifNoneMatch)) return ResponseEntity.status(HttpStatus.NOT_MODIFIED).headers(headers).build();
         return ResponseEntity.ok().headers(headers).body(body);
     }

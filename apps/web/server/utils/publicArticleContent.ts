@@ -27,6 +27,7 @@ import yaml from '@shikijs/langs/yaml'
 import darkPlus from '@shikijs/themes/dark-plus'
 import lightPlus from '@shikijs/themes/light-plus'
 import type { PublicArticleContent } from '../../app/utils/publicArticleContent'
+import { createHash } from 'node:crypto'
 
 type Article = components['schemas']['ArticleResponse']
 type TocItem = PublicArticleContent['toc'][number]
@@ -34,8 +35,21 @@ type PublicArticleRenderOptions = { saveData?: boolean }
 
 const LINK_CONTROL_CHARACTERS = /[\u0000-\u001f\u007f]/
 const MAX_METADATA_LINE = 100_000
+const MAX_METADATA_BYTES = 4 * 1024
+const MAX_FOCUS_RANGES = 64
+const MAX_FOCUSED_LINES = 500
+const MAX_HIGHLIGHT_BYTES = 32 * 1024
+const MAX_HIGHLIGHT_LINES = 500
 const KATEX_MAX_SIZE = 10
 const KATEX_MAX_EXPAND = 100
+const RENDERER_VERSION = 's6-03-v1'
+const CACHE_TTL_MS = 55_000
+const CACHE_MAX_ENTRIES = 64
+const CACHE_MAX_BYTES = 16 * 1024 * 1024
+const CACHE_MAX_ITEM_BYTES = 256 * 1024
+const MAX_RECOMPUTATIONS = 16
+const MAX_SUBSCRIBERS_PER_KEY = 20
+const UPSTREAM_TIMEOUT_MS = 4_000
 
 const CALLOUTS = {
   note: { label: '注记', role: 'note' },
@@ -104,6 +118,7 @@ function escapeHtml(value: string) {
 function parseFocusRanges(value: string) {
   const ranges: Array<[number, number]> = []
   for (const part of value.split(',')) {
+    if (ranges.length >= MAX_FOCUS_RANGES) break
     const range = part.trim().match(/^(\d+)(?:-(\d+))?$/)
     if (!range) continue
     const start = Number(range[1])
@@ -115,7 +130,7 @@ function parseFocusRanges(value: string) {
 }
 
 function parseCodeMetadata(info: string): CodeMetadata {
-  const parts = info.trim().split(/\s+/).filter(Boolean)
+  const parts = Buffer.from(info).subarray(0, MAX_METADATA_BYTES).toString().trim().split(/\s+/).filter(Boolean)
   const rawLanguage = (parts.shift() || 'plaintext').toLowerCase()
   let filename: string | undefined
   const focusRanges: Array<[number, number]> = []
@@ -132,7 +147,10 @@ function parseCodeMetadata(info: string): CodeMetadata {
 function focusedLines(ranges: Array<[number, number]>, lineCount: number) {
   const focused = new Set<number>()
   for (const [start, end] of ranges) {
-    for (let line = start; line <= Math.min(end, lineCount); line++) focused.add(line)
+    for (let line = start; line <= Math.min(end, lineCount); line++) {
+      if (focused.size >= MAX_FOCUSED_LINES) return focused
+      focused.add(line)
+    }
   }
   return focused
 }
@@ -164,7 +182,8 @@ function renderCodeFence(token: Token) {
   const language = metadata.language || 'plaintext'
   const languageClass = /^[a-z0-9_-]+$/.test(metadata.rawLanguage) ? metadata.rawLanguage : 'plaintext'
   let codeHtml = renderPlainCode(code, metadata.focusRanges)
-  if (shikiHighlighter && language !== 'plaintext') {
+  if (shikiHighlighter && language !== 'plaintext'
+    && Buffer.byteLength(code) <= MAX_HIGHLIGHT_BYTES && lineCount <= MAX_HIGHLIGHT_LINES) {
     try {
       codeHtml = decorateLines(shikiHighlighter.codeToHtml(code, {
         lang: language,
@@ -422,23 +441,209 @@ export type PublicArticleContentFetchResult = {
   body?: PublicArticleContent
 }
 
+type RenderCacheEntry = {
+  key: string
+  resourceKey: string
+  rawEtag: string
+  representationEtag: string
+  body: PublicArticleContent
+  bytes: number
+  expiresAt: number
+}
+
+type InFlightRender = {
+  controller: AbortController
+  promise: Promise<PublicArticleContentFetchResult>
+  subscribers: number
+}
+
+const renderCache = new Map<string, RenderCacheEntry>()
+const inFlightRenders = new Map<string, InFlightRender>()
+let renderCacheBytes = 0
+
+function normalizedSource(apiBaseUrl: string) {
+  const source = new URL(apiBaseUrl)
+  source.hash = ''
+  source.search = ''
+  return source.toString().replace(/\/$/, '')
+}
+
+function resourceKey(source: string, slug: string, saveData: boolean) {
+  return `${source}|${slug}|${RENDERER_VERSION}|save-data:${saveData ? 'on' : 'off'}`
+}
+
+function cacheHeaders(etag?: string, cacheable = true) {
+  const headers = new Headers({ 'cache-control': cacheable ? 'public, max-age=0, s-maxage=0, must-revalidate' : 'private, no-store' })
+  if (etag) headers.set('etag', etag)
+  return headers
+}
+
+function findEntry(key: string) {
+  for (const entry of renderCache.values()) if (entry.resourceKey === key) return entry
+}
+
+function touch(entry: RenderCacheEntry) {
+  renderCache.delete(entry.key)
+  renderCache.set(entry.key, entry)
+}
+
+function evict(entry: RenderCacheEntry) {
+  if (!renderCache.delete(entry.key)) return
+  renderCacheBytes -= entry.bytes
+}
+
+function evictResource(key: string) {
+  for (const entry of [...renderCache.values()]) if (entry.resourceKey === key) evict(entry)
+}
+
+function store(entry: RenderCacheEntry) {
+  if (entry.bytes > CACHE_MAX_ITEM_BYTES) return
+  evictResource(entry.resourceKey)
+  while (renderCache.size >= CACHE_MAX_ENTRIES || renderCacheBytes + entry.bytes > CACHE_MAX_BYTES) {
+    const oldest = renderCache.values().next().value as RenderCacheEntry | undefined
+    if (!oldest) break
+    evict(oldest)
+  }
+  if (renderCacheBytes + entry.bytes > CACHE_MAX_BYTES) return
+  renderCache.set(entry.key, entry)
+  renderCacheBytes += entry.bytes
+}
+
+function responseFromBody(body: PublicArticleContent, representationEtag: string, requestedEtag: string | undefined, cacheable = true) {
+  const headers = cacheHeaders(representationEtag, cacheable)
+  return requestedEtag === representationEtag
+    ? { status: 304, headers }
+    : { status: 200, headers, body }
+}
+
+function waitFor<T>(promise: Promise<T>, signal?: AbortSignal) {
+  if (!signal) return promise
+  if (signal.aborted) return Promise.reject(signal.reason)
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(signal.reason)
+    signal.addEventListener('abort', onAbort, { once: true })
+    promise.then(value => {
+      signal.removeEventListener('abort', onAbort)
+      resolve(value)
+    }, error => {
+      signal.removeEventListener('abort', onAbort)
+      reject(error)
+    })
+  })
+}
+
+async function recomputePublicArticle(
+  slug: string,
+  source: string,
+  key: string,
+  requestedEtag: string | undefined,
+  fetcher: typeof fetch,
+  saveData: boolean,
+  signal: AbortSignal,
+  cacheable: boolean,
+): Promise<PublicArticleContentFetchResult> {
+  const previous = cacheable ? findEntry(key) : undefined
+  const target = new URL(`/api/v1/public/articles/${encodeURIComponent(slug)}`, source)
+  const headers = new Headers()
+  if (previous) headers.set('if-none-match', previous.rawEtag)
+  let response: Response
+  try {
+    response = await fetcher(target, { headers, signal })
+  } catch (error) {
+    if (cacheable) evictResource(key)
+    return { status: error instanceof DOMException && error.name === 'TimeoutError' ? 504 : 503, headers: cacheHeaders(undefined, false) }
+  }
+  if (response.status === 404) {
+    if (cacheable) evictResource(key)
+    return { status: 404, headers: cacheHeaders(undefined, false) }
+  }
+  if (response.status === 304) {
+    if (!previous) return { status: 503, headers: cacheHeaders(undefined, false) }
+    previous.expiresAt = Date.now() + CACHE_TTL_MS
+    touch(previous)
+    return responseFromBody(previous.body, previous.representationEtag, requestedEtag, cacheable)
+  }
+  if (!response.ok) {
+    if (cacheable) evictResource(key)
+    return { status: 503, headers: cacheHeaders(undefined, false) }
+  }
+  let body: PublicArticleContent
+  try {
+    body = buildPublicArticleContent(await response.json() as Article, { saveData })
+  } catch {
+    if (cacheable) evictResource(key)
+    return { status: 503, headers: cacheHeaders(undefined, false) }
+  }
+  const serialized = JSON.stringify(body)
+  const representationEtag = `"${createHash('sha256').update(RENDERER_VERSION).update(saveData ? '1' : '0').update(serialized).digest('hex')}"`
+  const rawEtag = response.headers.get('etag')
+  if (cacheable && rawEtag) {
+    const entry: RenderCacheEntry = {
+      key: `${key}|${rawEtag}`,
+      resourceKey: key,
+      rawEtag,
+      representationEtag,
+      body,
+      bytes: Buffer.byteLength(serialized),
+      expiresAt: Date.now() + CACHE_TTL_MS,
+    }
+    store(entry)
+  }
+  return responseFromBody(body, representationEtag, requestedEtag, cacheable && Boolean(rawEtag))
+}
+
 export async function fetchPublicArticleContent(
   slug: string,
   apiBaseUrl: string,
   ifNoneMatch: string | undefined,
   fetcher: typeof fetch = fetch,
   saveData = false,
+  signal?: AbortSignal,
+  cacheable = true,
 ): Promise<PublicArticleContentFetchResult> {
-  const target = new URL(`/api/v1/public/articles/${encodeURIComponent(slug)}`, apiBaseUrl)
-  const headers = new Headers()
-  if (ifNoneMatch) headers.set('if-none-match', ifNoneMatch)
-  const response = await fetcher(target, { headers })
-  const forwardedHeaders = new Headers()
-  for (const name of ['etag', 'cache-control']) {
-    const value = response.headers.get(name)
-    if (value) forwardedHeaders.set(name, value)
+  const source = normalizedSource(apiBaseUrl)
+  const key = resourceKey(source, slug, saveData)
+  const cached = cacheable ? findEntry(key) : undefined
+  if (cached && cached.expiresAt > Date.now()) {
+    touch(cached)
+    return responseFromBody(cached.body, cached.representationEtag, ifNoneMatch)
   }
-  if (response.status === 304 || response.status === 404) return { status: response.status, headers: forwardedHeaders }
-  if (!response.ok) return { status: 502, headers: forwardedHeaders }
-  return { status: 200, headers: forwardedHeaders, body: buildPublicArticleContent(await response.json() as Article, { saveData }) }
+  if (!cacheable) {
+    return recomputePublicArticle(slug, source, key, ifNoneMatch, fetcher, saveData,
+      AbortSignal.any([signal || new AbortController().signal, AbortSignal.timeout(UPSTREAM_TIMEOUT_MS)]), false)
+  }
+
+  let task = inFlightRenders.get(key)
+  if (!task) {
+    if (inFlightRenders.size >= MAX_RECOMPUTATIONS) return { status: 503, headers: cacheHeaders(undefined, false) }
+    const controller = new AbortController()
+    task = { controller, subscribers: 0, promise: Promise.resolve({ status: 503, headers: cacheHeaders(undefined, false) }) }
+    task.promise = recomputePublicArticle(slug, source, key, undefined, fetcher, saveData,
+      AbortSignal.any([controller.signal, AbortSignal.timeout(UPSTREAM_TIMEOUT_MS)]), true)
+      .finally(() => inFlightRenders.delete(key))
+    inFlightRenders.set(key, task)
+  }
+  if (task.subscribers >= MAX_SUBSCRIBERS_PER_KEY) return { status: 503, headers: cacheHeaders(undefined, false) }
+  task.subscribers += 1
+  try {
+    const result = await waitFor(task.promise, signal)
+    const representationEtag = result.headers.get('etag')
+    return result.status === 200 && result.body && representationEtag
+      ? responseFromBody(result.body, representationEtag, ifNoneMatch)
+      : result
+  } finally {
+    task.subscribers -= 1
+    if (task.subscribers === 0 && inFlightRenders.get(key) === task) task.controller.abort()
+  }
+}
+
+export function resetPublicArticleRenderCache() {
+  for (const task of inFlightRenders.values()) task.controller.abort()
+  inFlightRenders.clear()
+  renderCache.clear()
+  renderCacheBytes = 0
+}
+
+export function publicArticleRenderCacheStats() {
+  return { entries: renderCache.size, bytes: renderCacheBytes, recomputations: inFlightRenders.size }
 }

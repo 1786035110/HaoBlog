@@ -71,6 +71,7 @@ public class PublicCommentController {
                 "Too many comments have been submitted from this source").getBody();
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                 .header(HttpHeaders.RETRY_AFTER, Long.toString(exception.getRetryAfterSeconds()))
+                .header(HttpHeaders.CACHE_CONTROL, "no-store")
                 .contentType(ProblemResponseWriter.PROBLEM)
                 .body(body);
     }

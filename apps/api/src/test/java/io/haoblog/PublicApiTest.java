@@ -99,7 +99,7 @@ class PublicApiTest {
         for (String path : new String[]{"/rss.xml", "/sitemap.xml"}) {
             var first = mvc.perform(get(path)).andExpect(status().isOk())
                     .andExpect(header().string("ETag", path.startsWith("/rss") ? "\"rss-etag\"" : "\"sitemap-etag\""))
-                    .andExpect(header().string("Cache-Control", "public, max-age=0, s-maxage=60, must-revalidate"))
+                    .andExpect(header().string("Cache-Control", "public, max-age=0, s-maxage=0, must-revalidate"))
                     .andReturn();
             mvc.perform(get(path).header("If-None-Match", first.getResponse().getHeader("ETag")))
                     .andExpect(status().isNotModified()).andExpect(content().string(""));
@@ -158,6 +158,7 @@ class PublicApiTest {
         when(articleService.findPublicBySlug("visible")).thenReturn(Optional.of(publicArticle("visible", "Visible", "Excerpt", "# Body", publishedAt, publishedAt)));
         var first = mvc.perform(get("/api/v1/public/articles/visible")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.markdown").value("# Body"))
+                .andExpect(header().string("Cache-Control", "public, max-age=0, s-maxage=0, must-revalidate"))
                 .andExpect(header().exists("ETag")).andReturn();
         String etag = first.getResponse().getHeader("ETag");
         mvc.perform(get("/api/v1/public/articles/visible").header("If-None-Match", etag))

@@ -19,6 +19,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 class PublicFeedServiceTest {
     private final SiteService siteService = mock(SiteService.class);
@@ -66,10 +67,29 @@ class PublicFeedServiceTest {
         when(articleService.listPublishedBatch(org.mockito.ArgumentMatchers.anyInt(), eq(500)))
                 .thenAnswer(invocation -> new ArticleService.PublishedBatch(articles(500, invocation.getArgument(0, Integer.class) * 500), true));
 
-        Document xml = parse(new PublicFeedService(siteService, articleService).sitemap().body());
+        var document = new PublicFeedService(siteService, articleService).sitemap();
+        Document xml = parse(document.body());
 
         assertEquals(50_000, xml.getElementsByTagNameNS("http://www.sitemaps.org/schemas/sitemap/0.9", "url").getLength());
+        assertTrue(document.bytes() < 8 * 1024 * 1024);
         verify(articleService, times(100)).listPublishedBatch(org.mockito.ArgumentMatchers.anyInt(), eq(500));
+    }
+
+    @Test
+    void concurrentSitemapRefreshIsComputedOnce() throws Exception {
+        when(siteService.get()).thenReturn(new SiteService.SiteResult("HaoBlog", "Night station", "https://blog.example.test", "Hao"));
+        when(articleService.listPublishedBatch(0, 500)).thenReturn(new ArticleService.PublishedBatch(articles(2, 0), false));
+        var service = new PublicFeedService(siteService, articleService);
+
+        try (var executor = java.util.concurrent.Executors.newFixedThreadPool(8)) {
+            var calls = java.util.stream.IntStream.range(0, 8)
+                    .mapToObj(ignored -> java.util.concurrent.CompletableFuture.supplyAsync(service::sitemap, executor)).toList();
+            java.util.concurrent.CompletableFuture.allOf(calls.toArray(java.util.concurrent.CompletableFuture[]::new)).join();
+        }
+
+        verify(siteService).get();
+        verify(articleService).listPublishedBatch(0, 500);
+        verifyNoMoreInteractions(siteService, articleService);
     }
 
     private static ArticleService.PublicFeedArticle article(int index, String title, String excerpt) {

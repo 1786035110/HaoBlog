@@ -60,14 +60,18 @@ public class ArticleService implements ArticleCommentLookup {
 
     public PublishedBatch listPublishedBatch(int page, int size) {
         if (page < 0 || size < 1 || size > 500) throw new IllegalArgumentException("page/size out of range");
-        var result = repository.findPublished(ArticleStatus.PUBLISHED, java.time.Instant.now(clock), PageRequest.of(page, size));
-        return new PublishedBatch(result.getContent().stream().map(this::toPublicFeedArticle).toList(), result.hasNext());
+        var result = repository.findPublishedFeed(ArticleStatus.PUBLISHED, java.time.Instant.now(clock), PageRequest.of(page, size));
+        return new PublishedBatch(result.getContent().stream().map(value -> new PublicFeedArticle(
+                value.getId(), value.getSlug(), value.getTitle(), value.getExcerpt(), value.getPublishedAt())).toList(), result.hasNext());
     }
 
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
-    public List<GardenArticle> listPublicGardenArticles() {
+    public GardenArticleBatch listPublicGardenArticles(int limit, int tagLimit) {
+        if (limit < 1 || limit > 200 || tagLimit < 1 || tagLimit > 12) throw new IllegalArgumentException("garden limit out of range");
         Map<UUID, GardenArticleBuilder> grouped = new LinkedHashMap<>();
-        for (var row : repository.findPublicGardenRows(java.time.Instant.now(clock))) {
+        boolean tagsTruncated = false;
+        for (var row : repository.findPublicGardenRows(java.time.Instant.now(clock), limit + 1, tagLimit)) {
+            tagsTruncated |= row.getTagsTruncated();
             var article = grouped.computeIfAbsent(row.getArticleId(), ignored -> new GardenArticleBuilder(
                     row.getArticleId(), row.getSlug(), row.getTitle(), row.getExcerpt(), row.getPublishedAt(),
                     taxonomy(row.getCategoryName(), row.getCategorySlug())));
@@ -75,7 +79,9 @@ public class ArticleService implements ArticleCommentLookup {
                 article.tags.add(taxonomy(row.getTagName(), row.getTagSlug()));
             }
         }
-        return grouped.values().stream().map(GardenArticleBuilder::build).toList();
+        boolean truncated = grouped.size() > limit;
+        return new GardenArticleBatch(grouped.values().stream().limit(limit).map(GardenArticleBuilder::build).toList(),
+                truncated || tagsTruncated);
     }
 
     public SearchPage search(String query, int page, int size) {
@@ -110,11 +116,6 @@ public class ArticleService implements ArticleCommentLookup {
         return new PublicArticle(projection.getRevision(), projection.getPublishedAt(), projection.getCommentsEnabled());
     }
 
-    private PublicFeedArticle toPublicFeedArticle(ArticleRevisionRepository.PublicArticleProjection projection) {
-        var revision = projection.getRevision();
-        return new PublicFeedArticle(revision.getArticleId(), revision.getSlug(), revision.getTitle(),
-                revision.getExcerpt(), projection.getPublishedAt());
-    }
 
     public record PublicArticle(ArticleRevision revision, java.time.Instant publishedAt, boolean commentsEnabled) {
         public PublicArticle(ArticleRevision revision, java.time.Instant publishedAt) {
@@ -131,6 +132,7 @@ public class ArticleService implements ArticleCommentLookup {
     public record GardenTaxonomy(String name, String slug) {}
     public record GardenArticle(UUID id, String slug, String title, String excerpt, java.time.Instant publishedAt,
                                 GardenTaxonomy category, List<GardenTaxonomy> tags) {}
+    public record GardenArticleBatch(List<GardenArticle> items, boolean truncated) {}
     public record SearchPage(String query, Page<PublicSearchArticle> page) {}
     public record PublicSearchArticle(UUID id, String slug, String title, String excerpt,
                                       java.time.Instant publishedAt, UUID coverMediaId, boolean commentsEnabled) {}

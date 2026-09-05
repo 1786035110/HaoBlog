@@ -1,6 +1,8 @@
+import { proxyUpstream } from '../../utils/proxyUpstream'
+
 export default defineEventHandler((event) => {
   const path = getRouterParam(event, 'path') || ''
   const target = new URL(`/api/${path}`, useRuntimeConfig(event).apiBaseUrl)
   target.search = getRequestURL(event).search
-  return proxyRequest(event, target.toString())
+  return proxyUpstream(event, target, 8000)
 })
