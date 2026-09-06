@@ -33,6 +33,7 @@ export async function proxyUpstream(event: H3Event, target: URL, timeoutMs: numb
 export function sendProblem(event: H3Event, status: number, code: string, title: string, detail: string, retryAfter?: number) {
   const candidate = getRequestHeader(event, 'x-request-id')
   const traceId = candidate && TRACE_ID.test(candidate) ? candidate : randomUUID()
+  event.context.haoblogErrorCode = code
   setResponseStatus(event, status)
   setResponseHeader(event, 'content-type', 'application/problem+json')
   setResponseHeader(event, 'cache-control', 'no-store')

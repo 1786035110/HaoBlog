@@ -87,7 +87,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     ResponseEntity<ProblemResponse> unexpected(Exception exception) {
-        LOG.error("Unhandled request failure traceId={}", MDC.get("traceId"), exception);
+        LOG.error("Unhandled request failure type={}", exception.getClass().getName());
         return problemResponseWriter.response(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "An unexpected error occurred", null);
     }
 }

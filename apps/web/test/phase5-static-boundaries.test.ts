@@ -55,6 +55,16 @@ describe('phase five static boundaries', () => {
     expect(worker).not.toContain('.mp3')
     expect(worker).toContain('PREPARE_TOOLS')
     expect(worker).toContain('networkFirstToolPage')
+    expect(worker).not.toContain('caches.delete')
+    expect(worker).not.toContain('skipWaiting')
+  })
+
+  it('offers visible manual recovery for stale chunks without an automatic refresh loop', () => {
+    const shell = readFileSync(resolve(app, 'app.vue'), 'utf8')
+    expect(shell).toContain("addEventListener('vite:preloadError'")
+    expect(shell).toContain('页面文件已更新，当前内容仍保留。请手动刷新以恢复。')
+    expect(shell).toContain('window.location.reload()')
+    expect(shell).not.toContain('setTimeout(')
   })
 
   it('keeps 404 enhancement dynamic and preserves generic error recovery', () => {
@@ -63,7 +73,7 @@ describe('phase five static boundaries', () => {
     expect(error).toContain('game-launcher')
     expect(error).toContain('gamesAvailable')
     expect(error).toContain('retry-button')
-    expect(error).toContain('v-else class="retry-button"')
+    expect(error).toContain('<form v-else method="get">')
     expect(error).toContain('当前请求没有得到可用的观测响应，请稍后重试。')
     expect(error).toContain('noindex,nofollow')
   })

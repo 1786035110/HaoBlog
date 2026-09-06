@@ -11,7 +11,8 @@
     "web:lighthouse": "pnpm --dir apps/web lighthouse",
     "api-client:generate": "pnpm --filter @haoblog/api-client generate",
     "api-client:check": "pnpm --filter @haoblog/api-client check",
-    "compose:verify": "docker compose --env-file infra/compose/.env.ci.example -f infra/compose/compose.prod.yml config --format json | node scripts/verify-compose-resources.mjs -",
+    "compose:verify": "node scripts/compose.mjs --env-file infra/compose/.env.ci.example -f infra/compose/compose.prod.yml config --format json | node scripts/verify-compose-resources.mjs -",
+    "candidate": "node scripts/local-candidate.mjs",
     "smoke": "node scripts/smoke-test.mjs"
   }
 }

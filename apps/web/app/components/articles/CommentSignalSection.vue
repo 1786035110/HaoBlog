@@ -14,6 +14,7 @@ const emit = defineEmits<{ published: [] }>()
 const props = defineProps<{
   slug: string
   comments: CommentPage
+  unavailable?: boolean
   siteCommentsEnabled: boolean
   articleCommentsEnabled: boolean
 }>()
@@ -212,8 +213,9 @@ onMounted(restoreTokens)
 
     <p v-if="isGloballyClosed" class="comment-signal-note">评论信号已关闭</p>
     <template v-else>
+      <p v-if="props.unavailable" class="comment-signal-note" role="status">评论回波暂时失联，文章正文仍可阅读。</p>
       <p v-if="isArticleClosed" class="comment-signal-note">此篇观测已关闭新评论，历史回波仍可读取。</p>
-      <p v-else-if="!visibleComments.length" class="comment-signal-note">暂未捕获回波。成为第一个留下信号的人。</p>
+      <p v-else-if="!props.unavailable && !visibleComments.length" class="comment-signal-note">暂未捕获回波。成为第一个留下信号的人。</p>
       <p v-if="actionMessage" class="comment-signal-feedback" role="status" aria-live="polite">{{ actionMessage }}</p>
 
       <div v-if="visibleComments.length" class="comment-signal-list" aria-label="文章评论">
@@ -228,7 +230,7 @@ onMounted(restoreTokens)
         />
       </div>
 
-      <div v-if="canComment" class="comment-signal-compose">
+      <div v-if="canComment && !props.unavailable" class="comment-signal-compose">
         <button v-if="!expanded" class="comment-signal-expand" type="button" @click="openForm">展开评论入口 <span aria-hidden="true">＋</span></button>
         <form v-else class="comment-signal-form" @submit.prevent="submitComment">
           <p class="comment-signal-form-label">{{ replyTo ? `REPLY / @${replyTo.nickname}` : 'TRANSMIT / NEW ECHO' }}</p>

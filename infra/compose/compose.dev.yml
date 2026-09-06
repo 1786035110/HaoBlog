@@ -57,7 +57,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl --fail --silent http://127.0.0.1:8080/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "curl --fail --silent http://127.0.0.1:8080/actuator/health/liveness || exit 1"]
       interval: 10s
       timeout: 5s
       start_period: 30s
@@ -81,7 +81,7 @@ services:
       api:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/',r=>process.exit(r.statusCode>=200&&r.statusCode<500?0:1)).on('error',()=>process.exit(1))"]
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:3000/manifest.webmanifest',r=>process.exit(r.statusCode===200&&String(r.headers['content-type']).startsWith('application/manifest+json')?0:1)).on('error',()=>process.exit(1))"]
       interval: 10s
       timeout: 5s
       start_period: 20s

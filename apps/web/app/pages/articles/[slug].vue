@@ -10,7 +10,7 @@ import { useMotionPreference } from '~/composables/useMotionPreference'
 
 const route = useRoute()
 const config = useRuntimeConfig()
-const [{ data, pending, error }, { data: site }, { data: comments, refresh: refreshComments }] = await Promise.all([
+const [{ data, pending, error }, { data: site }, { data: comments, error: commentsError, refresh: refreshComments }] = await Promise.all([
   usePublicApi<PublicArticleContent>(`/_content/articles/${encodeURIComponent(String(route.params.slug))}`, { baseURL: config.public.apiBase }),
   usePublicSite(),
   usePublicApi<components['schemas']['CommentPageResponse']>(`/api/v1/public/articles/${encodeURIComponent(String(route.params.slug))}/comments`, {
@@ -90,6 +90,7 @@ useHead(() => {
         <CommentSignalSection
           :slug="data.article.slug"
           :comments="comments || { items: [], page: 0, size: 20, total: 0 }"
+          :unavailable="Boolean(commentsError)"
           :site-comments-enabled="resolvedSite.commentsEnabled"
           :article-comments-enabled="data.article.commentsEnabled"
           @published="refreshComments"

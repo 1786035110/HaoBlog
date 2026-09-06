@@ -62,10 +62,6 @@ self.addEventListener('install', () => {
   // 不预热、不跳过等待；首次安装和更新都由用户动作/旧页面生命周期决定。
 })
 
-self.addEventListener('activate', event => {
-  event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith('haoblog-tools-') && key !== CACHE_NAME).map(key => caches.delete(key)))))
-})
-
 self.addEventListener('message', event => {
   if (event.data?.type === 'PREPARE_TOOLS') void prepareTools(event.data.resourceUrls, event.ports[0])
 })

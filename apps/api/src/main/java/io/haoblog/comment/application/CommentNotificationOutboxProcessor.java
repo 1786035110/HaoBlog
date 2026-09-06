@@ -7,12 +7,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.dao.DataAccessException;
+import org.springframework.transaction.CannotCreateTransactionException;
 
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicLong;
 
 @Component
 public class CommentNotificationOutboxProcessor {
     private static final Logger LOG = LoggerFactory.getLogger(CommentNotificationOutboxProcessor.class);
+    private static final AtomicLong LAST_DATABASE_WARNING = new AtomicLong();
 
     private final OutboxEventStateService state;
     private final CommentNotificationMailer mailer;
@@ -30,8 +34,20 @@ public class CommentNotificationOutboxProcessor {
             initialDelayString = "${HAOBLOG_COMMENT_NOTIFICATION_INITIAL_DELAY_MS:5000}"
     )
     public void processDueBatch() {
-        for (OutboxEvent event : state.claimCommentCreatedBatch()) {
-            processOne(event);
+        try {
+            for (OutboxEvent event : state.claimCommentCreatedBatch()) {
+                processOne(event);
+            }
+        } catch (DataAccessException | CannotCreateTransactionException failure) {
+            warnDatabaseUnavailable();
+        }
+    }
+
+    private static void warnDatabaseUnavailable() {
+        long now = System.currentTimeMillis();
+        long previous = LAST_DATABASE_WARNING.get();
+        if (now - previous >= 60_000 && LAST_DATABASE_WARNING.compareAndSet(previous, now)) {
+            LOG.warn("评论通知轮询暂停：数据库暂不可用");
         }
     }
 

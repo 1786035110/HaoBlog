@@ -9,8 +9,11 @@ const { data, pending, error } = await usePublicApi<Preview>(`/api/v1/public/art
   key: `article-preview:${token}`,
   watch: false,
 })
-if (error.value?.statusCode === 404 || error.value?.statusCode === 410 || (!pending.value && !data.value)) {
-  throw createError({ statusCode: error.value?.statusCode || 404, statusMessage: 'Preview not found', fatal: true })
+if (error.value?.statusCode === 404 || error.value?.statusCode === 410) {
+  throw createError({ statusCode: error.value.statusCode, statusMessage: 'Preview not found', fatal: true })
+}
+if (!pending.value && !data.value) {
+  throw createError({ statusCode: error.value?.statusCode || 503, statusMessage: 'Preview service unavailable', fatal: true })
 }
 useHead(() => data.value ? {
   title: data.value.seoTitle?.trim() || data.value.title,

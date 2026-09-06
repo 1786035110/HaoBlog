@@ -66,9 +66,18 @@ management:
   endpoint:
     health:
       show-details: never
+      show-components: never
+      probes:
+        enabled: true
+      group:
+        liveness:
+          include: livenessState
+        readiness:
+          include: readinessState,db
   health:
     mail:
-      enabled: ${HAOBLOG_COMMENT_NOTIFICATION_ENABLED:false}
+      # SMTP 是可选投递通道，不能决定站点是否可接收请求。
+      enabled: false
 server:
   shutdown: graceful
   port: ${API_PORT:8080}

@@ -21,10 +21,11 @@ corepack pnpm --filter @haoblog/api-client generate
 corepack pnpm --filter @haoblog/api-client check
 corepack pnpm web:budget
 corepack pnpm compose:verify
+corepack pnpm candidate self-test
 ```
 
 阶段五音乐默认关闭。清单 URL 可在 Studio 配置，`HAOBLOG_MUSIC_MANIFEST_URL` 是数据库未配置时的回退值；生产环境必须使用绝对 HTTPS，并为浏览器直连清单与音频配置 CORS。音频不经过 Spring Boot。PWA 只在 production build 或显式测试模式注册，进入 `/tools` 后还需点击“准备离线工具”并二次确认；缓存不包含 API、Studio、文章、评论、图谱、音乐或外部资源。
 
 完整开发环境、独立生产 Compose 验收、Lighthouse 串行路由和清理命令见 [本地启动指南](docs/本地启动指南.md)。阶段目标任务和准入清单属于本地私有验收资料，不纳入公开仓库。本地收口不等于远端 CI、真实 OSS/CDN 与 CORS、真实域名/HTTPS 安装、部署备案或阶段六 30 分钟 2GB 压测通过。
 
-生产 API/Web 使用只读根目录和 32/16 MiB 临时目录，四容器禁用容器 Swap，保留原内存/CPU/PID 预算。业务连接获取等待 2 秒、SQL 3 秒、锁等待 1 秒；Flyway 使用独立连接。SMTP/OSS 在数据库事务外执行，评论通知逐条认领、最多 5 次尝试，采用至少一次语义。运行态资源验证与权限例外见启动指南。
+生产 API/Web 使用只读根目录和 32/16 MiB 临时目录，四容器禁用容器 Swap，保留原内存/CPU/PID 预算。API liveness 只看进程，readiness 包含数据库；Web 使用静态清单进程探针，公开页面由 Smoke 验证。业务连接获取等待 2 秒、SQL 3 秒、锁等待 1 秒；Flyway 使用独立连接。SMTP/OSS 在数据库事务外执行，评论通知逐条认领、最多 5 次尝试，采用至少一次语义。运行态资源验证、候选切换与权限例外见启动指南。

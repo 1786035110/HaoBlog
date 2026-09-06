@@ -30,9 +30,6 @@ async function openGames() {
   }
 }
 
-function retry() {
-  if (import.meta.client) window.location.reload()
-}
 </script>
 
 <template>
@@ -51,7 +48,7 @@ function retry() {
         <label for="error-search-query">搜索文章</label>
         <div><input id="error-search-query" name="q" type="search" minlength="2" maxlength="100" required placeholder="输入至少 2 个字符"><button type="submit">SEARCH →</button></div>
       </form>
-      <button v-else class="retry-button" type="button" @click="retry">重试当前路径</button>
+      <form v-else method="get"><button class="retry-button" type="submit">重试当前路径</button></form>
       <nav class="error-links" aria-label="错误页入口">
         <NuxtLink to="/articles">文章观测日志</NuxtLink>
         <NuxtLink to="/tools">公开工具箱</NuxtLink>

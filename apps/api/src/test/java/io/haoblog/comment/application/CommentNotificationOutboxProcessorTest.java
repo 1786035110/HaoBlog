@@ -12,6 +12,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Pageable;
+import org.springframework.transaction.CannotCreateTransactionException;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -23,6 +24,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
@@ -139,6 +141,14 @@ class CommentNotificationOutboxProcessorTest {
         assertFalse(logs.contains("smtp-password"));
         assertFalse(logs.contains("owner@example.invalid"));
         assertFalse(logs.contains("comment body"));
+    }
+
+    @Test
+    void databaseOutageDoesNotEscapeScheduledPoller() {
+        when(repository.findAvailable(any(), any(), any(), any()))
+                .thenThrow(new CannotCreateTransactionException("synthetic database outage"));
+
+        assertDoesNotThrow(() -> processor(true).processDueBatch());
     }
 
     private CommentNotificationOutboxProcessor processor(boolean enabled) {
