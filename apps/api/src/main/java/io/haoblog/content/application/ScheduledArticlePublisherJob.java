@@ -12,7 +12,7 @@ public class ScheduledArticlePublisherJob {
     }
 
     @Scheduled(
-            fixedDelayString = "${HAOBLOG_CONTENT_SCHEDULING_FIXED_DELAY_MS:60000}",
+            fixedDelayString = "${HAOBLOG_CONTENT_SCHEDULING_FIXED_DELAY_MS:30000}",
             initialDelayString = "${HAOBLOG_CONTENT_SCHEDULING_INITIAL_DELAY_MS:0}"
     )
     public void publishDueArticles() {

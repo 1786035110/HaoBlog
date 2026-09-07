@@ -3,7 +3,7 @@ if (!baseUrl) throw new Error('HAOBLOG_BASE_URL is required');
 
 const base = new URL(baseUrl);
 const request = async (path, headers = {}) => {
-  const response = await fetch(new URL(path, base), { headers });
+  const response = await fetch(new URL(path, base), { headers, signal: AbortSignal.timeout(8000) });
   const text = await response.text();
   return { response, text };
 };
@@ -42,6 +42,11 @@ if (articles.items?.[0]?.slug) {
   for (const marker of [articles.items[0].title, 'meta name="description"', 'property="og:title"', '<article']) {
     if (!articleHtml.includes(marker)) throw new Error(`SSR article HTML is missing: ${marker}`);
   }
+  const first = await request(`/articles/${slug}`);
+  const etag = first.response.headers.get('etag');
+  if (!etag || !first.response.headers.get('vary')?.includes('Save-Data')) throw new Error('SSR article HTML is missing cache validators');
+  const cached = await request(`/articles/${slug}`, { 'If-None-Match': etag });
+  if (cached.response.status !== 304 || cached.text !== '') throw new Error('SSR article If-None-Match did not return an empty 304');
   await expectStatus('/articles/not-published', 404);
 }
 for (const path of ['/actuator', '/actuator/health']) {

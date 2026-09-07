@@ -13,6 +13,7 @@
     "api-client:check": "pnpm --filter @haoblog/api-client check",
     "compose:verify": "node scripts/compose.mjs --env-file infra/compose/.env.ci.example -f infra/compose/compose.prod.yml config --format json | node scripts/verify-compose-resources.mjs -",
     "candidate": "node scripts/local-candidate.mjs",
-    "smoke": "node scripts/smoke-test.mjs"
+    "smoke": "node scripts/smoke-test.mjs",
+    "stage6": "node scripts/stage6-acceptance.mjs"
   }
 }

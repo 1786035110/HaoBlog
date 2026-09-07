@@ -100,7 +100,7 @@ async function setThreeDFlag(request: APIRequestContext, enabled: boolean) {
   const anonymousToken = (await anonymousCsrf.json() as { token: string }).token
   const login = await request.post('/api/v1/admin/session', {
     headers: { 'X-CSRF-TOKEN': anonymousToken },
-    data: { username: 'admin', password: 'password' },
+    data: { username: process.env.HAOBLOG_E2E_ADMIN_USERNAME || 'admin', password: process.env.HAOBLOG_E2E_ADMIN_PASSWORD || 'password' },
   })
   expect(login.ok()).toBe(true)
   const csrf = await request.get('/api/v1/admin/csrf')
@@ -121,7 +121,7 @@ async function setMusicFlag(request: APIRequestContext, enabled: boolean) {
   const anonymousToken = (await anonymousCsrf.json() as { token: string }).token
   const login = await request.post('/api/v1/admin/session', {
     headers: { 'X-CSRF-TOKEN': anonymousToken },
-    data: { username: 'admin', password: 'password' },
+    data: { username: process.env.HAOBLOG_E2E_ADMIN_USERNAME || 'admin', password: process.env.HAOBLOG_E2E_ADMIN_PASSWORD || 'password' },
   })
   expect(login.ok()).toBe(true)
   const csrf = await request.get('/api/v1/admin/csrf')

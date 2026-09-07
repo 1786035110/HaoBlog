@@ -1,5 +1,7 @@
 import { defineConfig, devices } from '@playwright/test'
 
+const tlsSpki = process.env.HAOBLOG_TLS_SPKI
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: false,
@@ -14,5 +16,11 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
   },
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [{
+    name: 'chromium',
+    use: {
+      ...devices['Desktop Chrome'],
+      launchOptions: tlsSpki ? { args: [`--ignore-certificate-errors-spki-list=${tlsSpki}`] } : undefined,
+    },
+  }],
 })

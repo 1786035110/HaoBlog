@@ -16,7 +16,7 @@ async function ensureSecondArticlePage(page: Page) {
   const anonymousToken = (await anonymousCsrf.json() as { token: string }).token
   const login = await page.request.post('/api/v1/admin/session', {
     headers: { 'X-CSRF-TOKEN': anonymousToken },
-    data: { username: 'admin', password: 'password' },
+    data: { username: process.env.HAOBLOG_E2E_ADMIN_USERNAME || 'admin', password: process.env.HAOBLOG_E2E_ADMIN_PASSWORD || 'password' },
   })
   expect(login.ok()).toBe(true)
   const authenticatedCsrf = await page.request.get('/api/v1/admin/csrf')

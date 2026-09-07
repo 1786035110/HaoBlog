@@ -5,6 +5,22 @@ const contentPath = '/_content/articles/s3-08-advanced-markdown'
 
 test.describe('stage 6 iteration 2 public read boundaries', () => {
   test('keeps rendered ETags and Save-Data variants isolated', async ({ request }) => {
+    const html = await request.get(articlePath)
+    expect(html.status()).toBe(200)
+    expect(html.headers().vary).toContain('Save-Data')
+    expect(html.headers()['cache-control']).toContain('must-revalidate')
+    const htmlEtag = html.headers().etag
+    expect(htmlEtag).toBeTruthy()
+    expect(await html.text()).toContain('S3-08 高级 Markdown 固定验收文章')
+
+    const cachedHtml = await request.get(articlePath, { headers: { 'If-None-Match': htmlEtag! } })
+    expect(cachedHtml.status()).toBe(304)
+    expect(await cachedHtml.text()).toBe('')
+
+    const saveDataHtml = await request.get(articlePath, { headers: { 'Save-Data': 'on' } })
+    expect(saveDataHtml.status()).toBe(200)
+    expect(saveDataHtml.headers().etag).not.toBe(htmlEtag)
+
     const normal = await request.get(contentPath)
     expect(normal.status()).toBe(200)
     expect(normal.headers().vary).toContain('Save-Data')

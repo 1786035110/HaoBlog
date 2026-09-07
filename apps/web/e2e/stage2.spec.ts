@@ -4,8 +4,8 @@ const pixel = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQ
 
 async function login(page: Page) {
   await page.goto('/studio')
-  await page.getByLabel('管理员标识').fill('admin')
-  await page.getByLabel('访问密钥').fill('password')
+  await page.getByLabel('管理员标识').fill(process.env.HAOBLOG_E2E_ADMIN_USERNAME || 'admin')
+  await page.getByLabel('访问密钥').fill(process.env.HAOBLOG_E2E_ADMIN_PASSWORD || 'password')
   await page.getByRole('button', { name: '建立安全会话' }).click()
   await expect(page).toHaveURL(/\/studio\/articles$/)
 }
@@ -54,9 +54,9 @@ test.describe.serial('S2-10 content acceptance', () => {
     await page.route('**/api/v1/admin/media/uploads', route => route.fulfill({
       status: 201,
       contentType: 'application/json',
-      body: JSON.stringify({ uploadId: '00000000-0000-0000-0000-000000000001', objectKey: 'media/e2e.png', uploadUrl: 'http://upload.test/put', fields: {}, expiresAt: new Date(Date.now() + 300_000).toISOString() }),
+      body: JSON.stringify({ uploadId: '00000000-0000-0000-0000-000000000001', objectKey: 'media/e2e.png', uploadUrl: 'https://upload.test/put', fields: {}, expiresAt: new Date(Date.now() + 300_000).toISOString() }),
     }))
-    await page.route('http://upload.test/**', route => route.fulfill({ status: 204 }))
+    await page.route('https://upload.test/**', route => route.fulfill({ status: 204 }))
     await page.route('**/api/v1/admin/media/uploads/**', route => route.fulfill({
       status: 200,
       contentType: 'application/json',
